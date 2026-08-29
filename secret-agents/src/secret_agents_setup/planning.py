@@ -28,10 +28,11 @@ def build_install_plan(
     findings: list[Finding] = []
     actions: list[PlannedAction] = []
 
+    sorted_catalog = tuple(sorted(catalog, key=lambda skill: skill.name))
     for projection in sorted(projections, key=lambda item: item.destination.as_posix()):
         projection_findings, projection_actions = _classify_projection(
             projection,
-            tuple(sorted(catalog, key=lambda skill: skill.name)),
+            sorted_catalog,
             backup_conflicts,
             timestamp,
         )
