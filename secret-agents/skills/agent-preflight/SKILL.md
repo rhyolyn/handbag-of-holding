@@ -3,7 +3,7 @@ name: agent-preflight
 description: Pre-flight environment check before executing a batched prompt or complex task. Detects harness (claude/codex/copilot) and OS (win/lin/mac), runs harness-specific checks, and outputs "ready" or a tailored remediation list. No partial passes — every check must pass before you proceed.
 ---
 
-# Ready Player One
+# Agent Preflight
 
 Run this skill before handing a batched prompt to any model. It takes under 10 seconds and has a binary outcome: `ready` or a remediation list. No partial passes — every check must pass before you proceed.
 
