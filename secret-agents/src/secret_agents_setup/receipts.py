@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -32,6 +33,11 @@ _INSTALLATIONS = "installations"
 def receipt_path(home: Path, identity: str) -> Path:
     """Return the canonical receipt path for a root identity under a managed home."""
     return home / _RECEIPT_STORE / _INSTALLATIONS / f"{identity}-v{RECEIPT_SCHEMA_VERSION}.json"
+
+
+def file_sha256(path: Path) -> str:
+    """Return the hex SHA-256 digest of a file's bytes."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def write_receipt_atomic(receipt: InstallReceipt, path: Path) -> None:

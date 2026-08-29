@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 from dataclasses import dataclass
 from enum import StrEnum
@@ -26,8 +25,11 @@ from .models import (
     Projection,
     ReceiptBackup,
     ReceiptProjection,
+    UninstallAction,
+    UninstallActionKind,
+    UninstallPlan,
 )
-from .receipts import RECEIPT_SCHEMA_VERSION, write_receipt_atomic
+from .receipts import RECEIPT_SCHEMA_VERSION, file_sha256, write_receipt_atomic
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 _LINK_ACTIONS = (ActionKind.CREATE_LINK, ActionKind.REPLACE_LINK)
@@ -85,6 +87,24 @@ def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[Fi
     return tuple(findings)
 
 
+def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend, receipt_file: Path) -> ExecutionReport:
+    """Execute an applicable uninstall plan transactionally, rolling back on failure."""
+    if not plan.can_apply:
+        raise ValueError("cannot apply a blocked uninstall plan")
+    if not plan.actions:
+        return ExecutionReport(events=(), receipt=plan.next_receipt, receipt_written=False)
+
+    run = _UninstallRun(backend)
+    try:
+        for action in plan.actions:
+            run.execute(action, plan.next_receipt, receipt_file)
+        receipt_written = any(action.kind is UninstallActionKind.REPLACE_RECEIPT for action in plan.actions)
+        return ExecutionReport(tuple(run.events), plan.next_receipt, receipt_written)
+    except BaseException as original:
+        failures, recoverable = run.rollback()
+        raise ExecutionError(original, failures, recoverable) from original
+
+
 class _FinalValidationFailed(Exception):
     def __init__(self, findings: tuple[Finding, ...]) -> None:
         self.findings = findings
@@ -94,7 +114,8 @@ class _FinalValidationFailed(Exception):
 class _CompensationKind(StrEnum):
     REMOVE_LINK = "remove-link"
     REMOVE_PARENT = "remove-parent"
-    RESTORE_BACKUP = "restore-backup"
+    MAKE_PARENT = "make-parent"
+    MOVE_PATH = "move-path"
     RECREATE_LINK = "recreate-link"
     RESTORE_RECEIPT = "restore-receipt"
     DELETE_RECEIPT = "delete-receipt"
@@ -109,13 +130,62 @@ class _Compensation:
     payload: bytes | None = None
 
 
-class _InstallRun:
-    """Accumulates events and a typed compensation journal for one install."""
+class _Transaction:
+    """Shared event log and typed compensation journal with best-effort rollback."""
 
     def __init__(self, backend: LinkBackend) -> None:
         self.backend = backend
         self.events: list[ExecutionEvent] = []
         self.journal: list[_Compensation] = []
+
+    def rollback(self) -> tuple[tuple[RollbackFailure, ...], tuple[Path, ...]]:
+        failures: list[RollbackFailure] = []
+        recoverable: list[Path] = []
+        for compensation in reversed(self.journal):
+            # Rollback is best-effort: attempt every compensation and surface all
+            # failures through recoverable_paths rather than aborting on the first.
+            try:
+                self._compensate(compensation)
+            except Exception as exc:
+                failures.append(RollbackFailure(compensation.kind.value, compensation.target, str(exc)))
+                recoverable.append(compensation.target)
+        return tuple(failures), tuple(recoverable)
+
+    def _compensate(self, compensation: _Compensation) -> None:
+        kind = compensation.kind
+        if kind is _CompensationKind.REMOVE_LINK:
+            self.backend.remove_link(compensation.target)
+        elif kind is _CompensationKind.REMOVE_PARENT:
+            if compensation.target.exists():
+                compensation.target.rmdir()
+        elif kind is _CompensationKind.MAKE_PARENT:
+            compensation.target.mkdir()
+        elif kind is _CompensationKind.MOVE_PATH:
+            assert compensation.other is not None
+            os.replace(compensation.target, compensation.other)
+        elif kind is _CompensationKind.RECREATE_LINK:
+            assert compensation.other is not None
+            if os.path.lexists(compensation.target):
+                self.backend.remove_link(compensation.target)
+            self._recreate(compensation.other, compensation.target, compensation.is_directory)
+        elif kind is _CompensationKind.RESTORE_RECEIPT:
+            assert compensation.payload is not None
+            compensation.target.write_bytes(compensation.payload)
+        elif kind is _CompensationKind.DELETE_RECEIPT:
+            compensation.target.unlink(missing_ok=True)
+
+    def _recreate(self, source: Path, destination: Path, is_directory: bool) -> None:
+        if is_directory:
+            self.backend.create_directory_link(source, destination)
+        else:
+            self.backend.create_file_link(source, destination)
+
+
+class _InstallRun(_Transaction):
+    """Accumulates events and a typed compensation journal for one install."""
+
+    def __init__(self, backend: LinkBackend) -> None:
+        super().__init__(backend)
         self.backups: list[ReceiptBackup] = []
         self.created_parents: list[Path] = []
 
@@ -139,24 +209,11 @@ class _InstallRun:
         write_receipt_atomic(receipt, receipt_file)
         self.events.append(ExecutionEvent(ExecutionEventKind.WROTE_RECEIPT, receipt_file))
 
-    def rollback(self) -> tuple[tuple[RollbackFailure, ...], tuple[Path, ...]]:
-        failures: list[RollbackFailure] = []
-        recoverable: list[Path] = []
-        for compensation in reversed(self.journal):
-            # Rollback is best-effort: attempt every compensation and surface all
-            # failures through recoverable_paths rather than aborting on the first.
-            try:
-                self._compensate(compensation)
-            except Exception as exc:
-                failures.append(RollbackFailure(compensation.kind.value, compensation.target, str(exc)))
-                recoverable.append(compensation.target)
-        return tuple(failures), tuple(recoverable)
-
     def _backup(self, action: PlannedAction) -> None:
         original, backup = action.source, action.destination
-        digest = hashlib.sha256(original.read_bytes()).hexdigest()
+        digest = file_sha256(original)
         os.replace(original, backup)
-        self.journal.append(_Compensation(_CompensationKind.RESTORE_BACKUP, backup, other=original))
+        self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
         self.backups.append(ReceiptBackup(original=original, backup=backup, sha256=digest))
         self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))
 
@@ -203,32 +260,57 @@ class _InstallRun:
             if emit_event:
                 self.events.append(ExecutionEvent(ExecutionEventKind.CREATED_PARENT, parent))
 
-    def _compensate(self, compensation: _Compensation) -> None:
-        kind = compensation.kind
-        if kind is _CompensationKind.REMOVE_LINK:
-            self.backend.remove_link(compensation.target)
-        elif kind is _CompensationKind.REMOVE_PARENT:
-            if compensation.target.exists():
-                compensation.target.rmdir()
-        elif kind is _CompensationKind.RESTORE_BACKUP:
-            assert compensation.other is not None
-            os.replace(compensation.target, compensation.other)
-        elif kind is _CompensationKind.RECREATE_LINK:
-            assert compensation.other is not None
-            if os.path.lexists(compensation.target):
-                self.backend.remove_link(compensation.target)
-            self._recreate(compensation.other, compensation.target, compensation.is_directory)
-        elif kind is _CompensationKind.RESTORE_RECEIPT:
-            assert compensation.payload is not None
-            compensation.target.write_bytes(compensation.payload)
-        elif kind is _CompensationKind.DELETE_RECEIPT:
-            compensation.target.unlink(missing_ok=True)
 
-    def _recreate(self, source: Path, destination: Path, is_directory: bool) -> None:
-        if is_directory:
-            self.backend.create_directory_link(source, destination)
-        else:
-            self.backend.create_file_link(source, destination)
+class _UninstallRun(_Transaction):
+    """Executes an uninstall plan action-by-action with a reversible journal."""
+
+    def execute(self, action: UninstallAction, next_receipt: InstallReceipt | None, receipt_file: Path) -> None:
+        if action.kind is UninstallActionKind.REMOVE_LINK:
+            self._remove_link(action.destination)
+        elif action.kind is UninstallActionKind.RESTORE_BACKUP:
+            self._restore_backup(action)
+        elif action.kind is UninstallActionKind.REMOVE_EMPTY_PARENT:
+            self._remove_parent(action.destination)
+        elif action.kind is UninstallActionKind.REPLACE_RECEIPT:
+            assert next_receipt is not None
+            self._replace_receipt(next_receipt, receipt_file)
+        elif action.kind is UninstallActionKind.DELETE_RECEIPT:
+            self._delete_receipt(receipt_file)
+        else:  # pragma: no cover - defensive
+            raise ValueError(f"unsupported uninstall action kind: {action.kind}")
+
+    def _remove_link(self, destination: Path) -> None:
+        is_directory = destination.is_dir()
+        old_target = self.backend.resolved_target(destination)
+        self.backend.remove_link(destination)
+        self.journal.append(
+            _Compensation(_CompensationKind.RECREATE_LINK, destination, other=old_target, is_directory=is_directory)
+        )
+        self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_LINK, destination))
+
+    def _restore_backup(self, action: UninstallAction) -> None:
+        assert action.source is not None
+        backup, original = action.source, action.destination
+        os.replace(backup, original)
+        self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, original, other=backup))
+        self.events.append(ExecutionEvent(ExecutionEventKind.RESTORED_BACKUP, original))
+
+    def _remove_parent(self, parent: Path) -> None:
+        parent.rmdir()
+        self.journal.append(_Compensation(_CompensationKind.MAKE_PARENT, parent))
+        self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_EMPTY_PARENT, parent))
+
+    def _replace_receipt(self, receipt: InstallReceipt, receipt_file: Path) -> None:
+        prior = receipt_file.read_bytes()
+        self.journal.append(_Compensation(_CompensationKind.RESTORE_RECEIPT, receipt_file, payload=prior))
+        write_receipt_atomic(receipt, receipt_file)
+        self.events.append(ExecutionEvent(ExecutionEventKind.WROTE_RECEIPT, receipt_file))
+
+    def _delete_receipt(self, receipt_file: Path) -> None:
+        prior = receipt_file.read_bytes()
+        self.journal.append(_Compensation(_CompensationKind.RESTORE_RECEIPT, receipt_file, payload=prior))
+        receipt_file.unlink()
+        self.events.append(ExecutionEvent(ExecutionEventKind.DELETED_RECEIPT, receipt_file))
 
 
 def _has_file_link_action(plan: InstallPlan) -> bool:

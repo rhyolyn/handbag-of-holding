@@ -133,3 +133,47 @@ class ExecutionReport:
     events: tuple[ExecutionEvent, ...]
     receipt: InstallReceipt | None
     receipt_written: bool
+
+
+class UninstallFindingState(StrEnum):
+    NOT_INSTALLED = "not-installed"
+    OWNED = "owned"
+    MISSING_OWNED_LINK = "missing-owned-link"
+    SHARED_RETAINED = "shared-retained"
+    FOREIGN_CONTENT = "foreign-content"
+    BACKUP_MISSING = "backup-missing"
+    BACKUP_MODIFIED = "backup-modified"
+    PARENT_PRESERVED = "parent-preserved"
+
+
+class UninstallActionKind(StrEnum):
+    REMOVE_LINK = "remove-link"
+    RESTORE_BACKUP = "restore-backup"
+    REMOVE_EMPTY_PARENT = "remove-empty-parent"
+    REPLACE_RECEIPT = "replace-receipt"
+    DELETE_RECEIPT = "delete-receipt"
+
+
+@dataclass(frozen=True)
+class UninstallFinding:
+    state: UninstallFindingState
+    path: Path
+    blocking: bool = False
+
+
+@dataclass(frozen=True)
+class UninstallAction:
+    kind: UninstallActionKind
+    source: Path | None
+    destination: Path
+
+
+@dataclass(frozen=True)
+class UninstallPlan:
+    findings: tuple[UninstallFinding, ...]
+    actions: tuple[UninstallAction, ...]
+    next_receipt: InstallReceipt | None
+
+    @property
+    def can_apply(self) -> bool:
+        return not any(finding.blocking for finding in self.findings)
