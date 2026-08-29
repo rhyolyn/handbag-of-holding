@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
@@ -330,13 +330,12 @@ def _build_receipt(
             owned[projection.destination] = projection
 
     for finding in plan.findings:
+        # A CORRECT finding for a per-skill link carries the *parent* skills projection,
+        # so preserve the already-recorded child source/kind and only widen the harness set.
         if finding.state is FindingState.CORRECT and finding.path in owned:
             current = owned[finding.path]
-            owned[finding.path] = ReceiptProjection(
-                destination=finding.path,
-                source=finding.projection.source,
-                kind=finding.projection.kind,
-                harnesses=_merge_harnesses(current.harnesses, finding.projection.harnesses),
+            owned[finding.path] = replace(
+                current, harnesses=_merge_harnesses(current.harnesses, finding.projection.harnesses)
             )
 
     for action in plan.actions:
