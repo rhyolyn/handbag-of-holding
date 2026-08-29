@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Model Routing"
+  short_description: "Refresh model IDs and report stale routing"
+  default_prompt: "Use $update-model-routing to verify and refresh the centralized model routing reference."
