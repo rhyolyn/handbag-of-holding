@@ -1,0 +1,17 @@
+{
+  "updated": "2026-08-06",
+  "note": "Rates in USD per 1M tokens. cache_read = 0.1x input, cache_write = 1.25x input. sonnet-5 is introductory pricing through 2026-08-31; becomes 3.00/15.00 on 2026-09-01.",
+  "models": {
+    "claude-fable-5":    {"input": 10.00, "output": 50.00},
+    "claude-mythos-5":   {"input": 10.00, "output": 50.00},
+    "claude-opus-5":     {"input":  5.00, "output": 25.00},
+    "claude-opus-4-8":   {"input":  5.00, "output": 25.00},
+    "claude-opus-4-7":   {"input":  5.00, "output": 25.00},
+    "claude-opus-4-6":   {"input":  5.00, "output": 25.00},
+    "claude-opus-4-5":   {"input":  5.00, "output": 25.00},
+    "claude-sonnet-5":   {"input":  2.00, "output": 10.00},
+    "claude-sonnet-4-6": {"input":  3.00, "output": 15.00},
+    "claude-sonnet-4-5": {"input":  3.00, "output": 15.00},
+    "claude-haiku-4-5":  {"input":  1.00, "output":  5.00}
+  }
+}

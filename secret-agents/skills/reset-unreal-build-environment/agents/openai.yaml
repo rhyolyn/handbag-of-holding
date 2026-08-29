@@ -1,0 +1,3 @@
+interface:
+  display_name: "Reset Unreal Build Environment"
+  short_description: "Stop Unreal build tools and clean shell state for a fresh build."
