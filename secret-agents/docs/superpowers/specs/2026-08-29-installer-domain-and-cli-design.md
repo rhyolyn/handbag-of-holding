@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-29
 
-**Status:** Awaiting written-spec review
+**Status:** Approved design
 
 **Supersedes:** The tentative vocabulary and CLI directions in `2026-08-29-installer-vocabulary-and-cli-redesign-handoff.md`
 
