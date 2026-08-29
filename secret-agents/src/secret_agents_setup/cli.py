@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
@@ -21,10 +22,12 @@ from .models import (
     ActionKind,
     AgentRoot,
     ExecutionReport,
+    Finding,
     Harness,
     InstallPlan,
     Projection,
     SkillDescriptor,
+    UninstallFinding,
 )
 from .planning import build_install_plan, build_uninstall_plan
 from .receipt_errors import ReceiptError
@@ -53,145 +56,138 @@ def main(
     backend: LinkBackend | None = None,
 ) -> int:
     """Resolve, plan, and apply the requested harness-setup command; return an exit code."""
-    environment = os.environ if environment is None else environment
-    home = Path.home() if home is None else home
-    script_path = Path(__file__) if script_path is None else script_path
-    os_name = os.name if os_name is None else os_name
-    now = _default_now if now is None else now
-
     try:
         args = _build_parser().parse_args(argv)
     except SystemExit as exc:
         return _exit_code_from(exc)
 
     try:
-        root = resolve_agent_root(args.agent_root, environment, script_path)
-        catalog = load_skill_catalog(root.path / "skills")
+        session = _open_session(args, environment, home, script_path, os_name, now, backend)
     except (RootResolutionError, SkillCatalogError) as exc:
         _err(str(exc))
         return ExitCode.INVALID_INPUT
 
-    harnesses = _harness_selection(args.harness)
-    projections = build_projections(root, home, harnesses)
-    _print(f"root {root.path}")
+    _print(f"root {session.root.path}")
     _print(f"harness {args.harness}")
-
     if args.command == "check":
-        return _run_check(projections, catalog, os_name, now)
+        return _run_check(session)
     if args.command == "install":
-        return _run_install(args, projections, catalog, root, home, os_name, now, backend)
-    return _run_uninstall(root, home, harnesses, os_name, backend)
+        return _run_install(session, args)
+    return _run_uninstall(session)
 
 
-def _run_check(
-    projections: tuple[Projection, ...],
-    catalog: tuple[SkillDescriptor, ...],
-    os_name: str,
-    now: Callable[[], datetime],
-) -> int:
-    plan = build_install_plan(projections, catalog, False, now())
-    _print_findings(plan)
-    if os_name == "nt" and _has_file_link_action(plan):
-        _print(_CAPABILITY_NOTE)
+def _run_check(session: _Session) -> int:
+    plan = session.install_plan(backup_conflicts=False)
+    _print_findings(plan.findings)
+    _note_windows_capability(session, plan)
     if plan.can_apply and not plan.actions:
-        _print("result ok")
-        return ExitCode.SUCCESS
-    _print("result blocked")
-    _err("remediation required: run 'install' to create or repair the reported projections")
-    return ExitCode.BLOCKED
+        return _ok()
+    return _blocked("remediation required: run 'install' to create or repair the reported projections")
 
 
-def _run_install(
-    args: argparse.Namespace,
-    projections: tuple[Projection, ...],
-    catalog: tuple[SkillDescriptor, ...],
-    root: AgentRoot,
-    home: Path,
-    os_name: str,
-    now: Callable[[], datetime],
-    backend: LinkBackend | None,
-) -> int:
-    plan = build_install_plan(projections, catalog, args.backup_conflicts, now())
-    _print_findings(plan)
+def _run_install(session: _Session, args: argparse.Namespace) -> int:
+    plan = session.install_plan(backup_conflicts=args.backup_conflicts)
+    _print_findings(plan.findings)
 
     if args.dry_run:
-        if os_name == "nt" and _has_file_link_action(plan):
-            _print(_CAPABILITY_NOTE)
-        if plan.can_apply:
-            _print("result ok")
-            return ExitCode.SUCCESS
-        _print("result blocked")
-        return ExitCode.BLOCKED
-
+        _note_windows_capability(session, plan)
+        return _ok() if plan.can_apply else _silent_blocked()
     if not plan.can_apply:
-        _print("result blocked")
-        _err("install plan has blocking conditions; no changes were made")
-        return ExitCode.BLOCKED
+        return _blocked("install plan has blocking conditions; no changes were made")
+    return _apply_install(session, plan)
 
-    backend = backend or backend_for(os_name)
-    receipt_file = receipt_path(home, root.identity)
-    home.mkdir(parents=True, exist_ok=True)
+
+def _run_uninstall(session: _Session) -> int:
+    receipt_file = session.receipt_file
     try:
-        existing = load_receipt(receipt_file, expected_identity=root.identity, home=home)
+        receipt = load_receipt(receipt_file, expected_identity=session.identity, home=session.home)
     except ReceiptError as exc:
-        _print("result blocked")
-        _err(str(exc))
-        return ExitCode.BLOCKED
+        return _blocked(str(exc))
+
+    plan = build_uninstall_plan(
+        receipt, session.harnesses, session.link_backend, expected_identity=session.identity, home=session.home
+    )
+    _print_findings(plan.findings)
+    if not plan.can_apply:
+        return _blocked("uninstall plan has blocking conditions; no changes were made")
 
     try:
-        report = apply_install_plan(plan, root, home, backend, receipt_file, existing)
-    except (SymlinkPrivilegeRequired, SymlinkUnsupported) as exc:
-        _print("result blocked")
-        _err(str(exc))
-        return ExitCode.BLOCKED
+        report = apply_uninstall_plan(plan, session.link_backend, receipt_file)
     except ExecutionError as exc:
-        _print("result failed")
-        _err(str(exc))
-        return ExitCode.EXECUTION_FAILED
-
+        return _failed(str(exc))
     _print_events(report)
-    _print("result ok")
-    return ExitCode.SUCCESS
+    return _not_installed() if _is_noop(report) else _ok()
 
 
-def _run_uninstall(
-    root: AgentRoot,
-    home: Path,
-    harnesses: tuple[Harness, ...],
-    os_name: str,
+def _apply_install(session: _Session, plan: InstallPlan) -> int:
+    session.home.mkdir(parents=True, exist_ok=True)
+    try:
+        existing = load_receipt(session.receipt_file, expected_identity=session.identity, home=session.home)
+        report = apply_install_plan(
+            plan, session.root, session.home, session.link_backend, session.receipt_file, existing
+        )
+    except (ReceiptError, SymlinkPrivilegeRequired, SymlinkUnsupported) as exc:
+        return _blocked(str(exc))
+    except ExecutionError as exc:
+        return _failed(str(exc))
+    _print_events(report)
+    return _ok()
+
+
+@dataclass(frozen=True)
+class _Session:
+    """The resolved inputs every command shares, gathered once at startup."""
+
+    root: AgentRoot
+    catalog: tuple[SkillDescriptor, ...]
+    projections: tuple[Projection, ...]
+    harnesses: tuple[Harness, ...]
+    home: Path
+    os_name: str
+    now: Callable[[], datetime]
+    backend: LinkBackend | None
+
+    @property
+    def identity(self) -> str:
+        return self.root.identity
+
+    @property
+    def receipt_file(self) -> Path:
+        return receipt_path(self.home, self.identity)
+
+    @property
+    def link_backend(self) -> LinkBackend:
+        return self.backend or backend_for(self.os_name)
+
+    def install_plan(self, *, backup_conflicts: bool) -> InstallPlan:
+        return build_install_plan(self.projections, self.catalog, backup_conflicts, self.now())
+
+
+def _open_session(
+    args: argparse.Namespace,
+    environment: Mapping[str, str] | None,
+    home: Path | None,
+    script_path: Path | None,
+    os_name: str | None,
+    now: Callable[[], datetime] | None,
     backend: LinkBackend | None,
-) -> int:
-    backend = backend or backend_for(os_name)
-    receipt_file = receipt_path(home, root.identity)
-    try:
-        receipt = load_receipt(receipt_file, expected_identity=root.identity, home=home)
-    except ReceiptError as exc:
-        _print("result blocked")
-        _err(str(exc))
-        return ExitCode.BLOCKED
-
-    plan = build_uninstall_plan(receipt, harnesses, backend, expected_identity=root.identity, home=home)
-    for finding in plan.findings:
-        _print(f"finding {finding.state.value} {finding.path}")
-
-    if not plan.can_apply:
-        _print("result blocked")
-        _err("uninstall plan has blocking conditions; no changes were made")
-        return ExitCode.BLOCKED
-
-    try:
-        report = apply_uninstall_plan(plan, backend, receipt_file)
-    except ExecutionError as exc:
-        _print("result failed")
-        _err(str(exc))
-        return ExitCode.EXECUTION_FAILED
-
-    _print_events(report)
-    if report.receipt is None and not report.events:
-        _print("result not-installed")
-    else:
-        _print("result ok")
-    return ExitCode.SUCCESS
+) -> _Session:
+    environment = os.environ if environment is None else environment
+    home = Path.home() if home is None else home
+    script_path = Path(__file__) if script_path is None else script_path
+    root = resolve_agent_root(args.agent_root, environment, script_path)
+    catalog = load_skill_catalog(root.path / "skills")
+    harnesses = _harness_selection(args.harness)
+    return _Session(
+        root=root,
+        catalog=catalog,
+        projections=build_projections(root, home, harnesses),
+        harnesses=harnesses,
+        home=home,
+        os_name=os.name if os_name is None else os_name,
+        now=_default_now if now is None else now,
+        backend=backend,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -213,19 +209,52 @@ def _harness_selection(selector: str) -> tuple[Harness, ...]:
     return (Harness(selector),)
 
 
-def _has_file_link_action(plan: InstallPlan) -> bool:
+def _note_windows_capability(session: _Session, plan: InstallPlan) -> None:
     link_actions = (ActionKind.CREATE_LINK, ActionKind.REPLACE_LINK)
-    return any(action.kind in link_actions and not action.is_directory for action in plan.actions)
+    needs_file_link = any(action.kind in link_actions and not action.is_directory for action in plan.actions)
+    if session.os_name == "nt" and needs_file_link:
+        _print(_CAPABILITY_NOTE)
 
 
-def _print_findings(plan: InstallPlan) -> None:
-    for finding in plan.findings:
+def _is_noop(report: ExecutionReport) -> bool:
+    return report.receipt is None and not report.events
+
+
+def _print_findings(findings: Sequence[Finding | UninstallFinding]) -> None:
+    for finding in findings:
         _print(f"finding {finding.state.value} {finding.path}")
 
 
 def _print_events(report: ExecutionReport) -> None:
     for event in report.events:
         _print(f"did {event.kind.value} {event.path}")
+
+
+def _ok() -> int:
+    _print("result ok")
+    return ExitCode.SUCCESS
+
+
+def _not_installed() -> int:
+    _print("result not-installed")
+    return ExitCode.SUCCESS
+
+
+def _blocked(reason: str) -> int:
+    _print("result blocked")
+    _err(reason)
+    return ExitCode.BLOCKED
+
+
+def _silent_blocked() -> int:
+    _print("result blocked")
+    return ExitCode.BLOCKED
+
+
+def _failed(reason: str) -> int:
+    _print("result failed")
+    _err(reason)
+    return ExitCode.EXECUTION_FAILED
 
 
 def _exit_code_from(exc: SystemExit) -> int:
