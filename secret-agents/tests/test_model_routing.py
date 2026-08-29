@@ -18,9 +18,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 REFERENCE_PATH = ROOT / "model-routing.json"
-SCRIPT_PATH = (
-    ROOT / "skills" / "update-model-routing" / "scripts" / "check_staleness.py"
-)
+SCRIPT_PATH = ROOT / "skills" / "update-model-routing" / "scripts" / "check_staleness.py"
 
 # The authoritative bootstrap content from the plan's Centralized Model Routing Reference.
 EXPECTED_PROFILES = {

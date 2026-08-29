@@ -57,9 +57,7 @@ def _validate_sources(sources: object) -> None:
     for provider in REQUIRED_PROVIDERS:
         value = _require_field(mapping, provider, "sources")
         if not isinstance(value, str) or not value.strip():
-            raise InvalidReferenceError(
-                f"sources.{provider}: expected a non-empty URL string"
-            )
+            raise InvalidReferenceError(f"sources.{provider}: expected a non-empty URL string")
 
 
 def _validate_profiles(profiles: object) -> None:
@@ -77,9 +75,7 @@ def _validate_profiles(profiles: object) -> None:
             )
             model = _require_field(entry, "model", provider_path)
             if not isinstance(model, str) or not model.strip():
-                raise InvalidReferenceError(
-                    f"{provider_path}.model: expected a non-empty string"
-                )
+                raise InvalidReferenceError(f"{provider_path}.model: expected a non-empty string")
 
 
 def _parse_last_verified(value: object) -> date:
@@ -108,12 +104,8 @@ def check_staleness(reference_path: Path, today: date) -> StalenessReport:
         raise InvalidReferenceError(f"{reference_path}: invalid JSON ({exc})") from exc
 
     document = _require_mapping(data, "<root>")
-    last_verified = _parse_last_verified(
-        _require_field(document, "last_verified", "<root>")
-    )
-    stale_after_days = _parse_threshold(
-        _require_field(document, "stale_after_days", "<root>")
-    )
+    last_verified = _parse_last_verified(_require_field(document, "last_verified", "<root>"))
+    stale_after_days = _parse_threshold(_require_field(document, "stale_after_days", "<root>"))
     _validate_sources(_require_field(document, "sources", "<root>"))
     _validate_profiles(_require_field(document, "profiles", "<root>"))
 
@@ -145,9 +137,7 @@ def _parse_today(value: str | None) -> date:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Report model-routing reference staleness."
-    )
+    parser = argparse.ArgumentParser(description="Report model-routing reference staleness.")
     parser.add_argument(
         "--reference",
         type=Path,
