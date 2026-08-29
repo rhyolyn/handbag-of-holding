@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worky Agent Skills</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.25rem;
+         color: #1f2328; line-height: 1.55; }
+  h1, h2, h3 { line-height: 1.25; }
+  h1 { border-bottom: 2px solid #d1d9e0; padding-bottom: .3em; }
+  h2 { border-bottom: 1px solid #d1d9e0; padding-bottom: .3em; margin-top: 2em; }
+  h3 { margin-top: 1.6em; }
+  a { color: #0969da; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { background: #f6f8fa; border-radius: 4px; padding: .15em .35em;
+          font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .9em; }
+  pre code { display: block; padding: .8em; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; display: block; overflow-x: auto; }
+  th, td { border: 1px solid #d1d9e0; padding: .4em .6em; text-align: left; vertical-align: top; }
+  th { background: #f6f8fa; }
+  blockquote { border-left: 4px solid #d1d9e0; margin: 1em 0; padding: 0 1em; color: #59636e; }
+  hr { border: none; border-top: 1px solid #d1d9e0; margin: 2.5em 0; }
+  em { color: #444c56; }
+</style>
+</head>
+<body>
+<h1 id="worky-agent-skills">Worky Agent Skills</h1>
+<p>The shared, harness-portable skill set for this vault. Each skill is one directory under <code>&lt;agent-root&gt;\skills\</code> with a top-level <code>SKILL.md</code> following the open Agent Skills structure; harnesses discover them through junctions, never copies (see <code>runbooks\harness-setup\harness-setup.md</code>). This README explains how and when to use each skill, how to call it from Claude, Codex, and Copilot, and gives an engineering review of each — plus a cross-cutting look at harness coverage, gaps, and token-costly mistakes.</p>
+<p><em>Generated 2026-08-28 by <code>update-skills-readme</code>. Markdown is the source of truth; <code>README.html</code> is rendered from it — regenerate with <code>/update-skills-readme</code>, don't hand-edit the HTML.</em></p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#how-skills-are-wired-and-invoked">How skills are wired and invoked</a></li>
+<li><a href="#skill-inventory">Skill inventory</a></li>
+<li>Skills</li>
+<li><a href="#architecture-guards">architecture-guards</a></li>
+<li><a href="#jira-ht">jira-ht</a></li>
+<li><a href="#jira-human-ticket-create">jira-human-ticket-create</a></li>
+<li><a href="#python-quality-gate">python-quality-gate</a></li>
+<li><a href="#python-tdd-cycle">python-tdd-cycle</a></li>
+<li><a href="#ready-player-one">ready-player-one</a></li>
+<li><a href="#report-rollup">report-rollup</a></li>
+<li><a href="#reset-unreal-build-environment">reset-unreal-build-environment</a></li>
+<li><a href="#smart-plan">smart-plan</a></li>
+<li><a href="#status-report-create">status-report-create</a></li>
+<li><a href="#ugs-pcb-release">ugs-pcb-release</a></li>
+<li><a href="#update-claude-pricing-doc">update-claude-pricing-doc</a></li>
+<li><a href="#update-model-routing">update-model-routing</a></li>
+<li><a href="#update-skills-readme">update-skills-readme</a></li>
+<li><a href="#work-receipt-create">work-receipt-create</a></li>
+<li><a href="#architects-overview">Architect's overview</a></li>
+<li><a href="#harness-coverage-matrix">Harness coverage matrix</a></li>
+<li><a href="#skill-gaps">Skill gaps</a></li>
+<li><a href="#token-costly-mistakes">Token-costly mistakes</a></li>
+<li><a href="#maintaining-this-document">Maintaining this document</a></li>
+</ul>
+<h2 id="how-skills-are-wired-and-invoked">How skills are wired and invoked</h2>
+<p>One skill body, three call conventions. The content is identical everywhere because harness integration is always a symlink/junction back to <code>&lt;agent-root&gt;</code> (<code>C:\git\worky\Agent</code> or <code>D:\git\worky\Agent</code> depending on machine).</p>
+<h3 id="claude-claude-code">Claude (Claude Code)</h3>
+<ul>
+<li><strong>Discovery:</strong> <code>%USERPROFILE%\.claude\skills\</code> is a whole-directory junction to <code>&lt;agent-root&gt;\skills\</code> (verified live on this machine 2026-07-12). New skills appear automatically. Shared guidance links via <code>%USERPROFILE%\.claude\AGENTS.md</code>.</li>
+<li><strong>Call formats:</strong></li>
+<li><em>Automatic</em> — Claude matches the task against each skill's <code>description:</code> frontmatter and invokes it through the built-in Skill tool. This is the primary path; write descriptions as triggers.</li>
+<li><em>Slash command</em> — <code>/skill-name args</code>, e.g. <code>/report-rollup month 2026-06</code>. Arguments are free text passed to the skill.</li>
+<li><em>Explicit mention</em> — <code>@skill &lt;name&gt;</code> in a prompt. This is the vault's cross-harness convention (AGENTS.md § Environment): if the name is missing from the active skill list, the agent must check <code>&lt;agent-root&gt;\skills\&lt;name&gt;\SKILL.md</code> before reporting it unavailable.</li>
+<li><strong>Verify wiring:</strong> ask "what revision of the shared guidance is loaded?" — a correct AGENTS.md revision date proves the adapter works.</li>
+</ul>
+<h3 id="codex">Codex</h3>
+<ul>
+<li><strong>Discovery:</strong> <code>%USERPROFILE%\.agents\skills\</code> is a junction to <code>&lt;agent-root&gt;\skills\</code> (verified live on this machine 2026-07-12); per-skill links under <code>%USERPROFILE%\.codex\skills\&lt;name&gt;</code> also work. Shared guidance links via <code>%USERPROFILE%\.codex\AGENTS.md</code>. Restart Codex after adding links.</li>
+<li><strong>Call formats:</strong> no slash-command surface — name the skill in the prompt using the <code>@skill &lt;name&gt;</code> convention (e.g. <code>@skill report-rollup month 2026-06</code>) or describe the task and let description matching fire. The AGENTS.md fallback rule applies: an explicitly requested skill missing from the active list means "read <code>&lt;agent-root&gt;\skills\&lt;name&gt;\SKILL.md</code> and follow it", not "unavailable".</li>
+<li><strong>Trust note:</strong> Codex stops on approval prompts unless the project is trusted in <code>%USERPROFILE%\.codex\config.toml</code> (<code>trust_level = "trusted"</code>); ready-player-one's Check 2 verifies this.</li>
+</ul>
+<h3 id="copilot">Copilot</h3>
+<ul>
+<li><strong>Discovery:</strong> not wired yet — <code>harness-setup.md</code> lists the Copilot section as <em>"Setup path TBD."</em> No skill in this set is natively reachable from Copilot today.</li>
+<li><strong>Interim call format:</strong> reference the file explicitly — in VS Code Copilot Chat, attach <code>Agent\skills\&lt;name&gt;\SKILL.md</code> (<code>#file:</code> or paste the path) and instruct: "Read this skill and follow it exactly for <task>."</li>
+<li><strong>Recommended fix:</strong> add a repo-level <code>.github/copilot-instructions.md</code> pointing at <code>AGENTS.md</code> and the skills directory, then record the adapter in <code>harness-setup.md</code>.</li>
+</ul>
+<h2 id="skill-inventory">Skill inventory</h2>
+<p>Model column: pick the cheapest model that does the job — recommendations marked § come from the skill's own text; the rest are architect suggestions.</p>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>Kind</th>
+<th>Parameters</th>
+<th>Model (Claude / Codex)</th>
+<th>One-liner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#architecture-guards">architecture-guards</a></td>
+<td>reference</td>
+<td>none</td>
+<td>Sonnet / medium</td>
+<td>Turn architecture rules into CI-enforced checks</td>
+</tr>
+<tr>
+<td><a href="#jira-ht">jira-ht</a></td>
+<td>alias</td>
+<td>ticket-create arguments</td>
+<td>Sonnet / medium</td>
+<td>Short alias for creating human-developer Jira tickets</td>
+</tr>
+<tr>
+<td><a href="#jira-human-ticket-create">jira-human-ticket-create</a></td>
+<td>workflow</td>
+<td><code>help</code> or ticket details</td>
+<td>Sonnet / medium</td>
+<td>Create structured Jira tickets for human developers</td>
+</tr>
+<tr>
+<td><a href="#python-quality-gate">python-quality-gate</a></td>
+<td>gate</td>
+<td>none</td>
+<td>Haiku / low</td>
+<td>mypy → ruff check → format check → pytest, all clean before commit</td>
+</tr>
+<tr>
+<td><a href="#python-tdd-cycle">python-tdd-cycle</a></td>
+<td>process</td>
+<td>none</td>
+<td>Sonnet / medium</td>
+<td>Red-green loop with observed failure before implementation</td>
+</tr>
+<tr>
+<td><a href="#ready-player-one">ready-player-one</a></td>
+<td>preflight</td>
+<td>none (auto-detects)</td>
+<td>Haiku / o4-mini §</td>
+<td>Binary ready/NOT-READY check before batched prompts</td>
+</tr>
+<tr>
+<td><a href="#report-rollup">report-rollup</a></td>
+<td>generator</td>
+<td><code>month YYYY-MM</code> | <code>year YYYY</code> (required)</td>
+<td>Sonnet / medium</td>
+<td>Roll status reports into monthly or annual documents</td>
+</tr>
+<tr>
+<td><a href="#reset-unreal-build-environment">reset-unreal-build-environment</a></td>
+<td>script wrapper</td>
+<td>script flags (see section)</td>
+<td>Haiku / low</td>
+<td>Stop Unreal build processes and clean shell env on Windows</td>
+</tr>
+<tr>
+<td><a href="#smart-plan">smart-plan</a></td>
+<td>planning workflow</td>
+<td>none</td>
+<td>Sonnet / medium</td>
+<td>Make resumable, model-routed execution plans</td>
+</tr>
+<tr>
+<td><a href="#status-report-create">status-report-create</a></td>
+<td>generator</td>
+<td><code>window &lt;start&gt;..&lt;end&gt;</code> (optional)</td>
+<td>Sonnet / medium</td>
+<td>Tue/Thu status report compiled from work receipts</td>
+</tr>
+<tr>
+<td><a href="#ugs-pcb-release">ugs-pcb-release</a></td>
+<td>domain workflow</td>
+<td>profile overrides</td>
+<td>Opus+ / high</td>
+<td>Build, validate, and submit UGS precompiled editor binaries</td>
+</tr>
+<tr>
+<td><a href="#update-claude-pricing-doc">update-claude-pricing-doc</a></td>
+<td>utility</td>
+<td>none</td>
+<td>Haiku § / —</td>
+<td>Refresh the cached Claude pricing JSON</td>
+</tr>
+<tr>
+<td><a href="#update-model-routing">update-model-routing</a></td>
+<td>utility</td>
+<td>none</td>
+<td>Sonnet / medium</td>
+<td>Check or refresh centralized model-routing metadata</td>
+</tr>
+<tr>
+<td><a href="#update-skills-readme">update-skills-readme</a></td>
+<td>meta</td>
+<td><code>review</code> (optional)</td>
+<td>Sonnet; frontier with <code>review</code></td>
+<td>Regenerate this README (MD + HTML) from the skill set</td>
+</tr>
+<tr>
+<td><a href="#work-receipt-create">work-receipt-create</a></td>
+<td>generator</td>
+<td>verbatim-text option</td>
+<td>Sonnet § / low §</td>
+<td>Work receipt with cost analysis and efficiency coaching</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="architecture-guards">architecture-guards</h3>
+<p><strong>What it does.</strong> Reference recipes for converting architectural rules — layer boundaries, import direction, deleted-module bans, size tripwires — into machine-checked CI guards. Includes a Python AST import scanner, Unreal <code>.Build.cs</code> dependency patterns, TypeScript eslint/dependency-cruiser rules, and the four properties every qualifying guard must have (runs in CI, named for its rule, planted-violation test, fails loudly on empty scan).</p>
+<p><strong>When to use.</strong> The moment an architectural rule exists only in prose, review feedback, or comments. Per AGENTS.md § Enforcement: a rule that is not machine-checked does not exist across sessions — establish rule and check in the same change. Not for one-off style preferences (linter config) or judgment calls (review checklists).</p>
+<p><strong>Parameters.</strong> None — it's a knowledge skill; you bring the rule, it brings the recipe.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>Use @skill architecture-guards — enforce "views never import stores" as a pytest guard.</code>
+- Codex: <code>@skill architecture-guards: add an import-direction guard for src/views with a planted-violation test.</code>
+- Copilot: attach <code>Agent\skills\architecture-guards\SKILL.md</code> → "Follow this to add a layer-boundary test for views→stores."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> The four-property guard definition is genuinely excellent engineering doctrine — especially "fails loudly when it scans nothing," which kills the most expensive kind of green build. The planted-violation pattern means guards are themselves tested. Maps 1:1 onto AGENTS.md § Enforcement, so skill and standing rules can't drift apart. The per-ecosystem quick-reference table gives instant altitude before diving in.
+- <em>Weaknesses:</em> The reference scanner exists only as an inline code block — every use re-types ~30 lines into a new repo instead of copying a shipped file. No CI-wiring example (the recipes end at the test; the "runs in CI" property is asserted, not demonstrated). Python gets a full implementation; Unreal and TS get prose.
+- <em>Improvements:</em> Ship the scanner as <code>scripts/import_scanner.py</code> in the skill directory. Add one minimal CI snippet per ecosystem. Cross-link python-quality-gate as the local runner of these guards. Ironic gap worth closing: the skill set itself has no machine-checked guards (see <a href="#skill-gaps">Skill gaps</a>).</p>
+<h3 id="jira-ht">jira-ht</h3>
+<p><strong>What it does.</strong> Provides a short alias for the jira-human-ticket-create workflow, forwarding every argument to that canonical skill.</p>
+<p><strong>When to use.</strong> When a requester invokes <code>@skill jira-ht</code> to create a Jira ticket for a human developer.</p>
+<p><strong>Parameters.</strong> The same arguments accepted by jira-human-ticket-create.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>@skill jira-ht create Jira ticket titled "Create a Perforce stream for Unreal 5.8.1"</code>
+- Codex: <code>@skill jira-ht create Jira ticket titled "Document build recovery"</code>
+- Copilot: attach <code>Agent\skills\jira-ht\SKILL.md</code> → "Use this alias to create the requested Jira ticket."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
+<h3 id="jira-human-ticket-create">jira-human-ticket-create</h3>
+<p><strong>What it does.</strong> Creates Jira issues for human developers from the vault's Engineering or Lightweight intake template, applying safe defaults and producing a paste-ready fallback when Jira access is unavailable.</p>
+<p><strong>When to use.</strong> When creating a human-developer Jira ticket from a title and partial technical context.</p>
+<p><strong>Parameters.</strong> <code>help</code> for usage, or ticket details including title, why, work, and measurable done criteria.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>@skill jira-human-ticket-create create Jira ticket titled "Create a Perforce stream for Unreal 5.8.1"</code>
+- Codex: <code>@skill jira-human-ticket-create create Jira ticket titled "Fix CI package discovery"</code>
+- Copilot: attach <code>Agent\skills\jira-human-ticket-create\SKILL.md</code> → "Create a Task using the Engineering template."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
+<h3 id="python-quality-gate">python-quality-gate</h3>
+<p><strong>What it does.</strong> Runs the four-tool gate in strict order — <code>mypy</code>, <code>ruff check</code>, <code>ruff format --check</code>, <code>pytest</code> — and requires all four to exit clean before any commit. Includes exact pass-criteria strings, a never-suppress policy (<code># type: ignore</code> / <code># noqa</code> need explicit user approval), and observed fix patterns for common mypy/ruff findings.</p>
+<p><strong>When to use.</strong> Before committing any Python change; after every violation fix (re-run the full gate, not just the offending tool); as a final pre-PR check.</p>
+<p><strong>Parameters.</strong> None. Substitute <code>uv run</code> for <code>python -m</code> when uv is healthy.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>Run @skill python-quality-gate before committing.</code> (also auto-triggers on Python commit intent)
+- Codex: <code>@skill python-quality-gate — run the gate and fix violations, no suppressions.</code>
+- Copilot: attach the SKILL.md → "Run these four commands in order and fix everything they flag."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> Ordering (types → lint → format → tests) fails fast on the cheapest tools first. Exact expected output strings prevent "close enough" passes. The never-suppress policy with a surface-to-user escape hatch is the right default; the documented project fix patterns (B008 sentinel, <code>findChild</code> assertion) save real debugging time.
+- <em>Weaknesses:</em> Hard-codes the <code>src/ tests/</code> layout, and the <code>ugs.exe</code> lock advice is project baggage in a shared skill — AGENTS.md's own admission test says repo-specific conventions belong in that repo's AGENTS.md. No mention of the write-mode <code>ruff format</code> fast path (fix then verify with <code>--check</code>). Assumes mypy is configured; silent no-op if a repo lacks <code>[tool.mypy]</code>.
+- <em>Improvements:</em> Read paths from <code>pyproject.toml</code> or accept them as an argument. Move the ugs.exe fallback note to the ugs repo. Add "if format check fails: run <code>ruff format</code>, then re-run the full gate."</p>
+<h3 id="python-tdd-cycle">python-tdd-cycle</h3>
+<p><strong>What it does.</strong> Enforces the red-green loop for pytest projects: write the failing test, <em>observe</em> it fail, implement the minimum, observe green, then run the full suite before committing. Defines "done" as tests that were seen failing before implementation, with no skips or suppressions.</p>
+<p><strong>When to use.</strong> Every new feature or fix in a pytest-based Python project. Explicitly does not cover the commit itself.</p>
+<p><strong>Parameters.</strong> None.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>Implement the window-parsing fix with @skill python-tdd-cycle.</code>
+- Codex: <code>@skill python-tdd-cycle — add receipt-date boundary handling, tests first.</code>
+- Copilot: attach the SKILL.md → "Follow this loop for the new parser: failing test first, show me the red run."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> "Confirm red" is the step every agent (and human) skips, and this skill makes it non-negotiable — a test that passes before implementation is declared wrong, which catches tautological tests. Narrow-file-then-full-suite laddering keeps iteration fast. Clean scope boundary with the commit workflow.
+- <em>Weaknesses:</em> Same <code>ugs.exe</code> project leak as the quality gate. No guidance for the place TDD actually dies: hard-to-test seams (Qt widgets, filesystem, subprocess). On Claude it overlaps <code>superpowers:test-driven-development</code> with no statement of precedence — two skills claiming the same loop invites inconsistent behavior.
+- <em>Improvements:</em> Add a short seams section (fake the boundary, test the logic). Declare precedence explicitly ("on Claude, superpowers TDD governs process; this skill supplies the pytest specifics"). Move the Windows/uv note to the ugs repo's AGENTS.md.</p>
+<h3 id="ready-player-one">ready-player-one</h3>
+<p><strong>What it does.</strong> Pre-flight environment check before executing a batched prompt: detects harness (claude/codex/copilot) and OS, reports the active model against a cost-optimal recommendation, then runs three gates — skill visibility, execution trust (permission mode / project trust), and uv health + no locked build executables. Binary outcome: <code>ready</code> or <code>NOT READY</code> with a numbered, OS- and harness-specific remediation list. Strict output contract (blocks reproduced exactly) so headless logs are diffable.</p>
+<p><strong>When to use.</strong> Before handing any batched prompt or long autonomous task to a model — it front-loads the failures that would otherwise stall an unattended run.</p>
+<p><strong>Parameters.</strong> None; harness, OS, and model are auto-detected. Check 3b derives the project executable name from the working directory — override manually when the artifact name differs.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>/ready-player-one</code> (then paste the batched prompt once it prints <code>ready</code>)
+- Codex: <code>@skill ready-player-one — preflight before this batch.</code>
+- Copilot: attach the SKILL.md → "Run this preflight and print the summary block."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> The strict output contract is the standout design decision — deterministic, diffable, no model editorializing. Remediation is specific (exact file, exact key, exact command) per OS <em>and</em> harness. The model-recommendation step is cost-awareness built into the process. Placeholders for unknown Copilot mechanics are honest rather than invented.
+- <em>Weaknesses:</em> Field-tested 2026-07-12 and two cracks showed. (1) Check 2 demands the literal key in both project and global settings, but Claude settings inherit — global <code>dontAsk</code> with no project file is effectively <code>dontAsk</code>, yet the check fails; worse, the auto-mode classifier <em>denies agents writing that key</em> (self-escalation guard), so the skill prescribes a remediation an agent cannot perform and then forbids proceeding: an autonomous dead-end. (2) The "restart on haiku" advice is wrong when the preflight runs inline before a complex batch in the same session — a restart would throw away the correctly-chosen model. Also: the uv check runs even in repos where uv is irrelevant, and the dir-name exe heuristic is a permanent no-op in non-build repos (<code>worky.exe</code> will never exist).
+- <em>Improvements:</em> Test effective permission mode (project value <em>or</em> inherited global) instead of file literals, and mark Check-2 remediation "human-only: classifier blocks agent self-service." Scope the model warning to standalone checklist runs. Gate Check 3 on project type (presence of <code>pyproject.toml</code>/<code>uv.lock</code>; build-artifact check only where a build exists). Fill the Copilot placeholders when the adapter lands.</p>
+<h3 id="report-rollup">report-rollup</h3>
+<p><strong>What it does.</strong> Rolls status reports up into a monthly report (<code>monthly-YYYY-MM.md</code>) or an annual performance-review document (<code>Reviews\annual-YYYY.md</code>). Selects sources by frontmatter <code>window_end</code>, prefers monthly reports when building the annual, flags <code>status: draft</code> sources in a callout, writes fixed section structures per audience, appends a cost-ledger row, and prints an exact two-line output for headless log capture.</p>
+<p><strong>When to use.</strong> Month-end rollup, annual review prep, or when the scheduled monthly-rollup run fires.</p>
+<p><strong>Parameters.</strong> Exactly one, required — malformed or missing prints usage and stops:</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Window</th>
+<th>Audience</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>month YYYY-MM</code></td>
+<td>1st 00:00 → next 1st 00:00 (Pacific)</td>
+<td>Self + manager monthly summary</td>
+</tr>
+<tr>
+<td><code>year YYYY</code></td>
+<td>Jan 1 → Jan 1 (Pacific)</td>
+<td>Performance review — impact framing, not a log</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples.</strong>
+- Claude: <code>/report-rollup month 2026-06</code> · <code>/report-rollup year 2026</code>
+- Codex: <code>@skill report-rollup month 2026-06</code>
+- Copilot: attach the SKILL.md → "Run this with argument <code>month 2026-06</code>."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> Idempotency (existing output → skip, never overwrite) makes scheduled re-fires safe. Draft flagging propagates data-quality state instead of laundering it. The audience split is real editorial guidance — the annual's "impact, scope, growth narratives, not a chronological log" is exactly what performance-review material needs. Empty window still writes a document: absence of work is information.
+- <em>Weaknesses:</em> Pacific offsets are hand-managed prose ("-07:00 PDT, -08:00 PST") — a DST-transition bug waiting for a model to make it. The cost-ledger header contract is duplicated across three skills (this, status-report-create, work-receipt-create); a header change is a three-file edit today. Window math and source-selection rules have no executable test — precisely the "rule in prose" the vault's own architecture-guards skill warns about. No model recommendation despite being a scheduled, cost-sensitive run.
+- <em>Improvements:</em> Extract a shared <code>scripts/</code> helper (window computation + ledger append) with pytest coverage, used by both report skills. Add a model line ("Sonnet-class; judgment is summarization"). Document the rerun-after-bad-output path (delete the file, rerun) since idempotency intentionally blocks regeneration.</p>
+<h3 id="reset-unreal-build-environment">reset-unreal-build-environment</h3>
+<p><strong>What it does.</strong> Resets a Windows Unreal build shell before a fresh build via a bundled PowerShell helper: stops process trees seeded by Build.bat/RunUAT/UBT/UAT/UBA/MSBuild nodes, clears Visual Studio/MSBuild/.NET/UAT/<code>uebp_*</code> environment variables, sets <code>MSBUILDDISABLENODEREUSE=1</code> — while deliberately preserving Perforce variables and leaving the editor alive unless told otherwise.</p>
+<p><strong>When to use.</strong> Before starting any fresh Unreal build on Windows, especially after a failed or interrupted build left workers, MSBuild nodes, or poisoned env vars behind.</p>
+<p><strong>Parameters</strong> (script flags):</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-Root &lt;path&gt;</code></td>
+<td>Scope to one Unreal root — prefer whenever possible</td>
+</tr>
+<tr>
+<td><code>-AllWorkspaces</code></td>
+<td>All roots; only when the user asks for all build activity</td>
+</tr>
+<tr>
+<td><code>-IncludeEditor</code></td>
+<td>Also stop editor/game processes (off by default — unsaved work)</td>
+</tr>
+<tr>
+<td><code>-SkipProcessStop</code> / <code>-SkipEnvironmentCleanup</code></td>
+<td>Run only half the job</td>
+</tr>
+<tr>
+<td><code>-WhatIf</code></td>
+<td>Preview without changing anything</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples.</strong>
+- Claude: <code>Use @skill reset-unreal-build-environment on D:\p4\ss-5.8\root — preview with -WhatIf first.</code>
+- Codex: <code>@skill reset-unreal-build-environment — clean the build shell for &lt;root&gt;, processes and env.</code>
+- Copilot: attach the SKILL.md → "Run the helper with -Root <path> -WhatIf and show me what it would stop."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> Safe-by-default design: Perforce state preserved, editor untouched without <code>-IncludeEditor</code>, <code>-WhatIf</code> offered for shared machines. The Common Mistakes section names the real footgun — running the cleaner in a child shell cleans the <em>child's</em> environment, accomplishing nothing. Delegating enumeration to a script is correct; process-tree walking is exactly what prose instructions get wrong.
+- <em>Weaknesses:</em> The bundled <code>scripts\Stop-UnrealBuildAndCleanEnv.ps1</code> now ships with the skill, but the Quick Start hard-codes <code>D:\git\worky\...</code>, which fails on the <code>C:\git\worky</code> machine — harness-setup.md explicitly warns paths must resolve per machine.
+- <em>Improvements:</em> Replace the hard-coded skill path with the <code>&lt;skill base dir&gt;</code> convention its sibling skills already use. Add a post-run verification one-liner (list surviving Unreal/MSBuild processes) so "clean" is evidence, not assumption.</p>
+<h3 id="smart-plan">smart-plan</h3>
+<p><strong>What it does.</strong> Produces durable, resumable implementation plans with explicit model-routing profiles, context-cohesive batches, and copy/paste handoffs for later agents or sessions.</p>
+<p><strong>When to use.</strong> When creating or revising a plan that spans agents or sessions and needs efficient routing and durable progress tracking.</p>
+<p><strong>Parameters.</strong> None. It reads the centralized model-routing reference and requires a current staleness check.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>@skill smart-plan — plan the cross-platform harness rollout in resumable batches.</code>
+- Codex: <code>@skill smart-plan — write an implementation plan with model-routed handoffs.</code>
+- Copilot: attach <code>Agent\skills\smart-plan\SKILL.md</code> → "Create a durable, batch-oriented execution plan."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
+<h3 id="status-report-create">status-report-create</h3>
+<p><strong>What it does.</strong> Generates one Tue/Thu status report from work receipts. Computes the reporting window from Tue/Thu 06:00 Pacific boundaries, chains <code>window_start</code> from the previous report's frontmatter (so missed schedules self-heal), collects receipts by filename end-date, fills a template-locked section structure, records receipt wikilinks as <code>sources</code>, appends a cost-ledger row, and prints an exact two-line output for headless logs. Idempotent per window.</p>
+<p><strong>When to use.</strong> When the scheduled Tue/Thu run fires, or on demand — including backfills via the window override.</p>
+<p><strong>Parameters.</strong> Optional: <code>window &lt;start&gt;..&lt;end&gt;</code> (e.g. <code>window 2026-07-07..2026-07-09</code>) — uses <code>&lt;date&gt;T06:00</code> local verbatim and skips automatic window computation.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>/status-report-create</code> · <code>/status-report-create window 2026-07-07..2026-07-09</code>
+- Codex: <code>@skill status-report-create window 2026-07-07..2026-07-09</code>
+- Copilot: attach the SKILL.md → "Generate the report for the window ending today."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> Deriving <code>window_start</code> from the last report instead of "today" is the best design decision in the report pipeline — catch-up runs after missed schedules are automatically correct, and re-runs are idempotent. Boundary semantics (the 06:00 comparisons, same-day receipt placement) are written out to the half-open-interval level. "No receipts" produces a real report — an empty period is information. The don't-invent-work rule keeps reports honest.
+- <em>Weaknesses:</em> Same hand-rolled Pacific timezone risk and ledger-header duplication as report-rollup. The receipt boundary rules are subtle enough that a weaker scheduled model could plausibly re-derive them wrong — they're specified in prose with no executable check. No model recommendation for what is a recurring, headless, cost-sensitive job.
+- <em>Improvements:</em> Same shared helper as report-rollup (window math + ledger append, pytest-covered, planted violations per architecture-guards). Add "Sonnet-class" to the skill text. Cross-link work-receipt-create as the upstream producer so receipt-quality issues get fixed at the source.</p>
+<h3 id="ugs-pcb-release">ugs-pcb-release</h3>
+<p><strong>What it does.</strong> The full operating guide for UnrealGameSync precompiled editor binaries: default VisTest profile, required workflow (validate <code>ZippedBinariesPath</code> → clean shell → build editor + ShaderCompileWorker → BuildGraph <code>-p4 -NoSubmit</code> → validate zip/version/BuildId/worker hashes → manual editor launch → only then <code>-p4 -submit</code>), the successful BuildGraph command shape, a concrete validation-evidence checklist, and troubleshooting boundaries. Paired with the human copy/paste runbook at <code>runbooks\ugs-pcb\UGS_PCB_Runbook.md</code> under an explicit both-or-neither sync rule.</p>
+<p><strong>When to use.</strong> Building, validating, submitting, troubleshooting, or updating UGS PCB archives and the Submit-To-Perforce-For-UGS flow.</p>
+<p><strong>Parameters.</strong> No formal arguments — a Default Profile table (workspace, root, uproject, editor target, archive stream, expected version, P4 stream/client) that the user can override per project.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>Use @skill ugs-pcb-release — build and validate a fresh VisTest PCB, no-submit first.</code>
+- Codex: <code>@skill ugs-pcb-release: troubleshoot missing modules in a clean UGS consumer sync.</code>
+- Copilot: attach the SKILL.md → "Follow the Required Workflow through the no-submit validation and stop before submit."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> This is evidence-based operations at its best — the Validation Evidence list converts "it should be ready" into fifteen checkable facts (version, single BuildId, worker hashes, digest match, clean consumer launch). The wrong-archive-name trap (<code>main-content</code> stream producing a valid-looking zip at the wrong depot path) is documented twice because it's the expensive failure, and the troubleshooting boundaries stop scope creep ("post-launch tool crashes are separate investigations").
+- <em>Weaknesses:</em> Hard-codes <code>D:\git\worky\...</code> for the runbook path — on the C: machine the very first instruction ("read this first") points at a file that isn't there. VisTest constants live inside a nominally general skill; the profile table mitigates but drift is one edit away. It's the longest skill in the set and mandates also reading the runbook, so every invocation pays a double token toll even for a narrow question. The skill↔runbook sync rule is enforced by discipline alone — the exact "rule in prose" failure mode architecture-guards exists to prevent.
+- <em>Improvements:</em> Resolve the runbook as <code>&lt;skill base dir&gt;\..\..\runbooks\ugs-pcb\</code> (portable across both machines). Split deep troubleshooting into <code>references/troubleshooting.md</code>, loaded on demand — progressive disclosure would cut routine-invocation cost substantially. Move the VisTest profile into a small data block (or per-project file) so project onboarding is additive. Add a mechanical sync check between runbook and skill command shapes, even a crude one.</p>
+<h3 id="update-claude-pricing-doc">update-claude-pricing-doc</h3>
+<p><strong>What it does.</strong> Refreshes <code>output\claude-pricing.json</code> — the cached per-model USD rates that work-receipt-create prices sessions with — by invoking the <code>claude-api</code> skill and extracting <code>input</code>/<code>output</code> rates per model. Fixed JSON shape; cache multipliers (0.1× read, 1.25× write) live in a note and are derived inline by the consumer.</p>
+<p><strong>When to use.</strong> When work-receipt-create prints its ⚠️ staleness warning (pricing &gt;7 days old), when Anthropic changes pricing, or when the output file is missing. Cache verified present and fresh as of 2026-07-12.</p>
+<p><strong>Parameters.</strong> None.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>/update-claude-pricing-doc</code> — per the skill, run it on a Haiku session; it's a table-read + JSON-write.
+- Codex: not runnable as written — see review.
+- Copilot: not runnable as written — see review.</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> Textbook token-cost engineering: caching seven numbers means every receipt skips loading the full claude-api reference bundle, and the explicit "use Haiku — needs no reasoning" line is the model-selection discipline more skills should copy. Tight output contract (exact JSON shape, exact confirmation line), and the staleness protocol pairs cleanly with the consumer's warning.
+- <em>Weaknesses:</em> The "When to Run" section cites <code>Agent/skills/output/claude-pricing.json</code> — a path that doesn't exist (missing the <code>update-claude-pricing-doc</code> segment); a literal-minded model would conclude the file is always absent and refresh every time. Harness-locked by its data source: <code>claude-api</code> is a Claude Code bundled skill, so Codex/Copilot cannot execute this even though the file it maintains is harness-neutral. Refresh is purely pull-based — nothing schedules it.
+- <em>Improvements:</em> Fix the path typo (one line). Add a documented fallback source (docs URL) so other harnesses can refresh the cache. Either add it to the scheduler or let work-receipt-create auto-run it when stale instead of just warning.</p>
+<h3 id="update-model-routing">update-model-routing</h3>
+<p><strong>What it does.</strong> Checks centralized <code>model-routing.json</code> staleness deterministically and refreshes model IDs only from the official OpenAI and Anthropic sources when required.</p>
+<p><strong>When to use.</strong> When model-routing data may be stale, exact Codex or Claude IDs need verification, or a plan needs current routing profiles.</p>
+<p><strong>Parameters.</strong> None. The checker reads <code>model-routing.json</code> and reports <code>CURRENT</code> or <code>STALE</code>.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>@skill update-model-routing — check whether model-routing.json is current.</code>
+- Codex: <code>@skill update-model-routing — verify the routing reference before planning.</code>
+- Copilot: attach <code>Agent\skills\update-model-routing\SKILL.md</code> → "Check model-routing.json and refresh it only if stale."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
+<h3 id="update-skills-readme">update-skills-readme</h3>
+<p><strong>What it does.</strong> Regenerates this documentation pair from the skill set: traverses <code>Agent\skills\*\SKILL.md</code>, rebuilds <code>README.md</code> (inventory, per-skill usage, parameters, examples, call formats, TOC), and renders <code>README.html</code> via <code>scripts/render_html.py</code> (uv-run, self-contained deps). By default it preserves each skill's existing <em>Architect's review</em> block verbatim; with the <code>review</code> argument it re-evaluates them.</p>
+<p><strong>When to use.</strong> After adding, removing, or meaningfully editing any skill. Pair the edit and the doc regeneration in the same change, like the ugs skill↔runbook sync rule.</p>
+<p><strong>Parameters.</strong> Optional: <code>review</code> — also regenerate the Architect's review sections (needs a frontier-class model; without it, reviews are preserved and only factual sections update).</p>
+<p><strong>Examples.</strong>
+- Claude: <code>/update-skills-readme</code> · <code>/update-skills-readme review</code>
+- Codex: <code>@skill update-skills-readme — I added a new skill, update the docs.</code>
+- Copilot: attach the SKILL.md → "Regenerate README.md and README.html from the current skill directories."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> Separating mechanical regeneration (default) from judgment regeneration (<code>review</code>) matches cost to need — inventory updates run on a cheap model, reviews only pay for reasoning when asked. HTML is derived output from a committed script, not hand-maintained. The generation pipeline was exercised at creation time (this document is its output), so the HTML path is proven, not aspirational.
+- <em>Weaknesses:</em> New and unproven beyond first generation. It's another manual sync rule — nothing <em>forces</em> a skill edit to trigger regeneration, so this README can silently drift stale (same class of problem as the ugs pair). Review preservation keys off the <code>**Architect's review.**</code> heading structure; a future format change breaks the preserve-vs-regenerate split.
+- <em>Improvements:</em> Add a cheap freshness check a session can run (compare newest SKILL.md mtime against README generation date; warn on drift). Consider a repo guard per architecture-guards once the vault gains a test harness.</p>
+<h3 id="work-receipt-create">work-receipt-create</h3>
+<p><strong>What it does.</strong> Writes a work receipt — the vault's atomic record of engineering work — to <code>Receipts\YYYY\YYYY-MM\WR-YYYY-MM-DD_&lt;topic-slug&gt;.md</code> with a locked section structure: Goal, Changes, Files/Systems, Technical Decisions, Coordination, Risks, Handoff (a self-contained resume prompt for the next session), Suggested Status Bullet, and an Efficiency Analysis (actual prompt, hindsight-corrected prompt, AI cost analysis priced from the session transcript, and a human improvement plan that reads the <em>previous</em> receipt's plan and reports the delta). Appends a cost-ledger row. Returns only the path, a one-line summary, and the Efficiency Analysis — the file is the deliverable.</p>
+<p><strong>When to use.</strong> Whenever work should leave a trail: receipts, handoff notes, status/completion/progress summaries, preserving analysis verbatim, or on explicit <code>@skill work-receipt-create</code>. Receipts are the upstream feed for status-report-create.</p>
+<p><strong>Parameters.</strong> No formal arguments. Verbatim option: text the user wants preserved exactly goes in a fenced block, unmodified. Topic slug derives from the work.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>@skill work-receipt-create — receipt for today's shader-worker troubleshooting.</code>
+- Codex: <code>@skill work-receipt-create — receipt for this session; work concluded today.</code>
+- Copilot: attach the SKILL.md → "Produce the receipt exactly per Required Output Format; use an included model, not a premium request."</p>
+<p><strong>Architect's review.</strong>
+- <em>Strengths:</em> The most harness-complete skill in the set — per-harness model recommendations <em>and</em> separate, semantically correct cost recipes for Claude (sum <code>.jsonl</code> usage fields, cache read 0.1×/write 1.25×) and Codex (cumulative <code>token_count</code> snapshots — never summed; quota ≠ dollars; no invented public rates). The coaching loop is the standout: each receipt grades the previous receipt's advice before issuing new advice, which is how coaching compounds instead of repeating. Output discipline ("the file is the deliverable") keeps chat cheap. Even the model-switching warning (cache invalidation can cost more than the pricier model) is correct and non-obvious.
+- <em>Weaknesses:</em> The transcript read is the skill set's single largest hidden token sink — "parse each line as JSON" on a long session means pulling megabytes through the context window to sum four integers. No Copilot cost recipe (model recommendation only), so one leg of the tri-harness story is shorter than the other two. The instruction ordering (write prompts <em>before</em> reading the transcript, cost <em>after</em>) is subtle and easy for a rushed session to violate. Filename discipline exists because it was learned the hard way (the vault's <code>.md.md</code> cleanup) — good rule, but only prose enforces it.
+- <em>Improvements:</em> Add <code>scripts/sum_usage.py</code> (stdlib-only, uv-run) that totals usage fields outside the context window and prints the four numbers — turns the biggest token cost in the vault into approximately zero. Add a Copilot cost stanza when a usage surface exists. When pricing is stale, auto-run update-claude-pricing-doc rather than only warning.</p>
+<hr />
+<h2 id="architects-overview">Architect's overview</h2>
+<h3 id="harness-coverage-matrix">Harness coverage matrix</h3>
+<p>Discovery on this machine, verified 2026-07-12: Claude junction ✅ · Codex junction ✅ · Copilot ❌ (adapter TBD — every skill is manual-attach only until <code>harness-setup.md</code> § Copilot is filled in).</p>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>Claude</th>
+<th>Codex</th>
+<th>Copilot</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>architecture-guards</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Content fully portable</td>
+</tr>
+<tr>
+<td>python-quality-gate</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Carries ugs-project baggage</td>
+</tr>
+<tr>
+<td>python-tdd-cycle</td>
+<td>✅ ⚠️</td>
+<td>✅</td>
+<td>📎</td>
+<td>⚠️ unstated overlap with superpowers TDD on Claude</td>
+</tr>
+<tr>
+<td>ready-player-one</td>
+<td>✅</td>
+<td>✅</td>
+<td>⚠️</td>
+<td>Codex checks defined; Copilot sections are placeholders</td>
+</tr>
+<tr>
+<td>report-rollup</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Portable</td>
+</tr>
+<tr>
+<td>reset-unreal-build-environment</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Bundled Windows PowerShell helper</td>
+</tr>
+<tr>
+<td>smart-plan</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Uses centralized routing profiles</td>
+</tr>
+<tr>
+<td>status-report-create</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Portable</td>
+</tr>
+<tr>
+<td>ugs-pcb-release</td>
+<td>⚠️</td>
+<td>⚠️</td>
+<td>📎</td>
+<td>D:\ runbook path breaks the C:\ machine</td>
+</tr>
+<tr>
+<td>update-claude-pricing-doc</td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td>Data source is a Claude-bundled skill</td>
+</tr>
+<tr>
+<td>update-model-routing</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Uses official provider sources when stale</td>
+</tr>
+<tr>
+<td>update-skills-readme</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>HTML step needs uv on PATH</td>
+</tr>
+<tr>
+<td>work-receipt-create</td>
+<td>✅</td>
+<td>✅</td>
+<td>⚠️</td>
+<td>Copilot: model rec only, no cost recipe</td>
+</tr>
+</tbody>
+</table>
+<p>✅ works as written · ⚠️ partial / caveat · ❌ blocked · 📎 reachable only by manually attaching SKILL.md</p>
+<h3 id="skill-gaps">Skill gaps</h3>
+<ol>
+<li><strong>Copilot adapter</strong> — the whole third leg is TBD in <code>harness-setup.md</code>. Until a <code>.github/copilot-instructions.md</code> (or equivalent) points at AGENTS.md and the skills tree, Copilot coverage is a per-prompt manual exercise.</li>
+<li><strong>Process skills outside Claude</strong> — TDD-enforcement, code review, brainstorming, and branch-finishing discipline come from the superpowers plugin, which exists only on the Claude side. A Codex session gets python-tdd-cycle and nothing else; there is no cross-harness equivalent of verification-before-completion, which is the one that most changes outcomes.</li>
+<li><strong>Partial skill self-verification</strong> — the README sync guard now has coverage, but the remaining manual rules (ugs skill↔runbook, window math, filename conventions) still lack machine checks. A small pytest harness over <code>Agent\</code> could validate referenced paths and ledger headers before they drift.</li>
+<li><strong>No commit/PR skill</strong> — AGENTS.md carries git-safety rules and the harness prompt carries trailer conventions, but no vault skill encodes "how work lands" for harnesses that lack built-in git workflow guidance.</li>
+<li><strong>Codex pricing cache</strong> — work-receipt-create must fetch OpenAI pricing live (or report N/A) every time; there's no <code>codex-pricing.json</code> counterpart to the Claude cache.</li>
+<li><strong>Scheduler operations</strong> — report generation is scheduled (registration is machine-local per commit 9e426da), but there's no runbook/skill for triaging a missed or failed scheduled run: where logs land, how to re-register, how to backfill (the window-override parameter exists; the procedure around it is undocumented).</li>
+</ol>
+<h3 id="token-costly-mistakes">Token-costly mistakes</h3>
+<p>Ranked by observed or expected cost, each with its fix:</p>
+<ol>
+<li><strong>Parsing session transcripts through the context window.</strong> work-receipt-create's cost analysis reads the whole <code>.jsonl</code> to sum four fields; on long sessions that's megabytes of input tokens for arithmetic. <em>Fix:</em> a stdlib summing script (see its review) — the single highest-leverage change available.</li>
+<li><strong>Running mechanical skills on frontier models.</strong> Pricing refresh, preflight checklists, and env cleanup need no reasoning. The skills that say so (update-claude-pricing-doc: Haiku; ready-player-one: Haiku/o4-mini) are the pattern; the report generators should say so too. <em>Fix:</em> honor the inventory table's model column.</li>
+<li><strong>Loading the full claude-api bundle when the pricing cache would do.</strong> The cache exists precisely to avoid this. <em>Fix:</em> trust <code>claude-pricing.json</code> unless the staleness warning fires; fix the path typo that could trick a model into always refreshing.</li>
+<li><strong>The ugs double-read.</strong> Every ugs-pcb-release invocation loads the longest skill <em>plus</em> its runbook, even for one troubleshooting question. <em>Fix:</em> progressive disclosure — split troubleshooting into on-demand references.</li>
+<li><strong>Mid-session model switches.</strong> Switching models invalidates the prompt cache; work-receipt-create documents that the switch can cost more than staying on the pricier model. <em>Fix:</em> pick the model before the session, not during.</li>
+<li><strong>Idle gaps past the 5-minute cache TTL (Claude).</strong> Each idle-then-resume rewrites the full context as cache-write tokens at 1.25× input rate. <em>Fix:</em> batch prompts; don't leave a loaded session simmering.</li>
+<li><strong>Re-reading loaded guidance to "confirm" it.</strong> AGENTS.md bans re-reading itself to answer "is this loaded" — the revision date from memory is the answer. The same applies to re-reading SKILL.md files already in context.</li>
+<li><strong>Preflight dead-ends in autonomous runs.</strong> A NOT-READY verdict whose remediation the agent is forbidden to perform (ready-player-one Check 2, observed 2026-07-12) burns a session doing nothing. <em>Fix:</em> mark human-only remediations as such and let inherited settings satisfy the check.</li>
+<li><strong>Hard-coded per-machine paths.</strong> Every <code>D:\git\worky\...</code> literal is a failed command, an error message, and a retry loop on the C: machine. <em>Fix:</em> the <code>&lt;skill base dir&gt;</code> relative-path convention the report skills already use.</li>
+</ol>
+<h2 id="maintaining-this-document">Maintaining this document</h2>
+<ul>
+<li><strong>Source of truth:</strong> this file. <code>README.html</code> is rendered output — never edit it directly.</li>
+<li><strong>Regenerate:</strong> <code>/update-skills-readme</code> (Claude) or <code>@skill update-skills-readme</code> (Codex) after any skill add/remove/edit. Factual sections are rebuilt; Architect's review blocks are preserved verbatim unless you pass <code>review</code>.</li>
+<li><strong>HTML only:</strong> <code>uv run Agent/skills/update-skills-readme/scripts/render_html.py</code> regenerates <code>README.html</code> from this file.</li>
+<li><strong>Review refresh:</strong> <code>/update-skills-readme review</code> — run it on a frontier-class model; reviews are judgment, not transcription.</li>
+<li><strong>Convention:</strong> treat "skill changed, README untouched" as an unfinished change, the same way the ugs pair treats skill↔runbook drift.</li>
+</ul>
+<hr>
+<p><em>Rendered from README.md by update-skills-readme/scripts/render_html.py — do not edit this file by hand.</em></p>
+</body>
+</html>
