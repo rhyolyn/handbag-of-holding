@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["markdown>=3.5", "mypy>=1.11", "pytest>=8.3", "ruff>=0.6"]
+dev = ["markdown==3.10.3", "mypy==2.3.0", "pytest==9.0.3", "ruff==0.16.1"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
