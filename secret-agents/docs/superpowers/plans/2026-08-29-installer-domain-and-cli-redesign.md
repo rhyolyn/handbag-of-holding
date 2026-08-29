@@ -113,7 +113,7 @@ Execute Tasks 1–4 with strict RED/GREEN. Update plan checkboxes in each task c
 - `follow_leaf=True` resolves the candidate itself; use it for backups, created parents, and canonical receipt sources.
 - Receipt errors keep their current public types and messages unless the existing message misidentifies the escaped field.
 
-- [ ] **Step 1: Add direct failing traversal tests**
+- [x] **Step 1: Add direct failing traversal tests**
 
 Create `tests/test_path_safety.py` with these cases:
 
@@ -152,11 +152,11 @@ def test_linked_parent_outside_home_is_rejected(tmp_path: Path) -> None:
     assert not is_path_within(home / ".codex" / "AGENTS.md", home, follow_leaf=False)
 ```
 
-- [ ] **Step 2: Add failing receipt and uninstall integration cases**
+- [x] **Step 2: Add failing receipt and uninstall integration cases**
 
 Extend `test_receipts.py` so a schema-v1 destination containing `home / ".." / "victim"` raises `ReceiptPathOutsideHome`, and a source containing `installed_root / ".." / "foreign"` raises `ReceiptSourceOutsideRoot`. Extend `test_uninstall.py` with a receipt destination below a linked parent and assert `plan.can_apply is False` and `plan.actions == ()` under the current model.
 
-- [ ] **Step 3: Run the focused tests and observe RED**
+- [x] **Step 3: Run the focused tests and observe RED**
 
 Run:
 
@@ -166,7 +166,7 @@ python -m pytest tests/test_path_safety.py tests/test_receipts.py tests/test_uni
 
 Expected: import failure for `path_safety`, followed after test collection is restored by the current lexical `is_relative_to` checks accepting at least the `..` escape.
 
-- [ ] **Step 4: Implement the shared containment rule and route both callers through it**
+- [x] **Step 4: Implement the shared containment rule and route both callers through it**
 
 Create the helper with this behavior:
 
@@ -185,7 +185,7 @@ def is_path_within(path: Path, root: Path, *, follow_leaf: bool) -> bool:
 
 Use it in receipt loading for every destination, source, backup path, and created parent with the leaf policy above. Replace `planning._within_home` with the shared helper and recheck receipt-derived destructive paths during uninstall planning.
 
-- [ ] **Step 5: Run focused tests and require GREEN**
+- [x] **Step 5: Run focused tests and require GREEN**
 
 Run:
 
@@ -195,7 +195,7 @@ python -m pytest tests/test_path_safety.py tests/test_receipts.py tests/test_uni
 
 Expected: PASS, with only the real-parent-link test skipped on hosts that cannot create it.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 Check this task and its completed steps in this plan, then run:
 

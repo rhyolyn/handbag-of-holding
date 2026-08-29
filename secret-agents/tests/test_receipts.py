@@ -185,6 +185,19 @@ def test_destination_outside_home_is_rejected(tmp_path: Path) -> None:
         load_receipt(path, expected_identity=IDENTITY, home=home)
 
 
+def test_destination_with_parent_traversal_is_rejected(tmp_path: Path) -> None:
+    home, root = _home_and_root(tmp_path)
+    path = receipt_path(home, IDENTITY)
+    payload = _serialized(_receipt(home, root), path)
+    projections = payload["projections"]
+    assert isinstance(projections, list)
+    projections[0]["destination"] = str(home / ".." / "victim")
+    _write_raw(path, payload)
+
+    with pytest.raises(ReceiptPathOutsideHome):
+        load_receipt(path, expected_identity=IDENTITY, home=home)
+
+
 def test_backup_path_outside_home_is_rejected(tmp_path: Path) -> None:
     home, root = _home_and_root(tmp_path)
     path = receipt_path(home, IDENTITY)
@@ -216,6 +229,19 @@ def test_projection_source_outside_root_is_rejected(tmp_path: Path) -> None:
     projections = payload["projections"]
     assert isinstance(projections, list)
     projections[0]["source"] = str(tmp_path / "other-root" / "skills")
+    _write_raw(path, payload)
+
+    with pytest.raises(ReceiptSourceOutsideRoot):
+        load_receipt(path, expected_identity=IDENTITY, home=home)
+
+
+def test_projection_source_with_parent_traversal_is_rejected(tmp_path: Path) -> None:
+    home, root = _home_and_root(tmp_path)
+    path = receipt_path(home, IDENTITY)
+    payload = _serialized(_receipt(home, root), path)
+    projections = payload["projections"]
+    assert isinstance(projections, list)
+    projections[0]["source"] = str(root / ".." / "foreign")
     _write_raw(path, payload)
 
     with pytest.raises(ReceiptSourceOutsideRoot):

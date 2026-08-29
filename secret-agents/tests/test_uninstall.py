@@ -336,6 +336,35 @@ def test_out_of_home_path_blocks(tmp_path: Path) -> None:
     assert UninstallFindingState.FOREIGN_CONTENT in _states(plan)
 
 
+def test_destination_below_linked_parent_outside_home_blocks(tmp_path: Path) -> None:
+    root = _root(tmp_path)
+    home = tmp_path / "home"
+    outside = tmp_path / "outside"
+    home.mkdir()
+    outside.mkdir()
+    try:
+        (home / ".codex").symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"host cannot create parent symlink: {exc}")
+    destination = home / ".codex" / "AGENTS.md"
+    destination.write_text("link", encoding="utf-8")
+    backend = RecordingBackend()
+    backend.targets[destination] = (root / "AGENTS.md").resolve()
+    receipt = InstallReceipt(
+        schema_version=1,
+        root_identity=IDENTITY,
+        installed_root=root,
+        projections=(ReceiptProjection(destination, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        backups=(),
+        created_parents=(),
+    )
+
+    plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
+
+    assert plan.can_apply is False
+    assert plan.actions == ()
+
+
 def test_apply_removes_owned_restores_backup_and_preserves_third_party(tmp_path: Path) -> None:
     root = _root(tmp_path)
     home = tmp_path / "home"
