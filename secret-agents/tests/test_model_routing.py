@@ -104,9 +104,7 @@ def test_age_32_days_is_stale(capsys: pytest.CaptureFixture[str]) -> None:
     assert exit_code == 3
 
 
-def test_future_verification_date_is_invalid(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_future_verification_date_is_invalid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     mod = _load_checker()
     data = _valid_reference()
     data["last_verified"] = "2026-09-01"
@@ -117,9 +115,7 @@ def test_future_verification_date_is_invalid(
     assert err.strip() != ""
 
 
-def test_missing_provider_or_profile_field_is_invalid(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_missing_provider_or_profile_field_is_invalid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     mod = _load_checker()
     data = _valid_reference()
     profiles = data["profiles"]

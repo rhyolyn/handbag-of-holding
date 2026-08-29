@@ -1,6 +1,6 @@
 ---
-name: status-report-create
-description: Use when generating a Tue/Thu status report from work receipts, when a scheduled status-report run fires, or when the user invokes /status-report-create (optionally with an explicit window override like "window 2026-07-07..2026-07-09").
+name: report-status
+description: Use when generating a Tue/Thu status report from work receipts, when a scheduled status-report run fires, or when the user invokes /report-status (optionally with an explicit window override like "window 2026-07-07..2026-07-09").
 ---
 
 # Status Report Create
@@ -9,7 +9,7 @@ Generate one status report covering a Tue/Thu reporting window from work receipt
 
 ## Vault Layout
 
-Resolve the vault root from this skill's base directory: `<skill base dir>\..\..\..` (the skill sits at `<worky root>\Agent\skills\status-report-create`).
+Resolve the vault root from this skill's base directory: `<skill base dir>\..\..\..` (the skill sits at `<worky root>\Agent\skills\report-status`).
 
 - Receipts: `<vault>\Receipts\YYYY\YYYY-MM\WR-*.md`
 - Reports out: `<vault>\Status Reports\YYYY\YYYY-MM\sr-YYYY-MM-DD.md`

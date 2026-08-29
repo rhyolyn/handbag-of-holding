@@ -9,11 +9,18 @@ from pathlib import Path
 import pytest
 
 from secret_agents_setup.root import RootResolutionError, resolve_agent_root
+from secret_agents_setup.root_errors import (
+    InvalidRootMarker,
+    MissingRootEntry,
+    MissingRootMarker,
+    RootIdentityMismatch,
+    RootMarkerNotObject,
+    RootNotResolved,
+    RootSchemaVersionMismatch,
+)
 
 
-def make_root(
-    path: Path, *, identity: str = "handbag-secret-agents", schema_version: int = 1
-) -> Path:
+def make_root(path: Path, *, identity: str = "handbag-secret-agents", schema_version: int = 1) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     (path / ".agent-root.json").write_text(
         json.dumps({"identity": identity, "schema_version": schema_version}),
@@ -66,7 +73,7 @@ def test_nearest_marker_ancestor_is_used(tmp_path: Path) -> None:
 
 
 def test_missing_root_reports_all_supported_resolution_methods(tmp_path: Path) -> None:
-    with pytest.raises(RootResolutionError) as excinfo:
+    with pytest.raises(RootNotResolved) as excinfo:
         resolve_agent_root(
             explicit=None,
             environment={},
@@ -79,18 +86,21 @@ def test_missing_root_reports_all_supported_resolution_methods(tmp_path: Path) -
 
 
 @pytest.mark.parametrize(
-    ("make_invalid", "invariant"),
+    ("make_invalid", "error_type", "invariant"),
     [
-        (lambda base: make_root(base, identity="not-ours"), "identity"),
-        (lambda base: make_root(base, schema_version=2), "schema_version"),
-        (_make_root_missing_entry, "AGENTS.md"),
+        (lambda base: make_root(base, identity="not-ours"), RootIdentityMismatch, "identity"),
+        (lambda base: make_root(base, schema_version=2), RootSchemaVersionMismatch, "schema_version"),
+        (_make_root_missing_entry, MissingRootEntry, "AGENTS.md"),
     ],
 )
 def test_invalid_marker_is_rejected(
-    tmp_path: Path, make_invalid: Callable[[Path], Path], invariant: str
+    tmp_path: Path,
+    make_invalid: Callable[[Path], Path],
+    error_type: type[RootResolutionError],
+    invariant: str,
 ) -> None:
     root = make_invalid(tmp_path / "root")
-    with pytest.raises(RootResolutionError) as excinfo:
+    with pytest.raises(error_type) as excinfo:
         resolve_agent_root(
             explicit=root,
             environment={},
@@ -99,3 +109,29 @@ def test_invalid_marker_is_rejected(
     message = str(excinfo.value)
     assert str(root.resolve()) in message
     assert invariant in message
+
+
+def test_explicit_root_without_marker_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+
+    with pytest.raises(MissingRootMarker):
+        resolve_agent_root(root, {}, tmp_path / "script.py")
+
+
+def test_invalid_marker_json_preserves_cause(tmp_path: Path) -> None:
+    root = make_root(tmp_path / "root")
+    (root / ".agent-root.json").write_text("not json", encoding="utf-8")
+
+    with pytest.raises(InvalidRootMarker) as excinfo:
+        resolve_agent_root(root, {}, tmp_path / "script.py")
+
+    assert isinstance(excinfo.value.__cause__, json.JSONDecodeError)
+
+
+def test_marker_must_contain_an_object(tmp_path: Path) -> None:
+    root = make_root(tmp_path / "root")
+    (root / ".agent-root.json").write_text("[]", encoding="utf-8")
+
+    with pytest.raises(RootMarkerNotObject):
+        resolve_agent_root(root, {}, tmp_path / "script.py")

@@ -7,7 +7,18 @@ from pathlib import Path
 
 import pytest
 
-from secret_agents_setup.catalog import SkillCatalogError, load_skill_catalog
+from secret_agents_setup.catalog import load_skill_catalog
+from secret_agents_setup.catalog_errors import (
+    DuplicateSkillNames,
+    InvalidSkillName,
+    MissingFrontmatter,
+    MissingSkillDescription,
+    MissingSkillFile,
+    MissingSkillName,
+    SkillDirectoryNameMismatch,
+    SkillsDirectoryNotFound,
+    UnterminatedFrontmatter,
+)
 
 
 def write_skill(
@@ -46,40 +57,57 @@ def test_output_is_immutable_tuple(tmp_path: Path) -> None:
 
 def test_missing_skill_md_is_rejected(tmp_path: Path) -> None:
     (tmp_path / "alpha").mkdir()
-    with pytest.raises(SkillCatalogError):
+    with pytest.raises(MissingSkillFile):
         load_skill_catalog(tmp_path)
+
+
+def test_missing_skills_directory_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(SkillsDirectoryNotFound):
+        load_skill_catalog(tmp_path / "missing")
 
 
 def test_missing_frontmatter_delimiters_is_rejected(tmp_path: Path) -> None:
     directory = tmp_path / "alpha"
     directory.mkdir()
     (directory / "SKILL.md").write_text("# no frontmatter here\n", encoding="utf-8")
-    with pytest.raises(SkillCatalogError):
+    with pytest.raises(MissingFrontmatter):
         load_skill_catalog(tmp_path)
 
 
 def test_missing_name_is_rejected(tmp_path: Path) -> None:
     write_skill(tmp_path, "alpha", frontmatter="---\ndescription: Use when testing.\n---\n")
-    with pytest.raises(SkillCatalogError):
+    with pytest.raises(MissingSkillName):
         load_skill_catalog(tmp_path)
 
 
 def test_missing_description_is_rejected(tmp_path: Path) -> None:
     write_skill(tmp_path, "alpha", frontmatter="---\nname: alpha\n---\n")
-    with pytest.raises(SkillCatalogError):
+    with pytest.raises(MissingSkillDescription):
+        load_skill_catalog(tmp_path)
+
+
+def test_invalid_name_is_rejected(tmp_path: Path) -> None:
+    write_skill(tmp_path, "invalid_name")
+    with pytest.raises(InvalidSkillName):
         load_skill_catalog(tmp_path)
 
 
 def test_directory_name_mismatch_is_rejected(tmp_path: Path) -> None:
     write_skill(tmp_path, "alpha", name="beta")
-    with pytest.raises(SkillCatalogError):
+    with pytest.raises(SkillDirectoryNameMismatch):
         load_skill_catalog(tmp_path)
 
 
 def test_duplicate_declared_names_are_rejected(tmp_path: Path) -> None:
     write_skill(tmp_path, "one", name="dup")
     write_skill(tmp_path, "two", name="dup")
-    with pytest.raises(SkillCatalogError):
+    with pytest.raises(DuplicateSkillNames):
+        load_skill_catalog(tmp_path)
+
+
+def test_unterminated_frontmatter_is_rejected(tmp_path: Path) -> None:
+    write_skill(tmp_path, "alpha", frontmatter="---\nname: alpha\ndescription: open forever\n")
+    with pytest.raises(UnterminatedFrontmatter):
         load_skill_catalog(tmp_path)
 
 

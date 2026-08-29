@@ -180,7 +180,7 @@ You have five places to put durable knowledge, and they have very different cost
 | Mechanism | Loaded | Costs tokens | Right for |
 |---|---|---|---|
 | **`CLAUDE.md`** | Every session, every turn | **Yes, always** — it's part of the rented context | Short, universal rules (the block in §7). Keep it lean; every line here taxes every future turn. |
-| **Skill** (`SKILL.md`) | Only when invoked / triggered | Only on use | Multi-step recurring *workflows* (like `work-receipt-create`). Long content belongs here, not in CLAUDE.md — progressive disclosure is the point. |
+| **Skill** (`SKILL.md`) | Only when invoked / triggered | Only on use | Multi-step recurring *workflows* (like `report-receipt`). Long content belongs here, not in CLAUDE.md — progressive disclosure is the point. |
 | **Hook** (`settings.json`) | Never touches the model | **Zero** | Deterministic if-this-then-that: format after edit, run tests after save, commit trailers. If it needs no judgment, it needs no model. |
 | **Memory** | Recalled when relevant | Small | Facts about *you* and standing preferences ("prefers tables", "works across two machines"). |
 | **Committed artifact** (plan/receipt/README) | When pointed at | Only on use | Project *state* and decisions. The handoff currency between sessions. |
