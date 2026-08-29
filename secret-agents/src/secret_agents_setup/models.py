@@ -35,6 +35,19 @@ class ActionKind(StrEnum):
     BACKUP = "backup"
 
 
+class ExecutionEventKind(StrEnum):
+    PROBED_CAPABILITY = "probed-capability"
+    CREATED_PARENT = "created-parent"
+    REMOVED_STALE_LINK = "removed-stale-link"
+    BACKED_UP = "backed-up"
+    CREATED_LINK = "created-link"
+    WROTE_RECEIPT = "wrote-receipt"
+    REMOVED_LINK = "removed-link"
+    RESTORED_BACKUP = "restored-backup"
+    REMOVED_EMPTY_PARENT = "removed-empty-parent"
+    DELETED_RECEIPT = "deleted-receipt"
+
+
 @dataclass(frozen=True)
 class AgentRoot:
     path: Path
@@ -82,3 +95,41 @@ class InstallPlan:
     @property
     def can_apply(self) -> bool:
         return not any(finding.blocking for finding in self.findings)
+
+
+@dataclass(frozen=True)
+class ReceiptProjection:
+    destination: Path
+    source: Path
+    kind: ProjectionKind
+    harnesses: tuple[Harness, ...]
+
+
+@dataclass(frozen=True)
+class ReceiptBackup:
+    original: Path
+    backup: Path
+    sha256: str
+
+
+@dataclass(frozen=True)
+class InstallReceipt:
+    schema_version: int
+    root_identity: str
+    installed_root: Path
+    projections: tuple[ReceiptProjection, ...]
+    backups: tuple[ReceiptBackup, ...]
+    created_parents: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class ExecutionEvent:
+    kind: ExecutionEventKind
+    path: Path
+
+
+@dataclass(frozen=True)
+class ExecutionReport:
+    events: tuple[ExecutionEvent, ...]
+    receipt: InstallReceipt | None
+    receipt_written: bool
