@@ -13,16 +13,13 @@ Produce an execution plan another agent can resume without conversation history.
 
 Record the goal, architecture, constraints, repository root, source-of-truth documents, and file/responsibility map. Inspect enough real repository context to name concrete paths, interfaces, commands, and expected results. Label unresolved facts; do not invent them.
 
-### 2. Route every task
+### 2. Route every task through centralized profiles
 
-Every task must state both:
-
-- `Codex <exact model ID>, <low|medium|high|xhigh> reasoning`
-- `Claude <exact model ID>, <standard|high> effort/intelligence`
-
-Use the weakest model likely to complete the task correctly. Raise capability for ambiguous contracts, architecture, security, destructive operations, concurrency, rollback, or cross-platform behavior. Lower it for bounded documentation, mechanical edits, and established test patterns.
-
-Model names change. Verify current exact IDs against harness-visible or official model documentation, add an `as of YYYY-MM-DD` source note, and state a same-class substitution rule if a named model is unavailable. “Sonnet-tier,” “Codex medium,” and remembered legacy IDs are not actionable routing.
+1. Load `<agent-root>/model-routing.json` and run `update-model-routing`'s checker (`python skills/update-model-routing/scripts/check_staleness.py --reference model-routing.json`).
+2. If the checker reports `STALE`, invoke `update-model-routing` before finalizing the plan; never silently use stale routing.
+3. Assign the weakest adequate named profile to every task and batch. Put exact IDs only in the centralized reference, never in task text or copy/paste handoffs.
+4. Before actual dispatch, verify the profile's IDs against the harness-visible allowlist. Record any same-provider, same-or-higher-capability substitution without rewriting task text.
+5. Preserve the profile meanings: `high-risk` for destructive/cross-platform/rollback/security work, `balanced` for ambiguous integration work, `routine` for bounded established patterns, and `economy` for mechanical prose or inventory work.
 
 ### 3. Form context-cohesive batches
 
@@ -31,7 +28,7 @@ Group consecutive tasks only when one agent benefits materially from retaining t
 At each batch heading include:
 
 - a batch completion checkbox;
-- exact Codex and Claude routing, using the highest capability required by any task in the batch;
+- the named routing profile matching the highest capability required by any task in the batch;
 - one complete copy/paste handoff prompt before the tasks.
 
 ### 4. Write a self-contained batch handoff
@@ -41,7 +38,7 @@ Use this contract:
 ```text
 Implement Batch <N>: <name> from <absolute plan path>.
 
-Model routing: Codex <exact ID> with <level> reasoning, or Claude <exact ID> with <level> effort.
+Model routing: use the <profile> profile from model-routing.json. Verify harness availability before dispatch and record any allowed substitution.
 Repository root / working directory: <absolute path>
 
 Read only this context before starting:
@@ -66,7 +63,7 @@ The prompt must remain sufficient when pasted into a fresh session with all earl
 For every task include:
 
 - `- [ ] Task <N> complete`
-- exact model/intelligence pair;
+- the named routing profile;
 - files to create/modify/test;
 - consumed and produced interfaces;
 - small numbered or checkbox steps with exact commands and expected RED/GREEN or validation outcomes;
@@ -78,7 +75,7 @@ Require executors to check a step only after its evidence succeeds, and to commi
 
 Before delivering the plan, verify:
 
-- every task has current, exact Codex and Claude routing plus intelligence levels;
+- every task and batch names one routing profile from model-routing.json, and the checker reports CURRENT before finalizing;
 - every batch is justified by shared context and has its own routing and copy/paste handoff;
 - every handoff names absolute context paths and exact starting and stopping points;
 - a fresh agent can act without reading earlier batches or conversation;
@@ -90,7 +87,7 @@ Before delivering the plan, verify:
 
 | Failure | Correction |
 |---|---|
-| “Use a Sonnet-tier model” | Name the current exact Claude ID and effort, plus the exact Codex equivalent and reasoning level. |
+| “Use a Sonnet-tier model” | Name one profile (high-risk/balanced/routine/economy); exact IDs live only in model-routing.json. |
 | Tasks grouped under Agent A/Agent B | Re-batch around shared files, contracts, and verification state. |
 | One generic handoff template at the end | Put a filled, copy/paste prompt at the top of every batch. |
 | “Continue from the first unchecked item” | Name the exact first task/step and required starting repository state. |
