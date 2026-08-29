@@ -5,7 +5,7 @@ description: Use when the user asks to refresh or update Claude API pricing, or 
 
 # Update Claude Pricing Doc Skill
 
-Refreshes the cached pricing file used by `work-receipt-create` so it can price sessions without loading the full claude-api skill bundle.
+Refreshes the cached pricing file used by `report-receipt` so it can price sessions without loading the full claude-api skill bundle.
 
 **Do NOT invoke the `claude-api` skill for this — it loads a large reference bundle and floods context. Use WebFetch only.**
 
@@ -42,6 +42,6 @@ Print only:
 ## When to Run
 
 Run this skill when:
-- `work-receipt-create` prints a ⚠️ staleness warning (pricing older than 7 days).
+- `report-receipt` prints a ⚠️ staleness warning (pricing older than 7 days).
 - You know Anthropic has changed model pricing.
 - The file `output/claude-pricing.json` does not exist.

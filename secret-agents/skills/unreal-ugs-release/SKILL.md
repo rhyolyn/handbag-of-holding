@@ -1,5 +1,5 @@
 ---
-name: ugs-pcb-release
+name: unreal-ugs-release
 description: Use when building, validating, submitting, troubleshooting, or updating UnrealGameSync UGS precompiled editor binaries, PCB archives, BuildGraph Submit To Perforce For UGS flows, no-submit validation, shader worker mismatches, or UGS archive runbooks.
 ---
 
@@ -20,7 +20,7 @@ The runbook is the human copy/paste source. This skill is the agent operating gu
 Any change to commands, defaults, validation, troubleshooting, or Perforce behavior must update both:
 
 - `D:\git\worky\Agent\runbooks\ugs-pcb\UGS_PCB_Runbook.md`
-- `D:\git\worky\Agent\skills\ugs-pcb-release\SKILL.md`
+- `D:\git\worky\Agent\skills\unreal-ugs-release\SKILL.md`
 
 Do not leave one artifact stale.
 

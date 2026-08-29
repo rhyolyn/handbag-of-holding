@@ -63,21 +63,12 @@ def _classify_projection(
     if projection.kind is ProjectionKind.SKILLS and destination.is_dir():
         return _classify_skill_directory(projection, catalog)
 
-    can_backup = (
-        backup_conflicts and projection.kind is ProjectionKind.GUIDANCE and destination.is_file()
-    )
-    finding = Finding(
-        FindingState.UNRELATED,
-        destination,
-        projection,
-        blocking=not can_backup,
-    )
+    can_backup = backup_conflicts and projection.kind is ProjectionKind.GUIDANCE and destination.is_file()
+    finding = Finding(FindingState.UNRELATED, destination, projection, blocking=not can_backup)
     if not can_backup:
         return [finding], []
 
-    backup = destination.with_name(
-        f"{destination.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}"
-    )
+    backup = destination.with_name(f"{destination.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
     return [finding], [
         PlannedAction(ActionKind.BACKUP, destination, backup, False),
         _link_action(ActionKind.CREATE_LINK, projection.source, destination, projection),
@@ -103,40 +94,23 @@ def _classify_whole_link(
 def _classify_skill_directory(
     projection: Projection, catalog: tuple[SkillDescriptor, ...]
 ) -> tuple[list[Finding], list[PlannedAction]]:
-    findings = [
-        Finding(FindingState.COMPATIBLE_SKILL_DIRECTORY, projection.destination, projection)
-    ]
+    findings = [Finding(FindingState.COMPATIBLE_SKILL_DIRECTORY, projection.destination, projection)]
     actions: list[PlannedAction] = []
 
     for skill in catalog:
         destination = projection.destination / skill.name
         if not os.path.lexists(destination):
             findings.append(Finding(FindingState.MISSING, destination, projection))
-            actions.append(
-                PlannedAction(ActionKind.CREATE_LINK, skill.directory, destination, True)
-            )
-        elif (
-            _is_link(destination)
-            and destination.exists()
-            and _same_target(destination, skill.directory)
-        ):
+            actions.append(PlannedAction(ActionKind.CREATE_LINK, skill.directory, destination, True))
+        elif _is_link(destination) and destination.exists() and _same_target(destination, skill.directory):
             findings.append(Finding(FindingState.CORRECT, destination, projection))
         else:
-            findings.append(
-                Finding(
-                    FindingState.SKILL_NAME_COLLISION,
-                    destination,
-                    projection,
-                    blocking=True,
-                )
-            )
+            findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, projection, blocking=True))
 
     return findings, actions
 
 
-def _link_action(
-    kind: ActionKind, source: Path, destination: Path, projection: Projection
-) -> PlannedAction:
+def _link_action(kind: ActionKind, source: Path, destination: Path, projection: Projection) -> PlannedAction:
     return PlannedAction(kind, source, destination, projection.is_directory)
 
 

@@ -6,19 +6,27 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from .catalog_errors import (
+    DuplicateSkillNames,
+    InvalidSkillName,
+    MissingFrontmatter,
+    MissingSkillDescription,
+    MissingSkillFile,
+    MissingSkillName,
+    SkillDirectoryNameMismatch,
+    SkillsDirectoryNotFound,
+    UnterminatedFrontmatter,
+)
+from .catalog_errors import SkillCatalogError as SkillCatalogError
 from .models import SkillDescriptor
 
 NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _RECOGNIZED_FIELDS = ("name", "description")
 
 
-class SkillCatalogError(Exception):
-    """Raised when the skills directory or a SKILL.md fails validation."""
-
-
 def load_skill_catalog(skills_root: Path) -> tuple[SkillDescriptor, ...]:
     if not skills_root.is_dir():
-        raise SkillCatalogError(f"{skills_root}: skills directory not found")
+        raise SkillsDirectoryNotFound(skills_root)
 
     parsed: list[tuple[Path, str, str]] = []
     for directory in sorted(child for child in skills_root.iterdir() if child.is_dir()):
@@ -30,35 +38,32 @@ def load_skill_catalog(skills_root: Path) -> tuple[SkillDescriptor, ...]:
     descriptors: list[SkillDescriptor] = []
     for directory, name, description in parsed:
         if name != directory.name:
-            raise SkillCatalogError(
-                f"{directory}: declared name {name!r} does not match directory name "
-                f"{directory.name!r}"
-            )
-        descriptors.append(SkillDescriptor(name=name, description=description, directory=directory))
+            raise SkillDirectoryNameMismatch(directory, name)
+        descriptors.append(SkillDescriptor(name, description, directory))
     return tuple(descriptors)
 
 
 def _parse_skill(directory: Path) -> tuple[str, str]:
     skill_md = directory / "SKILL.md"
     if not skill_md.is_file():
-        raise SkillCatalogError(f"{directory}: missing SKILL.md")
+        raise MissingSkillFile(directory)
 
     fields = _parse_frontmatter(skill_md)
     name = fields.get("name")
     if name is None:
-        raise SkillCatalogError(f"{skill_md}: frontmatter is missing 'name'")
+        raise MissingSkillName(skill_md)
     description = fields.get("description")
     if description is None:
-        raise SkillCatalogError(f"{skill_md}: frontmatter is missing 'description'")
+        raise MissingSkillDescription(skill_md)
     if not NAME_PATTERN.fullmatch(name):
-        raise SkillCatalogError(f"{skill_md}: name {name!r} must be lowercase and hyphenated")
+        raise InvalidSkillName(skill_md, name)
     return name, description
 
 
 def _parse_frontmatter(skill_md: Path) -> dict[str, str]:
     lines = skill_md.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
-        raise SkillCatalogError(f"{skill_md}: missing frontmatter delimiters")
+        raise MissingFrontmatter(skill_md)
 
     fields: dict[str, str] = {}
     closed = False
@@ -74,7 +79,7 @@ def _parse_frontmatter(skill_md: Path) -> dict[str, str]:
             fields[key] = _strip_matching_quotes(raw_value.strip())
 
     if not closed:
-        raise SkillCatalogError(f"{skill_md}: unterminated frontmatter block")
+        raise UnterminatedFrontmatter(skill_md)
     return fields
 
 
@@ -88,4 +93,4 @@ def _reject_duplicate_names(parsed: list[tuple[Path, str, str]]) -> None:
     counts = Counter(name for _, name, _ in parsed)
     duplicates = sorted(name for name, count in counts.items() if count > 1)
     if duplicates:
-        raise SkillCatalogError(f"duplicate declared skill names: {', '.join(duplicates)}")
+        raise DuplicateSkillNames(duplicates)

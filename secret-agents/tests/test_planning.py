@@ -162,9 +162,7 @@ def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(
     destination.mkdir(parents=True)
     (destination / "third-party").mkdir()
 
-    plan = build_install_plan(
-        (_skills_projection(source, destination),), (beta, alpha), False, TIMESTAMP
-    )
+    plan = build_install_plan((_skills_projection(source, destination),), (beta, alpha), False, TIMESTAMP)
 
     assert tuple(finding.state for finding in plan.findings) == (
         FindingState.COMPATIBLE_SKILL_DIRECTORY,
@@ -184,9 +182,7 @@ def test_correct_per_skill_link_is_preserved(tmp_path: Path) -> None:
     destination.mkdir(parents=True)
     (destination / "alpha").symlink_to(alpha.directory, target_is_directory=True)
 
-    plan = build_install_plan(
-        (_skills_projection(source, destination),), (alpha,), False, TIMESTAMP
-    )
+    plan = build_install_plan((_skills_projection(source, destination),), (alpha,), False, TIMESTAMP)
 
     assert tuple(finding.state for finding in plan.findings) == (
         FindingState.COMPATIBLE_SKILL_DIRECTORY,
@@ -205,9 +201,7 @@ def test_same_name_skill_collision_blocks_entire_plan(tmp_path: Path) -> None:
     (destination / "alpha").mkdir()
     guidance_source = tmp_path / "canonical" / "AGENTS.md"
     guidance_source.write_text("guidance", encoding="utf-8")
-    missing_guidance = _guidance_projection(
-        guidance_source, tmp_path / "home" / ".codex" / "AGENTS.md"
-    )
+    missing_guidance = _guidance_projection(guidance_source, tmp_path / "home" / ".codex" / "AGENTS.md")
 
     plan = build_install_plan(
         (_skills_projection(source, destination), missing_guidance),

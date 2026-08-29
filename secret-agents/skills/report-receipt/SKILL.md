@@ -1,6 +1,6 @@
 ---
-name: work-receipt-create
-description: Use when the user asks to create or update a work receipt, WR, handoff note, status receipt, completion receipt, progress receipt, or explicitly invokes @skill work-receipt-create; especially when saving analysis, summarizing engineering work, or preserving text verbatim in a receipt.
+name: report-receipt
+description: Use when the user asks to create or update a work receipt, WR, handoff note, status receipt, completion receipt, progress receipt, or explicitly invokes @skill report-receipt; especially when saving analysis, summarizing engineering work, or preserving text verbatim in a receipt.
 ---
 
 # Work Receipt Skill
@@ -9,7 +9,7 @@ Use this skill whenever the user asks for a work summary, handoff note, status r
 
 ## File Output Target
 
-- Write the receipt to the current month's folder of the `worky` checkout this skill lives in: `<skill base dir>\..\..\..\Receipts\YYYY\YYYY-MM\` where `YYYY-MM` is the receipt's end date (the skill sits at `<worky root>\Agent\skills\work-receipt-create`). Create the month folder if it does not exist.
+- Write the receipt to the current month's folder of the `worky` checkout this skill lives in: `<skill base dir>\..\..\..\Receipts\YYYY\YYYY-MM\` where `YYYY-MM` is the receipt's end date (the skill sits at `<worky root>\Agent\skills\report-receipt`). Create the month folder if it does not exist.
 - Known checkouts: `D:\git\worky` (work machine), `C:\git\worky` (home machine) — but always prefer the resolved relative path over these.
 
 ## Filename Convention

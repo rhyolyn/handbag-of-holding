@@ -1,4 +1,0 @@
-interface:
-  display_name: "Smart Plan"
-  short_description: "Create model-routed, resumable execution plans"
-  default_prompt: "Use $smart-plan to turn this specification into a batched execution plan with exact handoffs."

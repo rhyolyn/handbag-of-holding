@@ -2,7 +2,7 @@
 
 Shared working agreement for AI coding agents — all harnesses, all repos — readable by humans too. Canonical copy: `<agent-root>\AGENTS.md` (see Environment, bottom).
 
-**Revision: 2026-07-12** — bump this date on every edit.
+**Revision: 2026-08-29b** — bump this revision on every edit.
 
 - Asked whether this guidance is loaded: answer with the revision above from memory — never re-read just to answer. A wrong or missing answer means the harness adapter is broken; fix via `runbooks\harness-setup\`, then re-read.
 - Re-read the full file only when it was edited mid-session, post-compaction behavior drifts from these rules, or on a fresh machine/harness. For a single violation, cite the specific rule — targeted correction beats reloading.
@@ -43,20 +43,21 @@ Classify the failure first; no blanket rule:
 - Expected runtime failures (corrupt file, unwritable path, bad input): log once at the failure site with context, then surface to the user through the designated channel. Quiet guard macros exist for this tier only.
 - Missing capability (optional subsystem, unavailable backend): check once at startup; afterward features refuse explicitly with a clear message rather than silently doing nothing.
 - Keep the happy path simple, but never hide important failure modes.
+- When designing error handling, changing several error sites, reorganizing exception types, removing inline messages, eliminating message-parsing control flow, or correcting duplicate logging, use the `clean-code-error-handling` skill. Keep repository-specific response, exit-code, and logging contracts in this file.
 
 ## Enforcement
 
 - An architectural rule that is not machine-checked does not exist across sessions. Establish the rule and its check in the same change.
 - A qualifying check runs in CI, fails on violation, has a planted-violation test proving it fires, and fails loudly if it scans nothing.
 - Size and count gates are tripwires forcing a human decision (allowlist plus justification), never verdicts.
-- Per-ecosystem recipes (Python AST guards, Unreal module-dependency enforcement, TypeScript boundary rules, CI patterns): `skills\architecture-guards\SKILL.md`.
+- Per-ecosystem recipes (Python AST guards, Unreal module-dependency enforcement, TypeScript boundary rules, CI patterns): `skills\clean-code-architecture-guards\SKILL.md`.
 
 ## Code Style
 
 - Names: explicit, descriptive, grammatically sensible — correct part of speech for the construct.
 - Short functions that read like prose, named so the call site reads as intent. Short is the outcome of a single clear purpose, not a target: never split a coherent function to hit a length; never scatter one behavior across helpers that mean nothing alone.
 - Low parameter counts for ordinary functions. Constructors are exempt — a constructor declares the unit's full coupling. Never hide a dependency behind a getter, callback, service locator, or context object to shrink a signature; a wide constructor is the god-object early-warning system working as intended.
-- Prefer the repo guard/logging macros (`RETURN_FALSE_IF`, `RETURN_FALSE_QUIETLY_IF`, `RETURN_IF_FALSE`, `RETURN_QUIETLY_IF`, `CONTINUE_IF`, `CONTINUE_QUIETLY_IF`) over 5+ line if/log/return blocks. Log at the lowest level with enough context to diagnose, then propagate silently through callers via quiet guards — one error, logged once (expected-failure tier only; see Error Handling).
+- Prefer established project guard and logging helpers when they preserve the repository's error semantics and single-log ownership. Do not introduce helpers merely to shorten control flow.
 - Organize every file so the first screen tells the story: public API and core flow on top, helpers below; documents lead with a summary. Length is fine when organization keeps it scannable.
 - Prefer prototypes, definitions, and calls on one line; split only when a line is genuinely hard to read or fights tooling.
 - `.cpp` files: core class functionality at top, local helper bodies at bottom, compact forward declarations where C++ needs names early. Definition order mirrors the `.h` prototype order.
@@ -107,18 +108,17 @@ Correctness, regressions, and behavioral risk → architecture and maintainabili
 - If `p4 where` maps through an imported/parent stream and `p4 edit` says `file(s) not on client`: stop retrying path variants; name the stream-view issue and ask whether a different client, stream, or local-only patch is intended.
 - Patch a file locally without opening it only when it is writable and the user explicitly wants a local test — and call out that the result may not be submit-ready from that client.
 
-## Scout Repo Commands
+## Shared Repository Layout
 
-*(Scout-specific — relocation candidate per the admission test: belongs in that repo's own AGENTS.md.)*
-
-- Prefer Builder scripts over direct Unreal tooling: from `d:\p4\ss` run `python root/builder/src/<script>.py`; from `d:\p4\ss\root` run `python builder/src/<script>.py`.
-- Build: `build_game.py`. Project files: `generate_project_files.py --repo-root root`. All automation tests: `run_automation_tests.py --repo-root root`; focused runs append test names/prefixes (e.g. `Scout.AssetTracker`).
-- Builder finds the repo root via `UnrealPathFinder`; default logs land in `<repo-root>/scout_logs`.
-- "Live Coding active" reported after Unreal is closed: check for stale editor processes before retrying.
+- `<agent-root>` is the canonical shared-agent directory identified by `.agent-root.json`; resolve it from the marker or configured root rather than assuming a drive or checkout path.
+- `AGENTS.md` is the shared instruction source, `skills\<name>\SKILL.md` contains one portable skill per direct child directory, and `runbooks\<workflow>\` contains reusable operational workflows.
+- Keep shared content project-agnostic. Project commands, paths, build policy, and local exceptions belong in that project's own guidance or in a runbook explicitly labeled for that project.
+- Keep harness-specific configuration out of shared skills and guidance. Add or change adapter paths and discovery rules in `runbooks\harness-setup\harness-setup.md`.
 
 ## Environment & Harness Adapters
 
-- `<agent-root>` = this directory's absolute path: `C:\git\worky\Agent` or `D:\git\worky\Agent` depending on machine.
-- Layout: shared guidance here; skills in `skills\<name>\SKILL.md`; runbooks in `runbooks\<workflow>\`. Harness integration is always a symlink/junction back to `<agent-root>`, never a copy. Setup steps and per-harness paths: `runbooks\harness-setup\`.
-- An explicitly requested `@skill <name>` missing from the active skill list: check `<agent-root>\skills\<name>\SKILL.md` before reporting it unavailable — if present, read it fully and follow it. Likewise check `runbooks\<workflow-name>\` before assuming a named workflow is project-local.
+- Harness integrations point back to `<agent-root>` with symlinks or junctions; never maintain copied guidance, skills, or runbooks when a link will work.
+- Prefer open-standard names and layouts (`AGENTS.md`, top-level `SKILL.md`) so content stays portable across harnesses.
+- An explicitly requested `@skill <name>` missing from the active skill list: check `<agent-root>\skills\<name>\SKILL.md` before reporting it unavailable — if present, read it fully and follow it. Likewise check `<agent-root>\runbooks\<workflow-name>\` before assuming a named workflow is project-local.
+- When adding a harness or changing discovery behavior, update the harness-setup runbook rather than forking shared content.
 - When a skill and a runbook describe the same workflow, update both in the same change.

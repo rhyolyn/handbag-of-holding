@@ -1,5 +1,5 @@
 ---
-name: architecture-guards
+name: clean-code-architecture-guards
 description: Use when establishing an architectural rule that must survive future sessions — layer boundaries, import direction, state ownership, size tripwires — or when such a rule exists only in prose, review feedback, or comments and has no failing check in CI.
 ---
 

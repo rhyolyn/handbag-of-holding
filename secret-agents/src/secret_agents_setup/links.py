@@ -6,50 +6,44 @@ import os
 import subprocess
 import tempfile
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from pathlib import Path
 from subprocess import CompletedProcess
 from typing import Protocol
 
-
-class LinkOperationError(Exception):
-    """Raised when a link operation cannot be completed safely."""
-
-
-@dataclass(frozen=True)
-class LinkCapability:
-    supported: bool
-    requires_privilege: bool
-    message: str
+from .link_errors import (
+    JunctionFailed,
+    LinkTargetMismatch,
+    NotALink,
+    SymlinkFailed,
+    SymlinkPrivilegeRequired,
+    SymlinkUnsupported,
+)
+from .link_errors import LinkOperationError as LinkOperationError
 
 
 class LinkBackend(Protocol):
-    def probe_file_link_capability(self, probe_root: Path) -> LinkCapability: ...
+    def probe_file_link_capability(self, probe_root: Path) -> None: ...
 
-    def create_directory_link(self, source: Path, destination: Path) -> None: ...
+    def create_directory_link(self, src: Path, dst: Path) -> None: ...
 
-    def create_file_link(self, source: Path, destination: Path) -> None: ...
+    def create_file_link(self, src: Path, dst: Path) -> None: ...
 
     def remove_link(self, path: Path) -> None: ...
 
     def resolved_target(self, path: Path) -> Path: ...
 
 
-class PosixLinkBackend:
-    def probe_file_link_capability(self, probe_root: Path) -> LinkCapability:
-        return LinkCapability(
-            supported=True,
-            requires_privilege=False,
-            message="POSIX symbolic links are supported.",
-        )
+class PosixLinkBackend(LinkBackend):
+    def probe_file_link_capability(self, probe_root: Path) -> None:
+        pass
 
-    def create_directory_link(self, source: Path, destination: Path) -> None:
-        os.symlink(source, destination, target_is_directory=True)
-        self._verify_created_link(source, destination)
+    def create_directory_link(self, src: Path, dst: Path) -> None:
+        os.symlink(src, dst, target_is_directory=True)
+        self._verify_created_link(src, dst)
 
-    def create_file_link(self, source: Path, destination: Path) -> None:
-        os.symlink(source, destination)
-        self._verify_created_link(source, destination)
+    def create_file_link(self, src: Path, dst: Path) -> None:
+        os.symlink(src, dst)
+        self._verify_created_link(src, dst)
 
     def remove_link(self, path: Path) -> None:
         _remove_link(path)
@@ -57,15 +51,14 @@ class PosixLinkBackend:
     def resolved_target(self, path: Path) -> Path:
         return path.resolve(strict=False)
 
-    def _verify_created_link(self, source: Path, destination: Path) -> None:
-        _verify_created_link(self, source, destination)
+    def _verify_created_link(self, src: Path, dst: Path) -> None:
+        _verify_created_link(self, src, dst)
 
 
-RunCommand = Callable[[Sequence[str]], CompletedProcess[str]]
-CreateSymlink = Callable[..., None]
+class WindowsLinkBackend(LinkBackend):
+    RunCommand = Callable[[Sequence[str]], CompletedProcess[str]]
+    CreateSymlink = Callable[..., None]
 
-
-class WindowsLinkBackend:
     def __init__(
         self,
         run_command: RunCommand | None = None,
@@ -74,66 +67,38 @@ class WindowsLinkBackend:
         self._run_command = run_command or _run_command
         self._create_symlink = create_symlink
 
-    def probe_file_link_capability(self, probe_root: Path) -> LinkCapability:
+    def probe_file_link_capability(self, probe_root: Path) -> None:
         probe_directory = Path(tempfile.mkdtemp(prefix="secret-agents-link-probe-", dir=probe_root))
-        source = probe_directory / "source-file"
-        destination = probe_directory / "file-link"
-        source.write_text("probe", encoding="utf-8")
-
+        src = probe_directory / "src-file"
+        dst = probe_directory / "file-link"
+        src.write_text("probe", encoding="utf-8")
         try:
-            self._create_symlink(source, destination)
-            self._verify_created_link(source, destination)
-        except OSError as exc:
-            if getattr(exc, "winerror", None) == 1314:
-                return LinkCapability(
-                    supported=False,
-                    requires_privilege=True,
-                    message=(
-                        "Windows file symbolic links require Developer Mode or elevation "
-                        "(error 1314)."
-                    ),
-                )
-            return LinkCapability(
-                supported=False,
-                requires_privilege=False,
-                message=f"Windows file symbolic-link capability probe failed: {exc}",
-            )
+            self._attempt_file_link_probe(src, dst)
         finally:
-            _remove_probe_artifacts(source, destination, probe_directory)
+            _remove_probe_artifacts(src, dst, probe_directory)
 
-        return LinkCapability(
-            supported=True,
-            requires_privilege=False,
-            message="Windows file symbolic links are supported.",
-        )
+    def _attempt_file_link_probe(self, src: Path, dst: Path) -> None:
+        try:
+            self._create_symlink(src, dst)
+            self._verify_created_link(src, dst)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == SymlinkPrivilegeRequired.WINERROR_PRIVILEGE_NOT_HELD:
+                raise SymlinkPrivilegeRequired() from exc
+            raise SymlinkUnsupported(exc) from exc
 
-    def create_directory_link(self, source: Path, destination: Path) -> None:
-        command = (
-            "cmd.exe",
-            "/d",
-            "/c",
-            "mklink",
-            "/J",
-            str(destination),
-            str(source),
-        )
+    def create_directory_link(self, src: Path, dst: Path) -> None:
+        command = ("cmd.exe", "/d", "/c", "mklink", "/J", str(dst), str(src))
         result = self._run_command(command)
         if result.returncode != 0:
-            raise LinkOperationError(
-                f"junction command failed for source {source} and destination {destination}; "
-                f"stdout: {result.stdout!r}; stderr: {result.stderr!r}"
-            )
-        self._verify_created_link(source, destination)
+            raise JunctionFailed(src, dst, result)
+        self._verify_created_link(src, dst)
 
-    def create_file_link(self, source: Path, destination: Path) -> None:
+    def create_file_link(self, src: Path, dst: Path) -> None:
         try:
-            self._create_symlink(source, destination)
+            self._create_symlink(src, dst)
         except OSError as exc:
-            raise LinkOperationError(
-                f"file symbolic link failed for source {source} and destination {destination}: "
-                f"{exc}"
-            ) from exc
-        self._verify_created_link(source, destination)
+            raise SymlinkFailed(src, dst, exc) from exc
+        self._verify_created_link(src, dst)
 
     def remove_link(self, path: Path) -> None:
         _remove_link(path)
@@ -141,8 +106,8 @@ class WindowsLinkBackend:
     def resolved_target(self, path: Path) -> Path:
         return path.resolve(strict=False)
 
-    def _verify_created_link(self, source: Path, destination: Path) -> None:
-        _verify_created_link(self, source, destination)
+    def _verify_created_link(self, src: Path, dst: Path) -> None:
+        _verify_created_link(self, src, dst)
 
 
 def backend_for(os_name: str) -> LinkBackend:
@@ -159,16 +124,13 @@ def _run_command(argv: Sequence[str]) -> CompletedProcess[str]:
 
 def _verify_created_link(
     backend: LinkBackend,
-    source: Path,
-    destination: Path,
+    src: Path,
+    dst: Path,
 ) -> None:
-    resolved_source = source.resolve(strict=False)
-    resolved_destination = backend.resolved_target(destination)
-    if resolved_destination != resolved_source:
-        raise LinkOperationError(
-            f"created link destination {destination} resolved to {resolved_destination}, "
-            f"not source {resolved_source}"
-        )
+    resolved_src = src.resolve(strict=False)
+    resolved_dst = backend.resolved_target(dst)
+    if resolved_dst != resolved_src:
+        raise LinkTargetMismatch(dst, resolved_dst, resolved_src)
 
 
 def _remove_link(path: Path) -> None:
@@ -178,15 +140,15 @@ def _remove_link(path: Path) -> None:
     if _is_junction(path):
         path.rmdir()
         return
-    raise LinkOperationError(f"refuse to remove non-link path: {path}")
+    raise NotALink(path)
 
 
-def _remove_probe_artifacts(source: Path, destination: Path, probe_directory: Path) -> None:
-    if destination.is_symlink() or destination.is_file():
-        destination.unlink()
-    elif _is_junction(destination) or destination.is_dir():
-        destination.rmdir()
-    source.unlink(missing_ok=True)
+def _remove_probe_artifacts(src: Path, dst: Path, probe_directory: Path) -> None:
+    if dst.is_symlink() or dst.is_file():
+        dst.unlink()
+    elif _is_junction(dst) or dst.is_dir():
+        dst.rmdir()
+    src.unlink(missing_ok=True)
     probe_directory.rmdir()
 
 

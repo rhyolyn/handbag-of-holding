@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from secret_agents_setup.adapters import build_projections
+from secret_agents_setup.harness_profiles import build_projections
 from secret_agents_setup.models import AgentRoot, Harness, ProjectionKind
 
 
@@ -73,16 +73,12 @@ def test_harness_uses_verified_projection_paths(
     assert all(projection.harnesses == (harness,) for projection in projections)
 
 
-def test_all_deduplicates_shared_skills_and_orders_destinations(
-    agent_root: AgentRoot, tmp_path: Path
-) -> None:
+def test_all_deduplicates_shared_skills_and_orders_destinations(agent_root: AgentRoot, tmp_path: Path) -> None:
     home = tmp_path / "home"
 
     projections = build_projections(agent_root, home, (Harness.ALL,))
 
-    assert tuple(
-        projection.destination.relative_to(home).as_posix() for projection in projections
-    ) == (
+    assert tuple(projection.destination.relative_to(home).as_posix() for projection in projections) == (
         ".agents/skills",
         ".claude/CLAUDE.md",
         ".claude/skills",
@@ -93,9 +89,7 @@ def test_all_deduplicates_shared_skills_and_orders_destinations(
     assert shared_skills.harnesses == (Harness.CODEX, Harness.COPILOT)
 
 
-def test_explicit_codex_and_copilot_selection_deduplicates_shared_skills(
-    agent_root: AgentRoot, tmp_path: Path
-) -> None:
+def test_explicit_codex_and_copilot_selection_deduplicates_shared_skills(agent_root: AgentRoot, tmp_path: Path) -> None:
     projections = build_projections(
         agent_root,
         tmp_path / "home",
@@ -103,22 +97,14 @@ def test_explicit_codex_and_copilot_selection_deduplicates_shared_skills(
     )
 
     shared = tuple(
-        projection
-        for projection in projections
-        if projection.destination.parts[-2:] == (".agents", "skills")
+        projection for projection in projections if projection.destination.parts[-2:] == (".agents", "skills")
     )
     assert len(shared) == 1
     assert shared[0].harnesses == (Harness.CODEX, Harness.COPILOT)
 
 
-def test_all_guidance_projections_share_canonical_agents_source(
-    agent_root: AgentRoot, tmp_path: Path
-) -> None:
+def test_all_guidance_projections_share_canonical_agents_source(agent_root: AgentRoot, tmp_path: Path) -> None:
     projections = build_projections(agent_root, tmp_path / "home", (Harness.ALL,))
 
-    guidance_sources = {
-        projection.source
-        for projection in projections
-        if projection.kind is ProjectionKind.GUIDANCE
-    }
+    guidance_sources = {projection.source for projection in projections if projection.kind is ProjectionKind.GUIDANCE}
     assert guidance_sources == {agent_root.path / "AGENTS.md"}

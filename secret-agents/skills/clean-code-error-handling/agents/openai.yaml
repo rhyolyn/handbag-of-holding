@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clean Code · Error Handling"
+  short_description: "Design and refactor clean error contracts"
+  default_prompt: "Use $clean-code-error-handling to design or reorganize this repository's error handling."

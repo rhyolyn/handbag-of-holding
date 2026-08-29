@@ -1,5 +1,5 @@
 ---
-name: reset-unreal-build-environment
+name: unreal-reset-build-env
 description: Use when Unreal Engine builds, UGS builds, UBT/UAT/Build.bat/RunUAT.bat/GenerateProjectFiles, UBA, MSBuild, or Visual Studio shell state must be stopped or cleaned before starting a fresh Unreal build on Windows.
 ---
 
@@ -16,7 +16,7 @@ Core rule: stop build/tool processes, preserve editor and Perforce state unless 
 Run from the same PowerShell session that will start the next build:
 
 ```powershell
-$Skill = "D:\git\worky\Agent\skills\reset-unreal-build-environment"
+$Skill = "D:\git\worky\Agent\skills\unreal-reset-build-env"
 & "$Skill\scripts\Stop-UnrealBuildAndCleanEnv.ps1" -Root "D:\p4\ss-5.8\root"
 ```
 

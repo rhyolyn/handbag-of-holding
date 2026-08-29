@@ -8,9 +8,8 @@ from subprocess import CompletedProcess
 
 import pytest
 
+from secret_agents_setup.link_errors import LinkOperationError, SymlinkPrivilegeRequired
 from secret_agents_setup.links import (
-    LinkCapability,
-    LinkOperationError,
     PosixLinkBackend,
     WindowsLinkBackend,
     backend_for,
@@ -70,15 +69,10 @@ def test_posix_backend_refuses_to_remove_real_directory(tmp_path: Path) -> None:
 
 
 def test_posix_file_link_probe_reports_supported(tmp_path: Path) -> None:
-    capability = PosixLinkBackend().probe_file_link_capability(tmp_path)
-
-    assert capability.supported
-    assert not capability.requires_privilege
+    PosixLinkBackend().probe_file_link_capability(tmp_path)
 
 
-def test_windows_directory_link_uses_exact_junction_command(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_windows_directory_link_uses_exact_junction_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     source = tmp_path / "source"
     destination = tmp_path / "destination"
     source.mkdir()
@@ -124,19 +118,13 @@ def test_windows_probe_reports_controlled_privilege_prerequisite(tmp_path: Path)
     def refuse_symlink(source: Path, destination: Path) -> None:
         raise _WindowsPrivilegeError("A required privilege is not held by the client")
 
-    capability = WindowsLinkBackend(create_symlink=refuse_symlink).probe_file_link_capability(
-        tmp_path
-    )
+    with pytest.raises(SymlinkPrivilegeRequired, match="Developer Mode or elevation"):
+        WindowsLinkBackend(create_symlink=refuse_symlink).probe_file_link_capability(tmp_path)
 
-    assert not capability.supported
-    assert capability.requires_privilege
-    assert "Developer Mode or elevation" in capability.message
     assert list(tmp_path.iterdir()) == []
 
 
-def test_windows_successful_probe_removes_every_artifact(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_windows_successful_probe_removes_every_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def create_probe_file(source: Path, destination: Path) -> None:
         destination.touch()
 
@@ -144,19 +132,15 @@ def test_windows_successful_probe_removes_every_artifact(
     monkeypatch.setattr(
         backend,
         "resolved_target",
-        lambda path: next(path.parent.glob("source-*")),
+        lambda path: next(path.parent.glob("src-*")),
     )
 
-    capability = backend.probe_file_link_capability(tmp_path)
+    backend.probe_file_link_capability(tmp_path)
 
-    assert capability.supported
-    assert not capability.requires_privilege
     assert list(tmp_path.iterdir()) == []
 
 
-def test_windows_file_link_uses_injected_symlink_creator(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_windows_file_link_uses_injected_symlink_creator(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     source = tmp_path / "source.txt"
     destination = tmp_path / "destination.txt"
     source.write_text("canonical", encoding="utf-8")
@@ -174,9 +158,7 @@ def test_windows_file_link_uses_injected_symlink_creator(
     assert calls == [(source, destination)]
 
 
-def test_link_backends_never_use_hardlinks_or_copy_fallbacks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_link_backends_never_use_hardlinks_or_copy_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def forbidden(*args: object, **kwargs: object) -> None:
         pytest.fail("hardlink or copy fallback invoked")
 
@@ -219,16 +201,10 @@ def test_link_backends_never_use_hardlinks_or_copy_fallbacks(
 def test_current_host_creates_and_removes_real_directory_link(tmp_path: Path) -> None:
     backend = backend_for(os.name)
     if os.name == "nt":
-        capability = backend.probe_file_link_capability(tmp_path)
-        if not capability.supported:
-            assert capability == LinkCapability(
-                supported=False,
-                requires_privilege=True,
-                message=(
-                    "Windows file symbolic links require Developer Mode or elevation (error 1314)."
-                ),
-            )
-            pytest.skip(capability.message)
+        try:
+            backend.probe_file_link_capability(tmp_path)
+        except SymlinkPrivilegeRequired as exc:
+            pytest.skip(str(exc))
 
     source = tmp_path / "real-source"
     destination = tmp_path / "real-link"
