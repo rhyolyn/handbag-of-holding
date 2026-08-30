@@ -223,7 +223,7 @@ git commit -m "fix: enforce managed home boundary"
 - Produces `BackupPathOccupied(path: Path)`, a semantic pre-mutation error mapped to `BLOCKED` / 3.
 - `_InstallRun._backup` exclusively reserves the planned destination before moving the original and never overwrites a path it did not reserve.
 
-- [ ] **Step 1: Write failing planning and execution tests**
+- [x] **Step 1: Write failing planning and execution tests**
 
 Add these contracts:
 
@@ -241,7 +241,7 @@ def test_backup_race_never_overwrites_existing_bytes(tmp_path: Path) -> None:
 
 Add a CLI test asserting `BackupPathOccupied` yields `ExitCode.BLOCKED`, prints `result blocked`, reports the occupied path on stderr, and does not print `result failed`.
 
-- [ ] **Step 2: Run the focused tests and observe RED**
+- [x] **Step 2: Run the focused tests and observe RED**
 
 Run:
 
@@ -251,17 +251,17 @@ python -m pytest tests/test_planning.py tests/test_executor.py tests/test_cli.py
 
 Expected: the planner selects the occupied name or `_backup` overwrites it via `os.replace`; `BackupPathOccupied` does not exist.
 
-- [ ] **Step 3: Implement deterministic selection and exclusive reservation**
+- [x] **Step 3: Implement deterministic selection and exclusive reservation**
 
 Use `os.path.lexists` while selecting the deterministic plan destination. In `_backup`, reserve with `os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)` and close the descriptor before replacing the reservation with the original. If reservation fails with `FileExistsError`, raise `BackupPathOccupied` before reading, moving, or linking user content. If the subsequent move fails, remove only the reservation created by this execution before propagating.
 
 Do not use an existence-check followed directly by overwrite-capable `os.replace` without exclusive reservation.
 
-- [ ] **Step 4: Map the pre-mutation race through the current CLI boundary**
+- [x] **Step 4: Map the pre-mutation race through the current CLI boundary**
 
 Catch `BackupPathOccupied` with the existing blocked/capability group. Do not wrap it in `ExecutionError`; the operation has not started mutating managed state.
 
-- [ ] **Step 5: Run focused tests and require GREEN**
+- [x] **Step 5: Run focused tests and require GREEN**
 
 Run:
 
@@ -271,7 +271,7 @@ python -m pytest tests/test_planning.py tests/test_executor.py tests/test_cli.py
 
 Expected: PASS and both the original file and pre-existing backup bytes remain exact in the race case.
 
-- [ ] **Step 6: Commit Task 2**
+- [x] **Step 6: Commit Task 2**
 
 ```text
 git add -- src/secret_agents_setup/planning.py src/secret_agents_setup/executor.py src/secret_agents_setup/executor_errors.py src/secret_agents_setup/cli.py tests/test_planning.py tests/test_executor.py tests/test_cli.py docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md

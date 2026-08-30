@@ -84,11 +84,21 @@ def _classify_projection(
     if not can_backup:
         return [finding], []
 
-    backup = destination.with_name(f"{destination.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
+    backup = _available_backup_path(destination, timestamp)
     return [finding], [
         PlannedAction(ActionKind.BACKUP, destination, backup, False),
         _link_action(ActionKind.CREATE_LINK, projection.source, destination, projection),
     ]
+
+
+def _available_backup_path(original: Path, timestamp: datetime) -> Path:
+    timestamped = original.with_name(f"{original.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
+    candidate = timestamped
+    suffix = 2
+    while os.path.lexists(candidate):
+        candidate = timestamped.with_name(f"{timestamped.name}-{suffix}")
+        suffix += 1
+    return candidate
 
 
 def _classify_whole_link(

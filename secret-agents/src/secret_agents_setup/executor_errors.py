@@ -6,6 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+class BackupPathOccupied(Exception):
+    """Raised before backup mutation when the planned destination is occupied."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        super().__init__(f"backup destination is already occupied: {path}")
+
+
 @dataclass(frozen=True)
 class RollbackFailure:
     """One compensation that could not be applied while rolling back."""

@@ -9,7 +9,9 @@ from pathlib import Path
 
 import pytest
 
+import secret_agents_setup.cli as cli_module
 from secret_agents_setup.cli import ExitCode, main
+from secret_agents_setup.executor_errors import BackupPathOccupied
 from secret_agents_setup.link_errors import SymlinkPrivilegeRequired
 from secret_agents_setup.links import LinkBackend
 from secret_agents_setup.models import (
@@ -199,6 +201,30 @@ def test_execution_failure_returns_execution_failed(tmp_path: Path, capsys: pyte
     assert code == ExitCode.EXECUTION_FAILED
     assert not (home / ".agents").exists()
     assert capsys.readouterr().err != ""
+
+
+def test_backup_path_occupied_is_blocked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_agent_root(tmp_path)
+    home = tmp_path / "home"
+    guidance = home / ".codex" / "AGENTS.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_text("personal", encoding="utf-8")
+    occupied = guidance.with_name("AGENTS.md.backup-20260829-120000")
+
+    def raise_occupied(*_args: object, **_kwargs: object) -> None:
+        raise BackupPathOccupied(occupied)
+
+    monkeypatch.setattr(cli_module, "apply_install_plan", raise_occupied)
+
+    code = _run(["install", "--harness", "codex", "--backup-conflicts"], home=home, root=root, backend=FakeBackend())
+
+    captured = capsys.readouterr()
+    assert code == ExitCode.BLOCKED
+    assert "result blocked" in captured.out
+    assert str(occupied) in captured.err
+    assert "result failed" not in captured.out
 
 
 def test_check_missing_is_blocked(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ import pytest
 
 import secret_agents_setup.executor as executor_module
 from secret_agents_setup.executor import apply_install_plan, validate_installed_plan
-from secret_agents_setup.executor_errors import ExecutionError
+from secret_agents_setup.executor_errors import BackupPathOccupied, ExecutionError
 from secret_agents_setup.harness_profiles import build_projections
 from secret_agents_setup.link_errors import SymlinkUnsupported
 from secret_agents_setup.models import (
@@ -175,6 +176,101 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
         ReceiptBackup(original=original, backup=backup, sha256=hashlib.sha256(b"personal").hexdigest()),
     )
     assert ExecutionEventKind.BACKED_UP in _event_kinds(report)
+
+
+def test_backup_race_never_overwrites_existing_bytes(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_bytes(b"personal bytes")
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan((projection,), (), True, TIMESTAMP)
+    backup = plan.actions[0].destination
+    backup.write_bytes(b"occupied bytes")
+    backend = RecordingBackend()
+    receipt_file = receipt_path(home, root.identity)
+
+    with pytest.raises(BackupPathOccupied) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+
+    assert raised.value.path == backup
+    assert original.read_bytes() == b"personal bytes"
+    assert backup.read_bytes() == b"occupied bytes"
+    assert backend.targets == {}
+    assert not receipt_file.exists()
+
+
+def test_backup_race_with_prior_rollback_failure_reports_execution_error(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".agents").mkdir(parents=True)
+    guidance = home / ".codex" / "AGENTS.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_bytes(b"personal bytes")
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projections = build_projections(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan(projections, (), True, TIMESTAMP)
+    backup = next(action.destination for action in plan.actions if action.kind is ActionKind.BACKUP)
+    backup.write_bytes(b"occupied bytes")
+    earlier_link = home / ".agents" / "skills"
+    backend = RecordingBackend()
+    backend.fail_on = lambda tag: tag == ("remove", earlier_link)
+    receipt_file = receipt_path(home, root.identity)
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+
+    error = raised.value
+    assert isinstance(error.original, BackupPathOccupied)
+    assert error.original.path == backup
+    assert error.__cause__ is error.original
+    assert len(error.rollback_failures) == 1
+    rollback_failure = error.rollback_failures[0]
+    assert rollback_failure.operation == "remove-link"
+    assert rollback_failure.path == earlier_link
+    assert rollback_failure.detail == "injected failure at remove skills"
+    assert error.recoverable_paths == (earlier_link,)
+    assert earlier_link.exists()
+    assert guidance.read_bytes() == b"personal bytes"
+    assert backup.read_bytes() == b"occupied bytes"
+    assert not receipt_file.exists()
+
+
+def test_failed_backup_move_removes_its_reservation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_text("personal", encoding="utf-8")
+    backup = original.with_name("AGENTS.md.backup-20260829-120000")
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    plan = InstallPlan(
+        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
+        actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
+    )
+
+    def fail_move(source: Path, destination: Path) -> None:
+        assert source == original
+        assert destination == backup
+        assert backup.exists()
+        raise OSError("move failed")
+
+    monkeypatch.setattr(os, "replace", fail_move)
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(plan, root, tmp_path / "probe", RecordingBackend(), receipt_path(home, root.identity), None)
+
+    assert isinstance(raised.value.original, OSError)
+    assert original.read_text(encoding="utf-8") == "personal"
+    assert not backup.exists()
 
 
 def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:

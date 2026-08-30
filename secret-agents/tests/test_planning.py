@@ -149,6 +149,30 @@ def test_backup_conflict_names_timestamped_sibling_before_link(tmp_path: Path) -
     )
 
 
+def test_backup_planning_uses_next_free_suffix(tmp_path: Path) -> None:
+    source = tmp_path / "canonical" / "AGENTS.md"
+    source.parent.mkdir()
+    source.write_text("canonical", encoding="utf-8")
+    destination = tmp_path / "home" / ".codex" / "AGENTS.md"
+    destination.parent.mkdir(parents=True)
+    destination.write_text("personal", encoding="utf-8")
+    destination.with_name("AGENTS.md.backup-20260829-120000").write_text("occupied", encoding="utf-8")
+
+    plan = build_install_plan(
+        (_guidance_projection(source, destination),),
+        (),
+        True,
+        datetime(2026, 8, 29, 12, 0, 0),
+    )
+
+    assert plan.actions[0] == PlannedAction(
+        kind=ActionKind.BACKUP,
+        source=destination,
+        destination=destination.with_name("AGENTS.md.backup-20260829-120000-2"),
+        is_directory=False,
+    )
+
+
 def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(
     tmp_path: Path,
 ) -> None:

@@ -7,8 +7,8 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
+from .executor_errors import BackupPathOccupied, RollbackFailure
 from .executor_errors import ExecutionError as ExecutionError
-from .executor_errors import RollbackFailure
 from .links import LinkBackend
 from .models import (
     ActionKind,
@@ -68,6 +68,11 @@ def apply_install_plan(
             run.write_receipt(receipt, receipt_file)
             return ExecutionReport(tuple(run.events), receipt, True)
         return ExecutionReport(tuple(run.events), existing_receipt, False)
+    except BackupPathOccupied as original:
+        failures, recoverable = run.rollback()
+        if failures:
+            raise ExecutionError(original, failures, recoverable) from original
+        raise
     except BaseException as original:
         failures, recoverable = run.rollback()
         raise ExecutionError(original, failures, recoverable) from original
@@ -211,8 +216,18 @@ class _InstallRun(_Transaction):
 
     def _backup(self, action: PlannedAction) -> None:
         original, backup = action.source, action.destination
-        digest = file_sha256(original)
-        os.replace(original, backup)
+        try:
+            descriptor = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError as exc:
+            raise BackupPathOccupied(backup) from exc
+
+        try:
+            os.close(descriptor)
+            digest = file_sha256(original)
+            os.replace(original, backup)
+        except BaseException:
+            backup.unlink(missing_ok=True)
+            raise
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
         self.backups.append(ReceiptBackup(original=original, backup=backup, sha256=digest))
         self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))

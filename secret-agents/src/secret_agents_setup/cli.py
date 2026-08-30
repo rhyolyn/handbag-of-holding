@@ -14,7 +14,7 @@ from pathlib import Path
 from .catalog import load_skill_catalog
 from .catalog_errors import SkillCatalogError
 from .executor import apply_install_plan, apply_uninstall_plan
-from .executor_errors import ExecutionError
+from .executor_errors import BackupPathOccupied, ExecutionError
 from .harness_profiles import build_projections
 from .link_errors import SymlinkPrivilegeRequired, SymlinkUnsupported
 from .links import LinkBackend, backend_for
@@ -126,7 +126,7 @@ def _apply_install(session: _Session, plan: InstallPlan) -> int:
         report = apply_install_plan(
             plan, session.root, session.home, session.link_backend, session.receipt_file, existing
         )
-    except (ReceiptError, SymlinkPrivilegeRequired, SymlinkUnsupported) as exc:
+    except (BackupPathOccupied, ReceiptError, SymlinkPrivilegeRequired, SymlinkUnsupported) as exc:
         return _blocked(str(exc))
     except ExecutionError as exc:
         return _failed(str(exc))
