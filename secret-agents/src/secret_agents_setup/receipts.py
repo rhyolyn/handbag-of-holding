@@ -14,6 +14,7 @@ from .models import (
     ReceiptBackup,
     ReceiptProjection,
 )
+from .path_safety import is_path_within
 from .receipt_errors import (
     DuplicateReceiptDestination,
     MalformedReceipt,
@@ -134,12 +135,12 @@ def _load_projections(value: object, path: Path, home: Path, installed_root: Pat
     for entry in entries:
         mapping = _require_object(entry, path, "projections[]")
         destination = _abs_path(mapping.get("destination"), path, "destination")
-        _require_within_home(destination, path, "destination", home)
+        _require_within_home(destination, path, "destination", home, follow_leaf=False)
         if destination in seen:
             raise DuplicateReceiptDestination(path, destination)
         seen.add(destination)
         source = _abs_path(mapping.get("source"), path, "source")
-        if not source.is_relative_to(installed_root):
+        if not is_path_within(source, installed_root, follow_leaf=True):
             raise ReceiptSourceOutsideRoot(path, source, installed_root)
         projections.append(
             ReceiptProjection(
@@ -158,9 +159,9 @@ def _load_backups(value: object, path: Path, home: Path) -> tuple[ReceiptBackup,
     for entry in entries:
         mapping = _require_object(entry, path, "backups[]")
         original = _abs_path(mapping.get("original"), path, "original")
-        _require_within_home(original, path, "original", home)
+        _require_within_home(original, path, "original", home, follow_leaf=False)
         backup = _abs_path(mapping.get("backup"), path, "backup")
-        _require_within_home(backup, path, "backup", home)
+        _require_within_home(backup, path, "backup", home, follow_leaf=True)
         sha256 = mapping.get("sha256")
         if not isinstance(sha256, str):
             raise MalformedReceipt(path, "backup sha256 must be a string")
@@ -173,7 +174,7 @@ def _load_created_parents(value: object, path: Path, home: Path) -> tuple[Path, 
     parents: list[Path] = []
     for entry in entries:
         parent = _abs_path(entry, path, "created_parents")
-        _require_within_home(parent, path, "created_parents", home)
+        _require_within_home(parent, path, "created_parents", home, follow_leaf=True)
         parents.append(parent)
     return tuple(parents)
 
@@ -199,8 +200,8 @@ def _abs_path(value: object, path: Path, field: str) -> Path:
     return candidate
 
 
-def _require_within_home(value: Path, path: Path, field: str, home: Path) -> None:
-    if not value.is_relative_to(home):
+def _require_within_home(value: Path, path: Path, field: str, home: Path, *, follow_leaf: bool) -> None:
+    if not is_path_within(value, home, follow_leaf=follow_leaf):
         raise ReceiptPathOutsideHome(path, field, value, home)
 
 

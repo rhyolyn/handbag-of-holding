@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -10,10 +11,11 @@ from pathlib import Path
 import pytest
 
 import secret_agents_setup.executor as executor_module
+import secret_agents_setup.link_errors as link_errors
 from secret_agents_setup.executor import apply_install_plan, validate_installed_plan
-from secret_agents_setup.executor_errors import ExecutionError
+from secret_agents_setup.executor_errors import BackupPathOccupied, ExecutionError
 from secret_agents_setup.harness_profiles import build_projections
-from secret_agents_setup.link_errors import SymlinkUnsupported
+from secret_agents_setup.link_errors import LinkTargetMismatch, SymlinkUnsupported
 from secret_agents_setup.models import (
     ActionKind,
     AgentRoot,
@@ -177,6 +179,141 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
     assert ExecutionEventKind.BACKED_UP in _event_kinds(report)
 
 
+def test_backup_race_never_overwrites_existing_bytes(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_bytes(b"personal bytes")
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan((projection,), (), True, TIMESTAMP)
+    backup = plan.actions[0].destination
+    backup.write_bytes(b"occupied bytes")
+    backend = RecordingBackend()
+    receipt_file = receipt_path(home, root.identity)
+
+    with pytest.raises(BackupPathOccupied) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+
+    assert raised.value.path == backup
+    assert original.read_bytes() == b"personal bytes"
+    assert backup.read_bytes() == b"occupied bytes"
+    assert backend.targets == {}
+    assert not receipt_file.exists()
+
+
+def test_backup_race_with_prior_rollback_failure_reports_execution_error(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".agents").mkdir(parents=True)
+    guidance = home / ".codex" / "AGENTS.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_bytes(b"personal bytes")
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projections = build_projections(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan(projections, (), True, TIMESTAMP)
+    backup = next(action.destination for action in plan.actions if action.kind is ActionKind.BACKUP)
+    backup.write_bytes(b"occupied bytes")
+    earlier_link = home / ".agents" / "skills"
+    backend = RecordingBackend()
+    backend.fail_on = lambda tag: tag == ("remove", earlier_link)
+    receipt_file = receipt_path(home, root.identity)
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+
+    error = raised.value
+    assert isinstance(error.original, BackupPathOccupied)
+    assert error.original.path == backup
+    assert error.__cause__ is error.original
+    assert len(error.rollback_failures) == 1
+    rollback_failure = error.rollback_failures[0]
+    assert rollback_failure.operation == "remove-link"
+    assert rollback_failure.path == earlier_link
+    assert rollback_failure.detail == "injected failure at remove skills"
+    assert error.recoverable_paths == (earlier_link,)
+    assert earlier_link.exists()
+    assert guidance.read_bytes() == b"personal bytes"
+    assert backup.read_bytes() == b"occupied bytes"
+    assert not receipt_file.exists()
+
+
+def test_failed_backup_move_removes_its_reservation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_text("personal", encoding="utf-8")
+    backup = original.with_name("AGENTS.md.backup-20260829-120000")
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    plan = InstallPlan(
+        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
+        actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
+    )
+
+    def fail_move(source: Path, destination: Path) -> None:
+        assert source == original
+        assert destination == backup
+        assert backup.exists()
+        raise OSError("move failed")
+
+    monkeypatch.setattr(os, "replace", fail_move)
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(plan, root, tmp_path / "probe", RecordingBackend(), receipt_path(home, root.identity), None)
+
+    assert isinstance(raised.value.original, OSError)
+    assert original.read_text(encoding="utf-8") == "personal"
+    assert not backup.exists()
+
+
+def test_failed_backup_cleanup_does_not_mask_original_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_text("personal", encoding="utf-8")
+    backup = original.with_name("AGENTS.md.backup-20260829-120000")
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    plan = InstallPlan(
+        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
+        actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
+    )
+
+    def fail_move(source: Path, destination: Path) -> None:
+        assert source == original
+        assert destination == backup
+        raise OSError("move failed")
+
+    original_unlink = Path.unlink
+
+    def fail_unlink(path: Path, missing_ok: bool = False) -> None:
+        if path == backup:
+            raise PermissionError("cleanup failed")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(os, "replace", fail_move)
+    monkeypatch.setattr(Path, "unlink", fail_unlink)
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(plan, root, tmp_path / "probe", RecordingBackend(), receipt_path(home, root.identity), None)
+
+    assert isinstance(raised.value.original, OSError)
+    assert str(raised.value.original) == "move failed"
+    notes = getattr(raised.value.original, "__notes__", ())
+    assert any("failed to remove reserved backup path" in note for note in notes)
+    assert original.read_text(encoding="utf-8") == "personal"
+
+
 def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
@@ -316,9 +453,79 @@ def test_rollback_after_link_failure_removes_prior_mutations(tmp_path: Path) -> 
     with pytest.raises(ExecutionError) as raised:
         apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
 
-    assert isinstance(raised.value.__cause__, RuntimeError)
+    error = raised.value
+    assert error.operation == "install"
+    assert "install failed" in str(error)
+    assert isinstance(error.original, RuntimeError)
+    assert error.__cause__ is error.original
     assert list(home.iterdir()) == []
     assert not receipt_file.exists()
+
+
+@pytest.mark.parametrize(
+    "cancellation",
+    [KeyboardInterrupt(), SystemExit(17), GeneratorExit()],
+    ids=["keyboard-interrupt", "system-exit", "generator-exit"],
+)
+def test_install_cancellation_rolls_back_and_reraises_same_object(tmp_path: Path, cancellation: BaseException) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projections = build_projections(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    skills_destination = home / ".agents" / "skills"
+
+    class CancellingBackend(RecordingBackend):
+        def create_file_link(self, src: Path, dst: Path) -> None:
+            raise cancellation
+
+    backend = CancellingBackend()
+    receipt_file = receipt_path(home, root.identity)
+
+    with pytest.raises(type(cancellation)) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+
+    assert raised.value is cancellation
+    assert backend.calls == [
+        ("probe", probe_root),
+        ("create", skills_destination),
+        ("remove", skills_destination),
+    ]
+    assert list(home.iterdir()) == []
+    assert not receipt_file.exists()
+
+
+def test_install_cancellation_with_rollback_failure_notes_recoverable_path(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".agents").mkdir(parents=True)
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projections = build_projections(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    skills_destination = home / ".agents" / "skills"
+    cancellation = KeyboardInterrupt()
+
+    class CancellingBackend(RecordingBackend):
+        def create_file_link(self, src: Path, dst: Path) -> None:
+            raise cancellation
+
+    backend = CancellingBackend()
+    backend.fail_on = lambda tag: tag == ("remove", skills_destination)
+
+    with pytest.raises(KeyboardInterrupt) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_path(home, root.identity), None)
+
+    assert raised.value is cancellation
+    assert len(cancellation.__notes__) == 1
+    assert str(skills_destination) in cancellation.__notes__[0]
+    assert skills_destination.exists()
 
 
 def test_rollback_after_backup_restores_original(tmp_path: Path) -> None:
@@ -408,6 +615,43 @@ def test_rollback_failure_reports_recoverable_paths(tmp_path: Path) -> None:
 
     assert raised.value.rollback_failures
     assert skills_dst in raised.value.recoverable_paths
+
+
+def test_partial_backend_cleanup_failure_reports_recoverable_path_without_journal_compensation(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".agents").mkdir(parents=True)
+    projection = _skills_projection(root, home, (Harness.CODEX,))
+    destination = projection.destination
+    create_error = LinkTargetMismatch(destination, tmp_path / "wrong", projection.source.resolve())
+    cleanup_error = OSError("cleanup failed")
+
+    class PartialCleanupBackend(RecordingBackend):
+        def create_directory_link(self, src: Path, dst: Path) -> None:
+            dst.mkdir()
+            self.targets[dst] = src.resolve()
+            raise link_errors.PartialLinkCleanupFailed(dst, create_error, cleanup_error)
+
+    plan = InstallPlan(
+        findings=(Finding(FindingState.MISSING, destination, projection),),
+        actions=(PlannedAction(ActionKind.CREATE_LINK, projection.source, destination, True),),
+    )
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(
+            plan,
+            root,
+            tmp_path / "probe",
+            PartialCleanupBackend(),
+            receipt_path(home, root.identity),
+            None,
+        )
+
+    error = raised.value
+    assert isinstance(error.original, link_errors.PartialLinkCleanupFailed)
+    assert error.rollback_failures == ()
+    assert error.recoverable_paths == (destination,)
+    assert destination.exists()
 
 
 def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:

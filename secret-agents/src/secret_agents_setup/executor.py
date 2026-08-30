@@ -6,9 +6,11 @@ import os
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal, NoReturn
 
+from .executor_errors import BackupPathOccupied, RollbackFailure
 from .executor_errors import ExecutionError as ExecutionError
-from .executor_errors import RollbackFailure
+from .link_errors import PartialLinkCleanupFailed
 from .links import LinkBackend
 from .models import (
     ActionKind,
@@ -69,8 +71,7 @@ def apply_install_plan(
             return ExecutionReport(tuple(run.events), receipt, True)
         return ExecutionReport(tuple(run.events), existing_receipt, False)
     except BaseException as original:
-        failures, recoverable = run.rollback()
-        raise ExecutionError(original, failures, recoverable) from original
+        _finalize_failure("install", original, run)
 
 
 def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[Finding, ...]:
@@ -101,8 +102,7 @@ def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend, receipt_file
         receipt_written = any(action.kind is UninstallActionKind.REPLACE_RECEIPT for action in plan.actions)
         return ExecutionReport(tuple(run.events), plan.next_receipt, receipt_written)
     except BaseException as original:
-        failures, recoverable = run.rollback()
-        raise ExecutionError(original, failures, recoverable) from original
+        _finalize_failure("uninstall", original, run)
 
 
 class _FinalValidationFailed(Exception):
@@ -181,6 +181,33 @@ class _Transaction:
             self.backend.create_file_link(source, destination)
 
 
+def _finalize_failure(
+    operation: Literal["install", "uninstall"], original: BaseException, run: _Transaction
+) -> NoReturn:
+    failures, rollback_recoverable = run.rollback()
+    recoverable = _recoverable_paths(original, rollback_recoverable)
+    if isinstance(original, BackupPathOccupied) and not failures:
+        raise original
+    if isinstance(original, Exception):
+        raise ExecutionError(operation, original, failures, recoverable) from original
+    if failures:
+        original.add_note(_rollback_failure_note(operation, failures, recoverable))
+    raise original
+
+
+def _rollback_failure_note(
+    operation: Literal["install", "uninstall"],
+    failures: tuple[RollbackFailure, ...],
+    recoverable_paths: tuple[Path, ...],
+) -> str:
+    paths = ", ".join(str(path) for path in recoverable_paths)
+    details = "; ".join(f"{failure.operation} {failure.path}: {failure.detail}" for failure in failures)
+    return (
+        f"{operation} rollback left {len(recoverable_paths)} path(s) needing manual recovery: {paths}. "
+        f"Rollback failures: {details}"
+    )
+
+
 class _InstallRun(_Transaction):
     """Accumulates events and a typed compensation journal for one install."""
 
@@ -211,8 +238,23 @@ class _InstallRun(_Transaction):
 
     def _backup(self, action: PlannedAction) -> None:
         original, backup = action.source, action.destination
-        digest = file_sha256(original)
-        os.replace(original, backup)
+        try:
+            descriptor = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError as exc:
+            raise BackupPathOccupied(backup) from exc
+
+        try:
+            os.close(descriptor)
+            digest = file_sha256(original)
+            os.replace(original, backup)
+        except BaseException as original_error:
+            try:
+                backup.unlink(missing_ok=True)
+            except Exception as cleanup_error:
+                original_error.add_note(
+                    f"failed to remove reserved backup path {backup} after backup failure: {cleanup_error}"
+                )
+            raise
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
         self.backups.append(ReceiptBackup(original=original, backup=backup, sha256=digest))
         self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))
@@ -315,6 +357,16 @@ class _UninstallRun(_Transaction):
 
 def _has_file_link_action(plan: InstallPlan) -> bool:
     return any(action.kind in _LINK_ACTIONS and not action.is_directory for action in plan.actions)
+
+
+def _recoverable_paths(original: BaseException, rollback_recoverable: tuple[Path, ...]) -> tuple[Path, ...]:
+    recoverable: list[Path] = []
+    if isinstance(original, PartialLinkCleanupFailed):
+        recoverable.append(original.recoverable_path)
+    for path in rollback_recoverable:
+        if path not in recoverable:
+            recoverable.append(path)
+    return tuple(recoverable)
 
 
 def _build_receipt(

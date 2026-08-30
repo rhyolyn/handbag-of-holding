@@ -4,6 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
+
+
+class BackupPathOccupied(Exception):
+    """Raised before backup mutation when the planned destination is occupied."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        super().__init__(f"backup destination is already occupied: {path}")
 
 
 @dataclass(frozen=True)
@@ -25,19 +34,21 @@ class ExecutionError(Exception):
 
     def __init__(
         self,
-        original: BaseException,
+        operation: Literal["install", "uninstall"],
+        original: Exception,
         rollback_failures: tuple[RollbackFailure, ...],
         recoverable_paths: tuple[Path, ...],
     ) -> None:
+        self.operation = operation
         self.original = original
         self.rollback_failures = rollback_failures
         self.recoverable_paths = recoverable_paths
         if rollback_failures:
             summary = (
-                f"install failed ({original!r}); rollback left "
+                f"{operation} failed ({original!r}); rollback left "
                 f"{len(recoverable_paths)} path(s) needing manual recovery: "
                 f"{', '.join(str(path) for path in recoverable_paths)}"
             )
         else:
-            summary = f"install failed and was rolled back cleanly ({original!r})"
+            summary = f"{operation} failed and was rolled back cleanly ({original!r})"
         super().__init__(summary)

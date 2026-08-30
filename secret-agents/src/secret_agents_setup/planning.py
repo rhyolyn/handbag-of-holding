@@ -27,6 +27,7 @@ from .models import (
     UninstallFindingState,
     UninstallPlan,
 )
+from .path_safety import is_path_within
 from .receipts import file_sha256, receipt_path
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
@@ -83,11 +84,21 @@ def _classify_projection(
     if not can_backup:
         return [finding], []
 
-    backup = destination.with_name(f"{destination.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
+    backup = _available_backup_path(destination, timestamp)
     return [finding], [
         PlannedAction(ActionKind.BACKUP, destination, backup, False),
         _link_action(ActionKind.CREATE_LINK, projection.source, destination, projection),
     ]
+
+
+def _available_backup_path(original: Path, timestamp: datetime) -> Path:
+    timestamped = original.with_name(f"{original.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
+    candidate = timestamped
+    suffix = 2
+    while os.path.lexists(candidate):
+        candidate = timestamped.with_name(f"{timestamped.name}-{suffix}")
+        suffix += 1
+    return candidate
 
 
 def _classify_whole_link(
@@ -207,7 +218,7 @@ def _classify_uninstall_projection(
     retained_projections: list[ReceiptProjection],
 ) -> None:
     destination = projection.destination
-    if not _within_home(destination, home):
+    if not is_path_within(destination, home, follow_leaf=False):
         findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, destination, blocking=True))
         retained_projections.append(projection)
         return
@@ -243,7 +254,11 @@ def _classify_backups(
     restores: list[UninstallAction] = []
     retained: list[ReceiptBackup] = []
     for backup in backups:
-        if not _within_home(backup.backup, home) or not _within_home(backup.original, home):
+        if not is_path_within(backup.original, home, follow_leaf=False):
+            findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, backup.original, blocking=True))
+            retained.append(backup)
+            continue
+        if not is_path_within(backup.backup, home, follow_leaf=True):
             findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, backup.backup, blocking=True))
             retained.append(backup)
             continue
@@ -278,7 +293,7 @@ def _classify_parents(
         restored_names.setdefault(action.destination.parent, set()).add(action.destination.name)
 
     for parent in created_parents:
-        if not _within_home(parent, home):
+        if not is_path_within(parent, home, follow_leaf=True):
             findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, parent, blocking=True))
             retained.append(parent)
             continue
@@ -316,7 +331,3 @@ def _selected_harnesses(harnesses: tuple[Harness, ...]) -> set[Harness]:
     if Harness.ALL in harnesses:
         return set(_HARNESS_ORDER)
     return {harness for harness in harnesses if harness in _HARNESS_ORDER}
-
-
-def _within_home(path: Path, home: Path) -> bool:
-    return path.is_relative_to(home)
