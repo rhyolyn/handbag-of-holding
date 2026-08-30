@@ -14,6 +14,7 @@ from .link_errors import (
     JunctionFailed,
     LinkTargetMismatch,
     NotALink,
+    PartialLinkCleanupFailed,
     SymlinkFailed,
     SymlinkPrivilegeRequired,
     SymlinkUnsupported,
@@ -38,12 +39,16 @@ class PosixLinkBackend(LinkBackend):
         pass
 
     def create_directory_link(self, src: Path, dst: Path) -> None:
-        os.symlink(src, dst, target_is_directory=True)
-        self._verify_created_link(src, dst)
+        _create_and_verify(
+            src,
+            dst,
+            lambda: os.symlink(src, dst, target_is_directory=True),
+            self._verify_created_link,
+            self.remove_link,
+        )
 
     def create_file_link(self, src: Path, dst: Path) -> None:
-        os.symlink(src, dst)
-        self._verify_created_link(src, dst)
+        _create_and_verify(src, dst, lambda: os.symlink(src, dst), self._verify_created_link, self.remove_link)
 
     def remove_link(self, path: Path) -> None:
         _remove_link(path)
@@ -87,24 +92,40 @@ class WindowsLinkBackend(LinkBackend):
             raise SymlinkUnsupported(exc) from exc
 
     def create_directory_link(self, src: Path, dst: Path) -> None:
-        command = ("cmd.exe", "/d", "/c", "mklink", "/J", str(dst), str(src))
-        result = self._run_command(command)
-        if result.returncode != 0:
-            raise JunctionFailed(src, dst, result)
-        self._verify_created_link(src, dst)
+        _create_and_verify(
+            src,
+            dst,
+            lambda: self._create_directory_junction(src, dst),
+            self._verify_created_link,
+            self.remove_link,
+        )
 
     def create_file_link(self, src: Path, dst: Path) -> None:
-        try:
-            self._create_symlink(src, dst)
-        except OSError as exc:
-            raise SymlinkFailed(src, dst, exc) from exc
-        self._verify_created_link(src, dst)
+        _create_and_verify(
+            src,
+            dst,
+            lambda: self._create_file_symlink(src, dst),
+            self._verify_created_link,
+            self.remove_link,
+        )
 
     def remove_link(self, path: Path) -> None:
         _remove_link(path)
 
     def resolved_target(self, path: Path) -> Path:
         return path.resolve(strict=False)
+
+    def _create_directory_junction(self, src: Path, dst: Path) -> None:
+        command = ("cmd.exe", "/d", "/c", "mklink", "/J", str(dst), str(src))
+        result = self._run_command(command)
+        if result.returncode != 0:
+            raise JunctionFailed(src, dst, result)
+
+    def _create_file_symlink(self, src: Path, dst: Path) -> None:
+        try:
+            self._create_symlink(src, dst)
+        except OSError as exc:
+            raise SymlinkFailed(src, dst, exc) from exc
 
     def _verify_created_link(self, src: Path, dst: Path) -> None:
         _verify_created_link(self, src, dst)
@@ -120,6 +141,28 @@ def backend_for(os_name: str) -> LinkBackend:
 
 def _run_command(argv: Sequence[str]) -> CompletedProcess[str]:
     return subprocess.run(argv, capture_output=True, text=True, check=False)
+
+
+def _create_and_verify(
+    src: Path,
+    dst: Path,
+    create_link: Callable[[], None],
+    verify_link: Callable[[Path, Path], None],
+    remove_link: Callable[[Path], None],
+) -> None:
+    created = False
+    try:
+        create_link()
+        created = True
+        verify_link(src, dst)
+    except BaseException as create_error:
+        if not created:
+            raise
+        try:
+            remove_link(dst)
+        except Exception as cleanup_error:
+            raise PartialLinkCleanupFailed(dst, create_error, cleanup_error) from create_error
+        raise
 
 
 def _verify_created_link(

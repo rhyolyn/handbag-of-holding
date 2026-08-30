@@ -8,7 +8,8 @@ from subprocess import CompletedProcess
 
 import pytest
 
-from secret_agents_setup.link_errors import LinkOperationError, SymlinkPrivilegeRequired
+import secret_agents_setup.link_errors as link_errors
+from secret_agents_setup.link_errors import LinkOperationError, LinkTargetMismatch, SymlinkPrivilegeRequired
 from secret_agents_setup.links import (
     PosixLinkBackend,
     WindowsLinkBackend,
@@ -156,6 +157,97 @@ def test_windows_file_link_uses_injected_symlink_creator(tmp_path: Path, monkeyp
     backend.create_file_link(source, destination)
 
     assert calls == [(source, destination)]
+
+
+@pytest.mark.parametrize("backend_name", ["posix", "windows"])
+def test_backend_removes_partial_file_link_when_verification_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, backend_name: str
+) -> None:
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "destination.txt"
+    source.write_text("canonical", encoding="utf-8")
+    mismatch = LinkTargetMismatch(destination, tmp_path / "wrong", source.resolve())
+    backend: PosixLinkBackend | WindowsLinkBackend = (
+        PosixLinkBackend() if backend_name == "posix" else WindowsLinkBackend(create_symlink=os.symlink)
+    )
+
+    def fail_verification(link_source: Path, link_destination: Path) -> None:
+        assert link_source == source
+        assert link_destination == destination
+        raise mismatch
+
+    monkeypatch.setattr(backend, "_verify_created_link", fail_verification)
+
+    with pytest.raises(LinkTargetMismatch) as raised:
+        backend.create_file_link(source, destination)
+
+    assert raised.value is mismatch
+    assert not os.path.lexists(destination)
+
+
+@pytest.mark.parametrize("backend_name", ["posix", "windows"])
+def test_backend_removes_partial_directory_link_when_verification_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, backend_name: str
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    mismatch = LinkTargetMismatch(destination, tmp_path / "wrong", source.resolve())
+    backend: PosixLinkBackend | WindowsLinkBackend
+    if backend_name == "posix":
+        backend = PosixLinkBackend()
+    else:
+
+        def create_junction(argv: Sequence[str]) -> CompletedProcess[str]:
+            destination.symlink_to(source, target_is_directory=True)
+            return CompletedProcess(argv, 0, stdout="junction created", stderr="")
+
+        backend = WindowsLinkBackend(run_command=create_junction)
+
+    def fail_verification(link_source: Path, link_destination: Path) -> None:
+        assert link_source == source
+        assert link_destination == destination
+        raise mismatch
+
+    monkeypatch.setattr(backend, "_verify_created_link", fail_verification)
+
+    with pytest.raises(LinkTargetMismatch) as raised:
+        backend.create_directory_link(source, destination)
+
+    assert raised.value is mismatch
+    assert not os.path.lexists(destination)
+
+
+def test_backend_preserves_partial_link_cleanup_failure_details(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "destination.txt"
+    source.write_text("canonical", encoding="utf-8")
+    mismatch = LinkTargetMismatch(destination, tmp_path / "wrong", source.resolve())
+    cleanup_error = OSError("cleanup failed")
+    backend = PosixLinkBackend()
+
+    def fail_verification(link_source: Path, link_destination: Path) -> None:
+        raise mismatch
+
+    def fail_cleanup(path: Path) -> None:
+        assert path == destination
+        raise cleanup_error
+
+    monkeypatch.setattr(backend, "_verify_created_link", fail_verification)
+    monkeypatch.setattr(backend, "remove_link", fail_cleanup)
+
+    with pytest.raises(link_errors.PartialLinkCleanupFailed) as raised:
+        backend.create_file_link(source, destination)
+
+    error = raised.value
+    assert error.destination == destination
+    assert error.recoverable_path == destination
+    assert error.create_error is mismatch
+    assert error.cleanup_error is cleanup_error
+    assert error.__cause__ is mismatch
+    assert os.path.lexists(destination)
 
 
 def test_link_backends_never_use_hardlinks_or_copy_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

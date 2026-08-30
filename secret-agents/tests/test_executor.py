@@ -11,10 +11,11 @@ from pathlib import Path
 import pytest
 
 import secret_agents_setup.executor as executor_module
+import secret_agents_setup.link_errors as link_errors
 from secret_agents_setup.executor import apply_install_plan, validate_installed_plan
 from secret_agents_setup.executor_errors import BackupPathOccupied, ExecutionError
 from secret_agents_setup.harness_profiles import build_projections
-from secret_agents_setup.link_errors import SymlinkUnsupported
+from secret_agents_setup.link_errors import LinkTargetMismatch, SymlinkUnsupported
 from secret_agents_setup.models import (
     ActionKind,
     AgentRoot,
@@ -504,6 +505,43 @@ def test_rollback_failure_reports_recoverable_paths(tmp_path: Path) -> None:
 
     assert raised.value.rollback_failures
     assert skills_dst in raised.value.recoverable_paths
+
+
+def test_partial_backend_cleanup_failure_reports_recoverable_path_without_journal_compensation(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".agents").mkdir(parents=True)
+    projection = _skills_projection(root, home, (Harness.CODEX,))
+    destination = projection.destination
+    create_error = LinkTargetMismatch(destination, tmp_path / "wrong", projection.source.resolve())
+    cleanup_error = OSError("cleanup failed")
+
+    class PartialCleanupBackend(RecordingBackend):
+        def create_directory_link(self, src: Path, dst: Path) -> None:
+            dst.mkdir()
+            self.targets[dst] = src.resolve()
+            raise link_errors.PartialLinkCleanupFailed(dst, create_error, cleanup_error)
+
+    plan = InstallPlan(
+        findings=(Finding(FindingState.MISSING, destination, projection),),
+        actions=(PlannedAction(ActionKind.CREATE_LINK, projection.source, destination, True),),
+    )
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(
+            plan,
+            root,
+            tmp_path / "probe",
+            PartialCleanupBackend(),
+            receipt_path(home, root.identity),
+            None,
+        )
+
+    error = raised.value
+    assert isinstance(error.original, link_errors.PartialLinkCleanupFailed)
+    assert error.rollback_failures == ()
+    assert error.recoverable_paths == (destination,)
+    assert destination.exists()
 
 
 def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:

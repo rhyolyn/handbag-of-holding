@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .executor_errors import BackupPathOccupied, RollbackFailure
 from .executor_errors import ExecutionError as ExecutionError
+from .link_errors import PartialLinkCleanupFailed
 from .links import LinkBackend
 from .models import (
     ActionKind,
@@ -74,7 +75,8 @@ def apply_install_plan(
             raise ExecutionError(original, failures, recoverable) from original
         raise
     except BaseException as original:
-        failures, recoverable = run.rollback()
+        failures, rollback_recoverable = run.rollback()
+        recoverable = _recoverable_paths(original, rollback_recoverable)
         raise ExecutionError(original, failures, recoverable) from original
 
 
@@ -106,7 +108,8 @@ def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend, receipt_file
         receipt_written = any(action.kind is UninstallActionKind.REPLACE_RECEIPT for action in plan.actions)
         return ExecutionReport(tuple(run.events), plan.next_receipt, receipt_written)
     except BaseException as original:
-        failures, recoverable = run.rollback()
+        failures, rollback_recoverable = run.rollback()
+        recoverable = _recoverable_paths(original, rollback_recoverable)
         raise ExecutionError(original, failures, recoverable) from original
 
 
@@ -330,6 +333,16 @@ class _UninstallRun(_Transaction):
 
 def _has_file_link_action(plan: InstallPlan) -> bool:
     return any(action.kind in _LINK_ACTIONS and not action.is_directory for action in plan.actions)
+
+
+def _recoverable_paths(original: BaseException, rollback_recoverable: tuple[Path, ...]) -> tuple[Path, ...]:
+    recoverable: list[Path] = []
+    if isinstance(original, PartialLinkCleanupFailed):
+        recoverable.append(original.recoverable_path)
+    for path in rollback_recoverable:
+        if path not in recoverable:
+            recoverable.append(path)
+    return tuple(recoverable)
 
 
 def _build_receipt(

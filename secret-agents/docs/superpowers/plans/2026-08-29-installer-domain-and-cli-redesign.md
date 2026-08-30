@@ -295,17 +295,17 @@ git commit -m "fix: reserve conflict backups safely"
 - `LinkBackend.create_file_link` and `create_directory_link` either return with a verified link or raise with no link remaining; cleanup failure is the only exception and identifies the path.
 - `ExecutionError.recoverable_paths` includes a `PartialLinkCleanupFailed.recoverable_path` in addition to rollback-journal failures.
 
-- [ ] **Step 1: Write failing backend tests for post-create verification failure**
+- [x] **Step 1: Write failing backend tests for post-create verification failure**
 
 In `test_links.py`, inject or monkeypatch verification so the OS link is created and verification then raises `LinkTargetMismatch`. Cover file and directory creation. Assert the original mismatch is raised and `os.path.lexists(destination)` is false.
 
 Add a cleanup-failure case by injecting a remover that raises; assert `PartialLinkCleanupFailed.destination` and both causes are preserved.
 
-- [ ] **Step 2: Write the executor-level failing recovery-path test**
+- [x] **Step 2: Write the executor-level failing recovery-path test**
 
 Use a fake backend whose create operation materializes the destination and then raises `PartialLinkCleanupFailed`. Assert `apply_install_plan` raises `ExecutionError` containing the destination once in `recoverable_paths` even though no journal compensation exists for that incomplete call.
 
-- [ ] **Step 3: Run focused tests and observe RED**
+- [x] **Step 3: Run focused tests and observe RED**
 
 Run:
 
@@ -315,23 +315,23 @@ python -m pytest tests/test_links.py tests/test_executor.py -v
 
 Expected: a partial destination remains after verification failure and the cleanup error type is missing.
 
-- [ ] **Step 4: Implement one create-and-verify cleanup path per backend**
+- [x] **Step 4: Implement one create-and-verify cleanup path per backend**
 
 Wrap the create-plus-verify sequence so any exception after destination creation attempts `remove_link(destination)`. Re-raise the original error after successful cleanup. If cleanup fails, raise `PartialLinkCleanupFailed` from the original create/verify error.
 
 Do not make the executor guess whether a backend mutated before raising; the backend owns the atomic create contract.
 
-- [ ] **Step 5: Include structured backend recovery paths in `ExecutionError`**
+- [x] **Step 5: Include structured backend recovery paths in `ExecutionError`**
 
 When wrapping an ordinary execution exception, seed the recoverable paths with `original.recoverable_path` only when `isinstance(original, PartialLinkCleanupFailed)`, then append unique rollback-journal recovery paths. Do not inspect message text or use an untyped `getattr` convention.
 
-- [ ] **Step 6: Run focused tests and require GREEN**
+- [x] **Step 6: Run focused tests and require GREEN**
 
 ```text
 python -m pytest tests/test_links.py tests/test_executor.py -v
 ```
 
-- [ ] **Step 7: Commit Task 3**
+- [x] **Step 7: Commit Task 3**
 
 ```text
 git add -- src/secret_agents_setup/links.py src/secret_agents_setup/link_errors.py src/secret_agents_setup/executor.py tests/test_links.py tests/test_executor.py docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md
