@@ -469,11 +469,63 @@ def test_rollback_after_injected_failure_restores_links(tmp_path: Path) -> None:
     # fail while deleting the receipt, after both links were removed
     backend.fail_on = lambda tag: tag == ("remove", guidance_dst)
 
-    with pytest.raises(ExecutionError):
+    with pytest.raises(ExecutionError) as raised:
         apply_uninstall_plan(plan, backend, receipt_file)
 
+    error = raised.value
+    assert error.operation == "uninstall"
+    assert "uninstall failed" in str(error)
+    assert isinstance(error.original, RuntimeError)
+    assert error.__cause__ is error.original
     # the first removed link is restored and the receipt bytes are intact
     assert backend.resolved_target(skills_dst) == (root / "skills").resolve()
+    assert receipt_file.read_bytes() == prior_bytes
+
+
+@pytest.mark.parametrize(
+    "cancellation",
+    [KeyboardInterrupt(), SystemExit(17), GeneratorExit()],
+    ids=["keyboard-interrupt", "system-exit", "generator-exit"],
+)
+def test_uninstall_cancellation_rolls_back_and_reraises_same_object(
+    tmp_path: Path, cancellation: BaseException
+) -> None:
+    root = _root(tmp_path)
+    home = tmp_path / "home"
+    skills_destination = home / ".agents" / "skills"
+    guidance_destination = home / ".codex" / "AGENTS.md"
+
+    class CancellingBackend(RecordingBackend):
+        def remove_link(self, path: Path) -> None:
+            if path == guidance_destination:
+                raise cancellation
+            super().remove_link(path)
+
+    backend = CancellingBackend()
+    _owned_skills_link(backend, root / "skills", skills_destination)
+    _owned_file_link(backend, root / "AGENTS.md", guidance_destination)
+    receipt = InstallReceipt(
+        schema_version=1,
+        root_identity=IDENTITY,
+        installed_root=root,
+        projections=(
+            ReceiptProjection(skills_destination, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),
+            ReceiptProjection(guidance_destination, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),
+        ),
+        backups=(),
+        created_parents=(),
+    )
+    receipt_file = receipt_path(home, IDENTITY)
+    write_receipt_atomic(receipt, receipt_file)
+    prior_bytes = receipt_file.read_bytes()
+    plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
+
+    with pytest.raises(type(cancellation)) as raised:
+        apply_uninstall_plan(plan, backend, receipt_file)
+
+    assert raised.value is cancellation
+    assert backend.resolved_target(skills_destination) == (root / "skills").resolve()
+    assert backend.resolved_target(guidance_destination) == (root / "AGENTS.md").resolve()
     assert receipt_file.read_bytes() == prior_bytes
 
 

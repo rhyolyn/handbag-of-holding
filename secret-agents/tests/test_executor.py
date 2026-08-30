@@ -413,9 +413,79 @@ def test_rollback_after_link_failure_removes_prior_mutations(tmp_path: Path) -> 
     with pytest.raises(ExecutionError) as raised:
         apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
 
-    assert isinstance(raised.value.__cause__, RuntimeError)
+    error = raised.value
+    assert error.operation == "install"
+    assert "install failed" in str(error)
+    assert isinstance(error.original, RuntimeError)
+    assert error.__cause__ is error.original
     assert list(home.iterdir()) == []
     assert not receipt_file.exists()
+
+
+@pytest.mark.parametrize(
+    "cancellation",
+    [KeyboardInterrupt(), SystemExit(17), GeneratorExit()],
+    ids=["keyboard-interrupt", "system-exit", "generator-exit"],
+)
+def test_install_cancellation_rolls_back_and_reraises_same_object(tmp_path: Path, cancellation: BaseException) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projections = build_projections(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    skills_destination = home / ".agents" / "skills"
+
+    class CancellingBackend(RecordingBackend):
+        def create_file_link(self, src: Path, dst: Path) -> None:
+            raise cancellation
+
+    backend = CancellingBackend()
+    receipt_file = receipt_path(home, root.identity)
+
+    with pytest.raises(type(cancellation)) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+
+    assert raised.value is cancellation
+    assert backend.calls == [
+        ("probe", probe_root),
+        ("create", skills_destination),
+        ("remove", skills_destination),
+    ]
+    assert list(home.iterdir()) == []
+    assert not receipt_file.exists()
+
+
+def test_install_cancellation_with_rollback_failure_notes_recoverable_path(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".agents").mkdir(parents=True)
+    probe_root = tmp_path / "probe"
+    probe_root.mkdir()
+    projections = build_projections(root, home, (Harness.CODEX,))
+    from secret_agents_setup.planning import build_install_plan
+
+    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    skills_destination = home / ".agents" / "skills"
+    cancellation = KeyboardInterrupt()
+
+    class CancellingBackend(RecordingBackend):
+        def create_file_link(self, src: Path, dst: Path) -> None:
+            raise cancellation
+
+    backend = CancellingBackend()
+    backend.fail_on = lambda tag: tag == ("remove", skills_destination)
+
+    with pytest.raises(KeyboardInterrupt) as raised:
+        apply_install_plan(plan, root, probe_root, backend, receipt_path(home, root.identity), None)
+
+    assert raised.value is cancellation
+    assert len(cancellation.__notes__) == 1
+    assert str(skills_destination) in cancellation.__notes__[0]
+    assert skills_destination.exists()
 
 
 def test_rollback_after_backup_restores_original(tmp_path: Path) -> None:

@@ -355,11 +355,11 @@ git commit -m "fix: clean partial link creations"
 - Ordinary `Exception` instances are wrapped after rollback.
 - `KeyboardInterrupt`, `SystemExit`, and `GeneratorExit` trigger rollback and are then re-raised as the same object. Rollback failure details are attached with `BaseException.add_note` before re-raising.
 
-- [ ] **Step 1: Characterize the corrected operation-aware diagnostics**
+- [x] **Step 1: Characterize the corrected operation-aware diagnostics**
 
 Add an install failure assertion containing `install failed` and an uninstall failure assertion containing `uninstall failed`. Assert the original exception remains available as `.original` and `__cause__`.
 
-- [ ] **Step 2: Write failing cancellation tests for install and uninstall**
+- [x] **Step 2: Write failing cancellation tests for install and uninstall**
 
 Parameterize `KeyboardInterrupt`, `SystemExit`, and `GeneratorExit`. Inject each after one successful mutation. Assert:
 
@@ -373,7 +373,7 @@ assert prior_state_is_restored()
 
 Add one rollback-failure case and assert the same cancellation object is raised with a note naming every manually recoverable path.
 
-- [ ] **Step 3: Run focused tests and observe RED**
+- [x] **Step 3: Run focused tests and observe RED**
 
 ```text
 python -m pytest tests/test_executor.py tests/test_uninstall.py tests/test_cli.py -v
@@ -381,11 +381,11 @@ python -m pytest tests/test_executor.py tests/test_uninstall.py tests/test_cli.p
 
 Expected: cancellation is currently converted to `ExecutionError`, and uninstall diagnostics say `install failed`.
 
-- [ ] **Step 4: Centralize failure finalization without swallowing cancellation**
+- [x] **Step 4: Centralize failure finalization without swallowing cancellation**
 
 Create one private helper used by install and uninstall execution. It rolls back once, wraps only `Exception`, and re-raises non-`Exception` cancellation values after attaching rollback failure/recovery details with `add_note`. Pass the literal operation from each public executor entrypoint.
 
-- [ ] **Step 5: Run focused and Batch 1 verification**
+- [x] **Step 5: Run focused and Batch 1 verification**
 
 Run:
 
@@ -396,7 +396,7 @@ python -m pytest --tb=short -q
 
 Expected: every command exits zero and the full suite passes.
 
-- [ ] **Step 6: Commit Task 4 and stop Batch 1**
+- [x] **Step 6: Commit Task 4 and stop Batch 1**
 
 ```text
 git add -- src/secret_agents_setup/executor.py src/secret_agents_setup/executor_errors.py tests/test_executor.py tests/test_uninstall.py tests/test_cli.py docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md
@@ -405,7 +405,7 @@ git commit -m "fix: preserve cancellation through rollback"
 git status --short --branch
 ```
 
-- [ ] **Batch 1 complete**
+- [x] **Batch 1 complete**
 
 ---
 ## Batch 2: Domain Vocabulary and Typed Plans

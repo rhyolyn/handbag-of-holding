@@ -198,9 +198,10 @@ def test_execution_failure_returns_execution_failed(tmp_path: Path, capsys: pyte
 
     code = _run(["install", "--harness", "codex"], home=home, root=root, backend=backend)
 
+    captured = capsys.readouterr()
     assert code == ExitCode.EXECUTION_FAILED
     assert not (home / ".agents").exists()
-    assert capsys.readouterr().err != ""
+    assert "install failed" in captured.err
 
 
 def test_backup_path_occupied_is_blocked(
@@ -286,6 +287,32 @@ def test_uninstall_foreign_content_blocks(tmp_path: Path) -> None:
     code = _run(["uninstall", "--harness", "codex"], home=home, root=root, backend=FakeBackend())
 
     assert code == ExitCode.BLOCKED
+
+
+def test_uninstall_execution_failure_names_operation(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _make_agent_root(tmp_path)
+    home = tmp_path / "home"
+    guidance = home / ".codex" / "AGENTS.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_text("link", encoding="utf-8")
+    backend = FakeBackend()
+    backend.targets[guidance] = (root / "AGENTS.md").resolve()
+    backend.fail_on = lambda tag: tag == ("remove", guidance)
+    receipt = InstallReceipt(
+        schema_version=1,
+        root_identity="handbag-secret-agents",
+        installed_root=root,
+        projections=(ReceiptProjection(guidance, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        backups=(),
+        created_parents=(),
+    )
+    write_receipt_atomic(receipt, receipt_path(home, "handbag-secret-agents"))
+
+    code = _run(["uninstall", "--harness", "codex"], home=home, root=root, backend=backend)
+
+    captured = capsys.readouterr()
+    assert code == ExitCode.EXECUTION_FAILED
+    assert "uninstall failed" in captured.err
 
 
 def test_uninstall_restores_backup_and_retains_shared(tmp_path: Path) -> None:
