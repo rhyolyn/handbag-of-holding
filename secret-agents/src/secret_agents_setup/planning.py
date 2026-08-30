@@ -3,19 +3,15 @@
 from __future__ import annotations
 
 import os
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 
 from .harness_profiles import InstallMapping, SkillsMapping
 from .links import LinkBackend
 from .models import (
-    ActionKind,
-    Finding,
-    FindingState,
     Harness,
-    InstallPlan,
-    PlannedAction,
     SkillDescriptor,
     UninstallAction,
     UninstallActionKind,
@@ -29,30 +25,106 @@ from .receipts import InstallReceipt, OwnedBackup, OwnedLink, file_sha256, recei
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 
 
+class InstallState(StrEnum):
+    CURRENT = "current"
+    MISSING = "missing"
+    STALE_LINK = "stale-link"
+    BROKEN_LINK = "broken-link"
+    COMPATIBLE_SKILLS_DIRECTORY = "compatible-skills-directory"
+    BACKUP_PLANNED = "backup-planned"
+    CONFLICT = "conflict"
+    SKILL_NAME_COLLISION = "skill-name-collision"
+
+    @property
+    def output_name(self) -> str:
+        """The stable stdout token for this state, preserved across the redesign."""
+        return _INSTALL_OUTPUT_NAMES[self]
+
+    @property
+    def blocks_install(self) -> bool:
+        return self in _BLOCKING_INSTALL_STATES
+
+
+_INSTALL_OUTPUT_NAMES: dict[InstallState, str] = {
+    InstallState.CURRENT: "correct",
+    InstallState.MISSING: "missing",
+    InstallState.STALE_LINK: "stale-link",
+    InstallState.BROKEN_LINK: "broken-link",
+    InstallState.COMPATIBLE_SKILLS_DIRECTORY: "compatible-skill-directory",
+    InstallState.BACKUP_PLANNED: "unrelated",
+    InstallState.CONFLICT: "unrelated",
+    InstallState.SKILL_NAME_COLLISION: "skill-name-collision",
+}
+_BLOCKING_INSTALL_STATES = frozenset({InstallState.CONFLICT, InstallState.SKILL_NAME_COLLISION})
+
+
+@dataclass(frozen=True)
+class PathStatus:
+    state: InstallState
+    mapping: InstallMapping
+
+    @property
+    def path(self) -> Path:
+        return self.mapping.destination
+
+    @property
+    def blocks_install(self) -> bool:
+        return self.state.blocks_install
+
+
+@dataclass(frozen=True)
+class CreateLink:
+    mapping: InstallMapping
+
+
+@dataclass(frozen=True)
+class ReplaceLink:
+    mapping: InstallMapping
+
+
+@dataclass(frozen=True)
+class BackupFile:
+    original: Path
+    backup: Path
+
+
+InstallChange = CreateLink | ReplaceLink | BackupFile
+
+
+@dataclass(frozen=True)
+class InstallPlan:
+    statuses: tuple[PathStatus, ...]
+    changes: tuple[InstallChange, ...]
+
+    @property
+    def is_blocked(self) -> bool:
+        return any(status.blocks_install for status in self.statuses)
+
+
 def build_install_plan(
     mappings: tuple[InstallMapping, ...],
     catalog: tuple[SkillDescriptor, ...],
     backup_conflicts: bool,
     timestamp: datetime,
 ) -> InstallPlan:
-    """Classify current mapping state without mutating it and plan safe actions."""
-    findings: list[Finding] = []
-    actions: list[PlannedAction] = []
+    """Classify current mapping state without mutating it and plan safe changes."""
+    statuses: list[PathStatus] = []
+    changes: list[InstallChange] = []
 
     sorted_catalog = tuple(sorted(catalog, key=lambda skill: skill.name))
     for mapping in sorted(mappings, key=lambda item: item.destination.as_posix()):
-        mapping_findings, mapping_actions = _classify_mapping(
+        mapping_statuses, mapping_changes = _classify_mapping(
             mapping,
             sorted_catalog,
             backup_conflicts,
             timestamp,
         )
-        findings.extend(mapping_findings)
-        actions.extend(mapping_actions)
+        statuses.extend(mapping_statuses)
+        changes.extend(mapping_changes)
 
-    if any(finding.blocking for finding in findings):
-        actions.clear()
-    return InstallPlan(findings=tuple(findings), actions=tuple(actions))
+    if any(status.blocks_install for status in statuses):
+        changes.clear()
+    return InstallPlan(statuses=tuple(statuses), changes=tuple(changes))
 
 
 def _classify_mapping(
@@ -60,14 +132,10 @@ def _classify_mapping(
     catalog: tuple[SkillDescriptor, ...],
     backup_conflicts: bool,
     timestamp: datetime,
-) -> tuple[list[Finding], list[PlannedAction]]:
+) -> tuple[list[PathStatus], list[InstallChange]]:
     destination = mapping.destination
     if not os.path.lexists(destination):
-        return [
-            Finding(FindingState.MISSING, destination, mapping),
-        ], [
-            _link_action(ActionKind.CREATE_LINK, mapping.source, destination, mapping),
-        ]
+        return [PathStatus(InstallState.MISSING, mapping)], [CreateLink(mapping)]
 
     if _is_link(destination):
         return _classify_whole_link(mapping)
@@ -76,14 +144,13 @@ def _classify_mapping(
         return _classify_skill_directory(mapping, catalog)
 
     can_backup = backup_conflicts and not isinstance(mapping, SkillsMapping) and destination.is_file()
-    finding = Finding(FindingState.UNRELATED, destination, mapping, blocking=not can_backup)
     if not can_backup:
-        return [finding], []
+        return [PathStatus(InstallState.CONFLICT, mapping)], []
 
     backup = _available_backup_path(destination, timestamp)
-    return [finding], [
-        PlannedAction(ActionKind.BACKUP, destination, backup, False),
-        _link_action(ActionKind.CREATE_LINK, mapping.source, destination, mapping),
+    return [PathStatus(InstallState.BACKUP_PLANNED, mapping)], [
+        BackupFile(destination, backup),
+        CreateLink(mapping),
     ]
 
 
@@ -99,41 +166,42 @@ def _available_backup_path(original: Path, timestamp: datetime) -> Path:
 
 def _classify_whole_link(
     mapping: InstallMapping,
-) -> tuple[list[Finding], list[PlannedAction]]:
+) -> tuple[list[PathStatus], list[InstallChange]]:
     destination = mapping.destination
     if not destination.exists():
-        state = FindingState.BROKEN_LINK
+        state = InstallState.BROKEN_LINK
     elif _same_target(destination, mapping.source):
-        return [Finding(FindingState.CORRECT, destination, mapping)], []
+        return [PathStatus(InstallState.CURRENT, mapping)], []
     else:
-        state = FindingState.STALE_LINK
+        state = InstallState.STALE_LINK
 
-    return [Finding(state, destination, mapping)], [
-        _link_action(ActionKind.REPLACE_LINK, mapping.source, destination, mapping),
-    ]
+    return [PathStatus(state, mapping)], [ReplaceLink(mapping)]
 
 
 def _classify_skill_directory(
     mapping: SkillsMapping, catalog: tuple[SkillDescriptor, ...]
-) -> tuple[list[Finding], list[PlannedAction]]:
-    findings = [Finding(FindingState.COMPATIBLE_SKILL_DIRECTORY, mapping.destination, mapping)]
-    actions: list[PlannedAction] = []
+) -> tuple[list[PathStatus], list[InstallChange]]:
+    statuses = [PathStatus(InstallState.COMPATIBLE_SKILLS_DIRECTORY, mapping)]
+    changes: list[InstallChange] = []
 
     for skill in catalog:
-        destination = mapping.destination / skill.name
-        if not os.path.lexists(destination):
-            findings.append(Finding(FindingState.MISSING, destination, mapping))
-            actions.append(PlannedAction(ActionKind.CREATE_LINK, skill.directory, destination, True))
-        elif _is_link(destination) and destination.exists() and _same_target(destination, skill.directory):
-            findings.append(Finding(FindingState.CORRECT, destination, mapping))
+        child_destination = mapping.destination / skill.name
+        # Each per-skill link is its own SkillsMapping so every status and change
+        # reports the real source and destination, not the parent collection.
+        child = SkillsMapping(harnesses=mapping.harnesses, source=skill.directory, destination=child_destination)
+        if not os.path.lexists(child_destination):
+            statuses.append(PathStatus(InstallState.MISSING, child))
+            changes.append(CreateLink(child))
+        elif _is_current_link(child_destination, skill.directory):
+            statuses.append(PathStatus(InstallState.CURRENT, child))
         else:
-            findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, mapping, blocking=True))
+            statuses.append(PathStatus(InstallState.SKILL_NAME_COLLISION, child))
 
-    return findings, actions
+    return statuses, changes
 
 
-def _link_action(kind: ActionKind, source: Path, destination: Path, mapping: InstallMapping) -> PlannedAction:
-    return PlannedAction(kind, source, destination, isinstance(mapping, SkillsMapping))
+def _is_current_link(destination: Path, source: Path) -> bool:
+    return _is_link(destination) and destination.exists() and _same_target(destination, source)
 
 
 def _same_target(destination: Path, source: Path) -> bool:

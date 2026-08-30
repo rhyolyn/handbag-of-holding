@@ -15,20 +15,24 @@ from .catalog import load_skill_catalog
 from .catalog_errors import SkillCatalogError
 from .executor import apply_install_plan, apply_uninstall_plan
 from .executor_errors import BackupPathOccupied, ExecutionError
-from .harness_profiles import InstallMapping, build_install_mappings
+from .harness_profiles import InstallMapping, InstructionsMapping, build_install_mappings
 from .link_errors import SymlinkPrivilegeRequired, SymlinkUnsupported
 from .links import LinkBackend, backend_for
 from .models import (
-    ActionKind,
     AgentRoot,
     ExecutionReport,
-    Finding,
     Harness,
-    InstallPlan,
     SkillDescriptor,
     UninstallFinding,
 )
-from .planning import build_install_plan, build_uninstall_plan
+from .planning import (
+    CreateLink,
+    InstallPlan,
+    PathStatus,
+    ReplaceLink,
+    build_install_plan,
+    build_uninstall_plan,
+)
 from .receipt_errors import ReceiptError
 from .receipts import load_receipt, receipt_path
 from .root import resolve_agent_root
@@ -77,21 +81,21 @@ def main(
 
 def _run_check(session: _Session) -> int:
     plan = session.install_plan(backup_conflicts=False)
-    _print_findings(plan.findings)
+    _print_statuses(plan.statuses)
     _note_windows_capability(session, plan)
-    if plan.can_apply and not plan.actions:
+    if not plan.is_blocked and not plan.changes:
         return _ok()
     return _blocked("remediation required: run 'install' to create or repair the reported projections")
 
 
 def _run_install(session: _Session, args: argparse.Namespace) -> int:
     plan = session.install_plan(backup_conflicts=args.backup_conflicts)
-    _print_findings(plan.findings)
+    _print_statuses(plan.statuses)
 
     if args.dry_run:
         _note_windows_capability(session, plan)
-        return _ok() if plan.can_apply else _silent_blocked()
-    if not plan.can_apply:
+        return _silent_blocked() if plan.is_blocked else _ok()
+    if plan.is_blocked:
         return _blocked("install plan has blocking conditions; no changes were made")
     return _apply_install(session, plan)
 
@@ -209,8 +213,10 @@ def _harness_selection(selector: str) -> tuple[Harness, ...]:
 
 
 def _note_windows_capability(session: _Session, plan: InstallPlan) -> None:
-    link_actions = (ActionKind.CREATE_LINK, ActionKind.REPLACE_LINK)
-    needs_file_link = any(action.kind in link_actions and not action.is_directory for action in plan.actions)
+    needs_file_link = any(
+        isinstance(change, (CreateLink, ReplaceLink)) and isinstance(change.mapping, InstructionsMapping)
+        for change in plan.changes
+    )
     if session.os_name == "nt" and needs_file_link:
         _print(_CAPABILITY_NOTE)
 
@@ -219,7 +225,12 @@ def _is_noop(report: ExecutionReport) -> bool:
     return report.receipt is None and not report.events
 
 
-def _print_findings(findings: Sequence[Finding | UninstallFinding]) -> None:
+def _print_statuses(statuses: Sequence[PathStatus]) -> None:
+    for status in statuses:
+        _print(f"finding {status.state.output_name} {status.path}")
+
+
+def _print_findings(findings: Sequence[UninstallFinding]) -> None:
     for finding in findings:
         _print(f"finding {finding.state.value} {finding.path}")
 

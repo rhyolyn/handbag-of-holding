@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .harness_profiles import InstallMapping
     from .receipts import InstallReceipt
 
 
@@ -17,22 +16,6 @@ class Harness(StrEnum):
     CLAUDE = "claude"
     COPILOT = "copilot"
     ALL = "all"
-
-
-class FindingState(StrEnum):
-    CORRECT = "correct"
-    MISSING = "missing"
-    STALE_LINK = "stale-link"
-    BROKEN_LINK = "broken-link"
-    UNRELATED = "unrelated"
-    COMPATIBLE_SKILL_DIRECTORY = "compatible-skill-directory"
-    SKILL_NAME_COLLISION = "skill-name-collision"
-
-
-class ActionKind(StrEnum):
-    CREATE_LINK = "create-link"
-    REPLACE_LINK = "replace-link"
-    BACKUP = "backup"
 
 
 class ExecutionEventKind(StrEnum):
@@ -60,32 +43,6 @@ class SkillDescriptor:
     name: str
     description: str
     directory: Path
-
-
-@dataclass(frozen=True)
-class Finding:
-    state: FindingState
-    path: Path
-    mapping: InstallMapping
-    blocking: bool = False
-
-
-@dataclass(frozen=True)
-class PlannedAction:
-    kind: ActionKind
-    source: Path
-    destination: Path
-    is_directory: bool
-
-
-@dataclass(frozen=True)
-class InstallPlan:
-    findings: tuple[Finding, ...]
-    actions: tuple[PlannedAction, ...]
-
-    @property
-    def can_apply(self) -> bool:
-        return not any(finding.blocking for finding in self.findings)
 
 
 @dataclass(frozen=True)

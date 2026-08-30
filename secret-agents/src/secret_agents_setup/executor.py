@@ -6,27 +6,31 @@ import os
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal, NoReturn
+from typing import Literal, NoReturn, assert_never
 
 from .executor_errors import BackupPathOccupied, RollbackFailure
 from .executor_errors import ExecutionError as ExecutionError
-from .harness_profiles import InstallMapping
+from .harness_profiles import InstructionsMapping
 from .link_errors import PartialLinkCleanupFailed
 from .links import LinkBackend
 from .models import (
-    ActionKind,
     AgentRoot,
     ExecutionEvent,
     ExecutionEventKind,
     ExecutionReport,
-    Finding,
-    FindingState,
     Harness,
-    InstallPlan,
-    PlannedAction,
     UninstallAction,
     UninstallActionKind,
     UninstallPlan,
+)
+from .planning import (
+    BackupFile,
+    CreateLink,
+    InstallChange,
+    InstallPlan,
+    InstallState,
+    PathStatus,
+    ReplaceLink,
 )
 from .receipts import (
     RECEIPT_SCHEMA_VERSION,
@@ -38,7 +42,10 @@ from .receipts import (
 )
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
-_LINK_ACTIONS = (ActionKind.CREATE_LINK, ActionKind.REPLACE_LINK)
+
+
+def _is_directory_mapping(mapping: object) -> bool:
+    return not isinstance(mapping, InstructionsMapping)
 
 
 def apply_install_plan(
@@ -50,26 +57,25 @@ def apply_install_plan(
     existing_receipt: InstallReceipt | None,
 ) -> ExecutionReport:
     """Execute an applicable plan transactionally, rolling back every mutation on failure."""
-    if not plan.can_apply:
+    if plan.is_blocked:
         raise ValueError("cannot apply a blocked install plan")
-    if not plan.actions and existing_receipt is None:
+    if not plan.changes and existing_receipt is None:
         return ExecutionReport(events=(), receipt=None, receipt_written=False)
 
-    mapping_by_destination = {finding.path: finding.mapping for finding in plan.findings}
     run = _InstallRun(backend)
 
-    if _has_file_link_action(plan):
+    if _has_file_link_change(plan):
         backend.probe_file_link_capability(probe_root)
         run.events.append(ExecutionEvent(ExecutionEventKind.PROBED_CAPABILITY, probe_root))
 
     try:
-        for action in plan.actions:
-            run.execute(action)
+        for change in plan.changes:
+            run.execute(change)
         validation = validate_installed_plan(plan, backend)
-        if any(finding.state is not FindingState.CORRECT for finding in validation):
+        if any(status.state is not InstallState.CURRENT for status in validation):
             raise _FinalValidationFailed(validation)
 
-        receipt = _build_receipt(plan, root, existing_receipt, run, mapping_by_destination)
+        receipt = _build_receipt(plan, root, existing_receipt, run)
         if existing_receipt is None or receipt != existing_receipt:
             run.write_receipt(receipt, receipt_file)
             return ExecutionReport(tuple(run.events), receipt, True)
@@ -78,18 +84,17 @@ def apply_install_plan(
         _finalize_failure("install", original, run)
 
 
-def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[Finding, ...]:
-    """Re-check every mutated link and report CORRECT or a mismatch state."""
-    mapping_by_destination = {finding.path: finding.mapping for finding in plan.findings}
-    findings: list[Finding] = []
-    for action in plan.actions:
-        if action.kind not in _LINK_ACTIONS:
+def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[PathStatus, ...]:
+    """Re-check every mutated link and report CURRENT or a mismatch state."""
+    statuses: list[PathStatus] = []
+    for change in plan.changes:
+        if not isinstance(change, (CreateLink, ReplaceLink)):
             continue
-        mapping = mapping_by_destination[action.destination]
-        resolved = backend.resolved_target(action.destination)
-        state = FindingState.CORRECT if resolved == action.source.resolve() else FindingState.STALE_LINK
-        findings.append(Finding(state, action.destination, mapping))
-    return tuple(findings)
+        mapping = change.mapping
+        resolved = backend.resolved_target(mapping.destination)
+        state = InstallState.CURRENT if resolved == mapping.source.resolve() else InstallState.STALE_LINK
+        statuses.append(PathStatus(state, mapping))
+    return tuple(statuses)
 
 
 def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend, receipt_file: Path) -> ExecutionReport:
@@ -110,8 +115,8 @@ def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend, receipt_file
 
 
 class _FinalValidationFailed(Exception):
-    def __init__(self, findings: tuple[Finding, ...]) -> None:
-        self.findings = findings
+    def __init__(self, statuses: tuple[PathStatus, ...]) -> None:
+        self.statuses = statuses
         super().__init__("post-install validation failed")
 
 
@@ -220,15 +225,15 @@ class _InstallRun(_Transaction):
         self.backups: list[OwnedBackup] = []
         self.created_parents: list[Path] = []
 
-    def execute(self, action: PlannedAction) -> None:
-        if action.kind is ActionKind.BACKUP:
-            self._backup(action)
-        elif action.kind is ActionKind.CREATE_LINK:
-            self._create(action)
-        elif action.kind is ActionKind.REPLACE_LINK:
-            self._replace(action)
+    def execute(self, change: InstallChange) -> None:
+        if isinstance(change, BackupFile):
+            self._backup(change)
+        elif isinstance(change, CreateLink):
+            self._create(change)
+        elif isinstance(change, ReplaceLink):
+            self._replace(change)
         else:  # pragma: no cover - defensive
-            raise ValueError(f"unsupported action kind: {action.kind}")
+            assert_never(change)
 
     def write_receipt(self, receipt: InstallReceipt, receipt_file: Path) -> None:
         self._ensure_parents(receipt_file, record_projection_parent=False, emit_event=False)
@@ -240,8 +245,8 @@ class _InstallRun(_Transaction):
         write_receipt_atomic(receipt, receipt_file)
         self.events.append(ExecutionEvent(ExecutionEventKind.WROTE_RECEIPT, receipt_file))
 
-    def _backup(self, action: PlannedAction) -> None:
-        original, backup = action.source, action.destination
+    def _backup(self, change: BackupFile) -> None:
+        original, backup = change.original, change.backup
         try:
             descriptor = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError as exc:
@@ -263,15 +268,19 @@ class _InstallRun(_Transaction):
         self.backups.append(OwnedBackup(original=original, backup=backup, sha256=digest))
         self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))
 
-    def _create(self, action: PlannedAction) -> None:
-        self._ensure_parents(action.destination, record_projection_parent=True, emit_event=True)
-        self._link(action.source, action.destination, action.is_directory)
+    def _create(self, change: CreateLink) -> None:
+        mapping = change.mapping
+        is_directory = _is_directory_mapping(mapping)
+        self._ensure_parents(mapping.destination, record_projection_parent=True, emit_event=True)
+        self._link(mapping.source, mapping.destination, is_directory)
         self.journal.append(
-            _Compensation(_CompensationKind.REMOVE_LINK, action.destination, is_directory=action.is_directory)
+            _Compensation(_CompensationKind.REMOVE_LINK, mapping.destination, is_directory=is_directory)
         )
 
-    def _replace(self, action: PlannedAction) -> None:
-        destination = action.destination
+    def _replace(self, change: ReplaceLink) -> None:
+        mapping = change.mapping
+        is_directory = _is_directory_mapping(mapping)
+        destination = mapping.destination
         old_target = self.backend.resolved_target(destination)
         self.backend.remove_link(destination)
         self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_STALE_LINK, destination))
@@ -280,10 +289,10 @@ class _InstallRun(_Transaction):
                 _CompensationKind.RECREATE_LINK,
                 destination,
                 other=old_target,
-                is_directory=action.is_directory,
+                is_directory=is_directory,
             )
         )
-        self._link(action.source, destination, action.is_directory)
+        self._link(mapping.source, destination, is_directory)
 
     def _link(self, source: Path, destination: Path, is_directory: bool) -> None:
         if is_directory:
@@ -359,8 +368,11 @@ class _UninstallRun(_Transaction):
         self.events.append(ExecutionEvent(ExecutionEventKind.DELETED_RECEIPT, receipt_file))
 
 
-def _has_file_link_action(plan: InstallPlan) -> bool:
-    return any(action.kind in _LINK_ACTIONS and not action.is_directory for action in plan.actions)
+def _has_file_link_change(plan: InstallPlan) -> bool:
+    return any(
+        isinstance(change, (CreateLink, ReplaceLink)) and not _is_directory_mapping(change.mapping)
+        for change in plan.changes
+    )
 
 
 def _recoverable_paths(original: BaseException, rollback_recoverable: tuple[Path, ...]) -> tuple[Path, ...]:
@@ -378,32 +390,28 @@ def _build_receipt(
     root: AgentRoot,
     existing: InstallReceipt | None,
     run: _InstallRun,
-    mapping_by_destination: dict[Path, InstallMapping],
 ) -> InstallReceipt:
     owned: dict[Path, OwnedLink] = {}
     if existing is not None:
         for link in existing.links:
             owned[link.mapping.destination] = link
 
-    for finding in plan.findings:
-        # A CORRECT finding for a per-skill link carries the *parent* skills mapping,
-        # so preserve the already-recorded child source/kind and only widen the harness set.
-        if finding.state is FindingState.CORRECT and finding.path in owned:
-            current = owned[finding.path].mapping
-            merged = _merge_harnesses(current.harnesses, finding.mapping.harnesses)
-            owned[finding.path] = OwnedLink(replace(current, harnesses=merged))
+    for status in plan.statuses:
+        # A CURRENT status for an already-owned link only widens its harness set;
+        # its concrete mapping already carries the correct source and destination.
+        if status.state is InstallState.CURRENT and status.path in owned:
+            current = owned[status.path].mapping
+            merged = _merge_harnesses(current.harnesses, status.mapping.harnesses)
+            owned[status.path] = OwnedLink(replace(current, harnesses=merged))
 
-    for action in plan.actions:
-        if action.kind not in _LINK_ACTIONS:
+    for change in plan.changes:
+        if not isinstance(change, (CreateLink, ReplaceLink)):
             continue
-        plan_mapping = mapping_by_destination[action.destination]
-        existing_link = owned.get(action.destination)
+        mapping = change.mapping
+        existing_link = owned.get(mapping.destination)
         existing_harnesses = existing_link.mapping.harnesses if existing_link is not None else ()
-        merged = _merge_harnesses(existing_harnesses, plan_mapping.harnesses)
-        # The concrete mapping type mirrors the plan mapping (file vs directory) while the
-        # source/destination reflect the exact link this action created.
-        mapping = type(plan_mapping)(harnesses=merged, source=action.source, destination=action.destination)
-        owned[action.destination] = OwnedLink(mapping)
+        merged = _merge_harnesses(existing_harnesses, mapping.harnesses)
+        owned[mapping.destination] = OwnedLink(replace(mapping, harnesses=merged))
 
     links = tuple(owned[destination] for destination in sorted(owned, key=Path.as_posix))
     backups = (existing.backups if existing is not None else ()) + tuple(run.backups)

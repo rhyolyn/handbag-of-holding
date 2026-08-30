@@ -21,15 +21,18 @@ from secret_agents_setup.harness_profiles import (
 )
 from secret_agents_setup.link_errors import LinkTargetMismatch, SymlinkUnsupported
 from secret_agents_setup.models import (
-    ActionKind,
     AgentRoot,
     ExecutionEventKind,
     ExecutionReport,
-    Finding,
-    FindingState,
     Harness,
+)
+from secret_agents_setup.planning import (
+    BackupFile,
+    CreateLink,
     InstallPlan,
-    PlannedAction,
+    InstallState,
+    PathStatus,
+    ReplaceLink,
 )
 from secret_agents_setup.receipts import (
     InstallReceipt,
@@ -161,10 +164,10 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
     projection = _instructions_mapping(root, home, (Harness.CODEX,))
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
     plan = InstallPlan(
-        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
-        actions=(
-            PlannedAction(ActionKind.BACKUP, original, backup, False),
-            PlannedAction(ActionKind.CREATE_LINK, projection.source, original, False),
+        statuses=(PathStatus(InstallState.BACKUP_PLANNED, projection),),
+        changes=(
+            BackupFile(original, backup),
+            CreateLink(projection),
         ),
     )
     backend = RecordingBackend()
@@ -192,7 +195,7 @@ def test_backup_race_never_overwrites_existing_bytes(tmp_path: Path) -> None:
     from secret_agents_setup.planning import build_install_plan
 
     plan = build_install_plan((projection,), (), True, TIMESTAMP)
-    backup = plan.actions[0].destination
+    backup = next(change.backup for change in plan.changes if isinstance(change, BackupFile))
     backup.write_bytes(b"occupied bytes")
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
@@ -220,7 +223,7 @@ def test_backup_race_with_prior_rollback_failure_reports_execution_error(tmp_pat
     from secret_agents_setup.planning import build_install_plan
 
     plan = build_install_plan(mappings, (), True, TIMESTAMP)
-    backup = next(action.destination for action in plan.actions if action.kind is ActionKind.BACKUP)
+    backup = next(change.backup for change in plan.changes if isinstance(change, BackupFile))
     backup.write_bytes(b"occupied bytes")
     earlier_link = home / ".agents" / "skills"
     backend = RecordingBackend()
@@ -255,8 +258,8 @@ def test_failed_backup_move_removes_its_reservation(tmp_path: Path, monkeypatch:
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
     projection = _instructions_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
-        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
-        actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
+        statuses=(PathStatus(InstallState.BACKUP_PLANNED, projection),),
+        changes=(BackupFile(original, backup),),
     )
 
     def fail_move(source: Path, destination: Path) -> None:
@@ -284,8 +287,8 @@ def test_failed_backup_cleanup_does_not_mask_original_failure(tmp_path: Path, mo
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
     projection = _instructions_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
-        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
-        actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
+        statuses=(PathStatus(InstallState.BACKUP_PLANNED, projection),),
+        changes=(BackupFile(original, backup),),
     )
 
     def fail_move(source: Path, destination: Path) -> None:
@@ -318,8 +321,8 @@ def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
     home = tmp_path / "home"
     projection = _skills_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
-        findings=(Finding(FindingState.CORRECT, projection.destination, projection),),
-        actions=(),
+        statuses=(PathStatus(InstallState.CURRENT, projection),),
+        changes=(),
     )
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
@@ -349,8 +352,8 @@ def test_idempotent_owned_install_does_not_rewrite(tmp_path: Path) -> None:
     write_receipt_atomic(receipt, receipt_file)
     before = receipt_file.read_bytes()
     plan = InstallPlan(
-        findings=(Finding(FindingState.CORRECT, skills.destination, skills),),
-        actions=(),
+        statuses=(PathStatus(InstallState.CURRENT, skills),),
+        changes=(),
     )
     backend = RecordingBackend()
 
@@ -388,11 +391,11 @@ def test_second_harness_updates_only_shared_receipt_metadata(tmp_path: Path) -> 
     receipt_file = receipt_path(home, root.identity)
     write_receipt_atomic(existing, receipt_file)
     plan = InstallPlan(
-        findings=(
-            Finding(FindingState.CORRECT, shared_skills.destination, shared_skills),
-            Finding(FindingState.MISSING, copilot_guidance.destination, copilot_guidance),
+        statuses=(
+            PathStatus(InstallState.CURRENT, shared_skills),
+            PathStatus(InstallState.MISSING, copilot_guidance),
         ),
-        actions=(PlannedAction(ActionKind.CREATE_LINK, copilot_guidance.source, copilot_guidance.destination, False),),
+        changes=(CreateLink(copilot_guidance),),
     )
     backend = RecordingBackend()
 
@@ -532,10 +535,10 @@ def test_rollback_after_backup_restores_original(tmp_path: Path) -> None:
     projection = _instructions_mapping(root, home, (Harness.CODEX,))
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
     plan = InstallPlan(
-        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
-        actions=(
-            PlannedAction(ActionKind.BACKUP, original, backup, False),
-            PlannedAction(ActionKind.CREATE_LINK, projection.source, original, False),
+        statuses=(PathStatus(InstallState.BACKUP_PLANNED, projection),),
+        changes=(
+            BackupFile(original, backup),
+            CreateLink(projection),
         ),
     )
     backend = RecordingBackend()
@@ -626,8 +629,8 @@ def test_partial_backend_cleanup_failure_reports_recoverable_path_without_journa
             raise link_errors.PartialLinkCleanupFailed(dst, create_error, cleanup_error)
 
     plan = InstallPlan(
-        findings=(Finding(FindingState.MISSING, destination, projection),),
-        actions=(PlannedAction(ActionKind.CREATE_LINK, projection.source, destination, True),),
+        statuses=(PathStatus(InstallState.MISSING, projection),),
+        changes=(CreateLink(projection),),
     )
 
     with pytest.raises(ExecutionError) as raised:
@@ -674,8 +677,8 @@ def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:
     receipt_file = receipt_path(home, IDENTITY)
     write_receipt_atomic(existing, receipt_file)
     plan = InstallPlan(
-        findings=(Finding(FindingState.STALE_LINK, skills_dst, new_skills),),
-        actions=(PlannedAction(ActionKind.REPLACE_LINK, new_skills.source, skills_dst, True),),
+        statuses=(PathStatus(InstallState.STALE_LINK, new_skills),),
+        changes=(ReplaceLink(new_skills),),
     )
 
     report = apply_install_plan(plan, new_root, probe_root, backend, receipt_file, existing)
@@ -713,8 +716,8 @@ def test_relocation_failure_restores_prior_links_and_receipt_bytes(
     write_receipt_atomic(existing, receipt_file)
     prior_bytes = receipt_file.read_bytes()
     plan = InstallPlan(
-        findings=(Finding(FindingState.STALE_LINK, skills_dst, new_skills),),
-        actions=(PlannedAction(ActionKind.REPLACE_LINK, new_skills.source, skills_dst, True),),
+        statuses=(PathStatus(InstallState.STALE_LINK, new_skills),),
+        changes=(ReplaceLink(new_skills),),
     )
 
     def boom(receipt: InstallReceipt, path: Path) -> None:
@@ -734,17 +737,17 @@ def test_validate_installed_plan_flags_mismatch(tmp_path: Path) -> None:
     home = tmp_path / "home"
     projection = _skills_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
-        findings=(Finding(FindingState.MISSING, projection.destination, projection),),
-        actions=(PlannedAction(ActionKind.CREATE_LINK, projection.source, projection.destination, True),),
+        statuses=(PathStatus(InstallState.MISSING, projection),),
+        changes=(CreateLink(projection),),
     )
     backend = RecordingBackend()
     # backend reports the wrong target for the destination
     backend.targets[projection.destination] = tmp_path / "wrong"
 
-    findings = validate_installed_plan(plan, backend)
+    statuses = validate_installed_plan(plan, backend)
 
-    assert findings
-    assert all(finding.state is not FindingState.CORRECT for finding in findings)
+    assert statuses
+    assert all(status.state is not InstallState.CURRENT for status in statuses)
 
 
 def test_apply_blocked_plan_is_programmer_error(tmp_path: Path) -> None:
@@ -752,8 +755,8 @@ def test_apply_blocked_plan_is_programmer_error(tmp_path: Path) -> None:
     home = tmp_path / "home"
     projection = _skills_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
-        findings=(Finding(FindingState.SKILL_NAME_COLLISION, projection.destination, projection, blocking=True),),
-        actions=(),
+        statuses=(PathStatus(InstallState.SKILL_NAME_COLLISION, projection),),
+        changes=(),
     )
     backend = RecordingBackend()
 
