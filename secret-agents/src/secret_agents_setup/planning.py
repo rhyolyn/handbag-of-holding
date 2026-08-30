@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
+from .harness_profiles import InstallMapping, SkillsMapping
 from .links import LinkBackend
 from .models import (
     ActionKind,
@@ -16,8 +17,6 @@ from .models import (
     InstallPlan,
     InstallReceipt,
     PlannedAction,
-    Projection,
-    ProjectionKind,
     ReceiptBackup,
     ReceiptProjection,
     SkillDescriptor,
@@ -34,60 +33,60 @@ _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 
 
 def build_install_plan(
-    projections: tuple[Projection, ...],
+    mappings: tuple[InstallMapping, ...],
     catalog: tuple[SkillDescriptor, ...],
     backup_conflicts: bool,
     timestamp: datetime,
 ) -> InstallPlan:
-    """Classify current projection state without mutating it and plan safe actions."""
+    """Classify current mapping state without mutating it and plan safe actions."""
     findings: list[Finding] = []
     actions: list[PlannedAction] = []
 
     sorted_catalog = tuple(sorted(catalog, key=lambda skill: skill.name))
-    for projection in sorted(projections, key=lambda item: item.destination.as_posix()):
-        projection_findings, projection_actions = _classify_projection(
-            projection,
+    for mapping in sorted(mappings, key=lambda item: item.destination.as_posix()):
+        mapping_findings, mapping_actions = _classify_mapping(
+            mapping,
             sorted_catalog,
             backup_conflicts,
             timestamp,
         )
-        findings.extend(projection_findings)
-        actions.extend(projection_actions)
+        findings.extend(mapping_findings)
+        actions.extend(mapping_actions)
 
     if any(finding.blocking for finding in findings):
         actions.clear()
     return InstallPlan(findings=tuple(findings), actions=tuple(actions))
 
 
-def _classify_projection(
-    projection: Projection,
+def _classify_mapping(
+    mapping: InstallMapping,
     catalog: tuple[SkillDescriptor, ...],
     backup_conflicts: bool,
     timestamp: datetime,
 ) -> tuple[list[Finding], list[PlannedAction]]:
-    destination = projection.destination
+    destination = mapping.destination
     if not os.path.lexists(destination):
         return [
-            Finding(FindingState.MISSING, destination, projection),
+            Finding(FindingState.MISSING, destination, mapping),
         ], [
-            _link_action(ActionKind.CREATE_LINK, projection.source, destination, projection),
+            _link_action(ActionKind.CREATE_LINK, mapping.source, destination, mapping),
         ]
 
     if _is_link(destination):
-        return _classify_whole_link(projection)
+        return _classify_whole_link(mapping)
 
-    if projection.kind is ProjectionKind.SKILLS and destination.is_dir():
-        return _classify_skill_directory(projection, catalog)
+    if isinstance(mapping, SkillsMapping) and destination.is_dir():
+        return _classify_skill_directory(mapping, catalog)
 
-    can_backup = backup_conflicts and projection.kind is ProjectionKind.GUIDANCE and destination.is_file()
-    finding = Finding(FindingState.UNRELATED, destination, projection, blocking=not can_backup)
+    can_backup = backup_conflicts and not isinstance(mapping, SkillsMapping) and destination.is_file()
+    finding = Finding(FindingState.UNRELATED, destination, mapping, blocking=not can_backup)
     if not can_backup:
         return [finding], []
 
     backup = _available_backup_path(destination, timestamp)
     return [finding], [
         PlannedAction(ActionKind.BACKUP, destination, backup, False),
-        _link_action(ActionKind.CREATE_LINK, projection.source, destination, projection),
+        _link_action(ActionKind.CREATE_LINK, mapping.source, destination, mapping),
     ]
 
 
@@ -102,42 +101,42 @@ def _available_backup_path(original: Path, timestamp: datetime) -> Path:
 
 
 def _classify_whole_link(
-    projection: Projection,
+    mapping: InstallMapping,
 ) -> tuple[list[Finding], list[PlannedAction]]:
-    destination = projection.destination
+    destination = mapping.destination
     if not destination.exists():
         state = FindingState.BROKEN_LINK
-    elif _same_target(destination, projection.source):
-        return [Finding(FindingState.CORRECT, destination, projection)], []
+    elif _same_target(destination, mapping.source):
+        return [Finding(FindingState.CORRECT, destination, mapping)], []
     else:
         state = FindingState.STALE_LINK
 
-    return [Finding(state, destination, projection)], [
-        _link_action(ActionKind.REPLACE_LINK, projection.source, destination, projection),
+    return [Finding(state, destination, mapping)], [
+        _link_action(ActionKind.REPLACE_LINK, mapping.source, destination, mapping),
     ]
 
 
 def _classify_skill_directory(
-    projection: Projection, catalog: tuple[SkillDescriptor, ...]
+    mapping: SkillsMapping, catalog: tuple[SkillDescriptor, ...]
 ) -> tuple[list[Finding], list[PlannedAction]]:
-    findings = [Finding(FindingState.COMPATIBLE_SKILL_DIRECTORY, projection.destination, projection)]
+    findings = [Finding(FindingState.COMPATIBLE_SKILL_DIRECTORY, mapping.destination, mapping)]
     actions: list[PlannedAction] = []
 
     for skill in catalog:
-        destination = projection.destination / skill.name
+        destination = mapping.destination / skill.name
         if not os.path.lexists(destination):
-            findings.append(Finding(FindingState.MISSING, destination, projection))
+            findings.append(Finding(FindingState.MISSING, destination, mapping))
             actions.append(PlannedAction(ActionKind.CREATE_LINK, skill.directory, destination, True))
         elif _is_link(destination) and destination.exists() and _same_target(destination, skill.directory):
-            findings.append(Finding(FindingState.CORRECT, destination, projection))
+            findings.append(Finding(FindingState.CORRECT, destination, mapping))
         else:
-            findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, projection, blocking=True))
+            findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, mapping, blocking=True))
 
     return findings, actions
 
 
-def _link_action(kind: ActionKind, source: Path, destination: Path, projection: Projection) -> PlannedAction:
-    return PlannedAction(kind, source, destination, projection.is_directory)
+def _link_action(kind: ActionKind, source: Path, destination: Path, mapping: InstallMapping) -> PlannedAction:
+    return PlannedAction(kind, source, destination, isinstance(mapping, SkillsMapping))
 
 
 def _same_target(destination: Path, source: Path) -> bool:

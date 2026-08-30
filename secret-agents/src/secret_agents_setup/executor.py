@@ -10,6 +10,7 @@ from typing import Literal, NoReturn
 
 from .executor_errors import BackupPathOccupied, RollbackFailure
 from .executor_errors import ExecutionError as ExecutionError
+from .harness_profiles import InstallMapping, SkillsMapping
 from .link_errors import PartialLinkCleanupFailed
 from .links import LinkBackend
 from .models import (
@@ -24,7 +25,7 @@ from .models import (
     InstallPlan,
     InstallReceipt,
     PlannedAction,
-    Projection,
+    ProjectionKind,
     ReceiptBackup,
     ReceiptProjection,
     UninstallAction,
@@ -35,6 +36,10 @@ from .receipts import RECEIPT_SCHEMA_VERSION, file_sha256, write_receipt_atomic
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 _LINK_ACTIONS = (ActionKind.CREATE_LINK, ActionKind.REPLACE_LINK)
+
+
+def _kind_for(mapping: InstallMapping) -> ProjectionKind:
+    return ProjectionKind.SKILLS if isinstance(mapping, SkillsMapping) else ProjectionKind.GUIDANCE
 
 
 def apply_install_plan(
@@ -51,7 +56,7 @@ def apply_install_plan(
     if not plan.actions and existing_receipt is None:
         return ExecutionReport(events=(), receipt=None, receipt_written=False)
 
-    projection_by_destination = {finding.path: finding.projection for finding in plan.findings}
+    mapping_by_destination = {finding.path: finding.mapping for finding in plan.findings}
     run = _InstallRun(backend)
 
     if _has_file_link_action(plan):
@@ -65,7 +70,7 @@ def apply_install_plan(
         if any(finding.state is not FindingState.CORRECT for finding in validation):
             raise _FinalValidationFailed(validation)
 
-        receipt = _build_receipt(plan, root, existing_receipt, run, projection_by_destination)
+        receipt = _build_receipt(plan, root, existing_receipt, run, mapping_by_destination)
         if existing_receipt is None or receipt != existing_receipt:
             run.write_receipt(receipt, receipt_file)
             return ExecutionReport(tuple(run.events), receipt, True)
@@ -76,15 +81,15 @@ def apply_install_plan(
 
 def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[Finding, ...]:
     """Re-check every mutated link and report CORRECT or a mismatch state."""
-    projection_by_destination = {finding.path: finding.projection for finding in plan.findings}
+    mapping_by_destination = {finding.path: finding.mapping for finding in plan.findings}
     findings: list[Finding] = []
     for action in plan.actions:
         if action.kind not in _LINK_ACTIONS:
             continue
-        projection = projection_by_destination[action.destination]
+        mapping = mapping_by_destination[action.destination]
         resolved = backend.resolved_target(action.destination)
         state = FindingState.CORRECT if resolved == action.source.resolve() else FindingState.STALE_LINK
-        findings.append(Finding(state, action.destination, projection))
+        findings.append(Finding(state, action.destination, mapping))
     return tuple(findings)
 
 
@@ -374,7 +379,7 @@ def _build_receipt(
     root: AgentRoot,
     existing: InstallReceipt | None,
     run: _InstallRun,
-    projection_by_destination: dict[Path, Projection],
+    mapping_by_destination: dict[Path, InstallMapping],
 ) -> InstallReceipt:
     owned: dict[Path, ReceiptProjection] = {}
     if existing is not None:
@@ -382,25 +387,25 @@ def _build_receipt(
             owned[projection.destination] = projection
 
     for finding in plan.findings:
-        # A CORRECT finding for a per-skill link carries the *parent* skills projection,
+        # A CORRECT finding for a per-skill link carries the *parent* skills mapping,
         # so preserve the already-recorded child source/kind and only widen the harness set.
         if finding.state is FindingState.CORRECT and finding.path in owned:
             current = owned[finding.path]
             owned[finding.path] = replace(
-                current, harnesses=_merge_harnesses(current.harnesses, finding.projection.harnesses)
+                current, harnesses=_merge_harnesses(current.harnesses, finding.mapping.harnesses)
             )
 
     for action in plan.actions:
         if action.kind not in _LINK_ACTIONS:
             continue
-        plan_projection = projection_by_destination[action.destination]
+        plan_mapping = mapping_by_destination[action.destination]
         owned_projection = owned.get(action.destination)
         existing_harnesses = owned_projection.harnesses if owned_projection is not None else ()
         owned[action.destination] = ReceiptProjection(
             destination=action.destination,
             source=action.source,
-            kind=plan_projection.kind,
-            harnesses=_merge_harnesses(existing_harnesses, plan_projection.harnesses),
+            kind=_kind_for(plan_mapping),
+            harnesses=_merge_harnesses(existing_harnesses, plan_mapping.harnesses),
         )
 
     projections = tuple(owned[destination] for destination in sorted(owned, key=Path.as_posix))

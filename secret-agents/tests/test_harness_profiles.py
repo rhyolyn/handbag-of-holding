@@ -1,14 +1,19 @@
-"""Projection contracts verified against first-party docs on 2026-08-28.
+"""Mapping contracts verified against first-party docs on 2026-08-28.
 
-These tests prove deterministic projection behavior, not harness consumption.
+These tests prove deterministic mapping behavior, not harness consumption.
 """
 
 from pathlib import Path
 
 import pytest
 
-from secret_agents_setup.harness_profiles import build_projections
-from secret_agents_setup.models import AgentRoot, Harness, ProjectionKind
+from secret_agents_setup.harness_profiles import (
+    InstallMapping,
+    InstructionsMapping,
+    SkillsMapping,
+    build_install_mappings,
+)
+from secret_agents_setup.models import AgentRoot, Harness
 
 
 @pytest.fixture
@@ -17,94 +22,86 @@ def agent_root(tmp_path: Path) -> AgentRoot:
     return AgentRoot(path=root, schema_version=1, identity="handbag-secret-agents")
 
 
-@pytest.mark.parametrize(
-    ("harness", "expected"),
-    [
-        (
-            Harness.CODEX,
-            (
-                (".agents/skills", ProjectionKind.SKILLS, "skills", True),
-                (".codex/AGENTS.md", ProjectionKind.GUIDANCE, "AGENTS.md", False),
-            ),
-        ),
-        (
-            Harness.CLAUDE,
-            (
-                (".claude/CLAUDE.md", ProjectionKind.GUIDANCE, "AGENTS.md", False),
-                (".claude/skills", ProjectionKind.SKILLS, "skills", True),
-            ),
-        ),
-        (
-            Harness.COPILOT,
-            (
-                (".agents/skills", ProjectionKind.SKILLS, "skills", True),
-                (
-                    ".copilot/copilot-instructions.md",
-                    ProjectionKind.GUIDANCE,
-                    "AGENTS.md",
-                    False,
-                ),
-            ),
-        ),
-    ],
-)
-def test_harness_uses_verified_projection_paths(
-    agent_root: AgentRoot,
-    tmp_path: Path,
-    harness: Harness,
-    expected: tuple[tuple[str, ProjectionKind, str, bool], ...],
-) -> None:
+def test_codex_mappings_name_instructions_and_skills(agent_root: AgentRoot, tmp_path: Path) -> None:
     home = tmp_path / "home"
 
-    projections = build_projections(agent_root, home, (harness,))
+    mappings = build_install_mappings(agent_root, home, (Harness.CODEX,))
 
-    assert (
-        tuple(
-            (
-                projection.destination.relative_to(home).as_posix(),
-                projection.kind,
-                projection.source.relative_to(agent_root.path).as_posix(),
-                projection.is_directory,
-            )
-            for projection in projections
-        )
-        == expected
+    assert mappings == (
+        SkillsMapping((Harness.CODEX,), agent_root.path / "skills", home / ".agents" / "skills"),
+        InstructionsMapping((Harness.CODEX,), agent_root.path / "AGENTS.md", home / ".codex" / "AGENTS.md"),
     )
-    assert all(projection.harnesses == (harness,) for projection in projections)
+
+
+def test_claude_mappings_name_instructions_and_skills(agent_root: AgentRoot, tmp_path: Path) -> None:
+    home = tmp_path / "home"
+
+    mappings = build_install_mappings(agent_root, home, (Harness.CLAUDE,))
+
+    assert mappings == (
+        InstructionsMapping((Harness.CLAUDE,), agent_root.path / "AGENTS.md", home / ".claude" / "CLAUDE.md"),
+        SkillsMapping((Harness.CLAUDE,), agent_root.path / "skills", home / ".claude" / "skills"),
+    )
+
+
+def test_copilot_mappings_name_instructions_and_skills(agent_root: AgentRoot, tmp_path: Path) -> None:
+    home = tmp_path / "home"
+
+    mappings = build_install_mappings(agent_root, home, (Harness.COPILOT,))
+
+    assert mappings == (
+        SkillsMapping((Harness.COPILOT,), agent_root.path / "skills", home / ".agents" / "skills"),
+        InstructionsMapping(
+            (Harness.COPILOT,),
+            agent_root.path / "AGENTS.md",
+            home / ".copilot" / "copilot-instructions.md",
+        ),
+    )
 
 
 def test_all_deduplicates_shared_skills_and_orders_destinations(agent_root: AgentRoot, tmp_path: Path) -> None:
     home = tmp_path / "home"
 
-    projections = build_projections(agent_root, home, (Harness.ALL,))
+    mappings = build_install_mappings(agent_root, home, (Harness.ALL,))
 
-    assert tuple(projection.destination.relative_to(home).as_posix() for projection in projections) == (
+    assert tuple(mapping.destination.relative_to(home).as_posix() for mapping in mappings) == (
         ".agents/skills",
         ".claude/CLAUDE.md",
         ".claude/skills",
         ".codex/AGENTS.md",
         ".copilot/copilot-instructions.md",
     )
-    shared_skills = projections[0]
-    assert shared_skills.harnesses == (Harness.CODEX, Harness.COPILOT)
+
+
+def test_shared_skills_mapping_merges_codex_and_copilot(agent_root: AgentRoot, tmp_path: Path) -> None:
+    home = tmp_path / "home"
+
+    mappings = build_install_mappings(agent_root, home, (Harness.ALL,))
+    shared = next(mapping for mapping in mappings if mapping.destination == home / ".agents" / "skills")
+
+    assert isinstance(shared, SkillsMapping)
+    assert shared.harnesses == (Harness.CODEX, Harness.COPILOT)
 
 
 def test_explicit_codex_and_copilot_selection_deduplicates_shared_skills(agent_root: AgentRoot, tmp_path: Path) -> None:
-    projections = build_projections(
+    mappings = build_install_mappings(
         agent_root,
         tmp_path / "home",
         (Harness.COPILOT, Harness.CODEX),
     )
 
-    shared = tuple(
-        projection for projection in projections if projection.destination.parts[-2:] == (".agents", "skills")
-    )
+    shared = tuple(mapping for mapping in mappings if mapping.destination.parts[-2:] == (".agents", "skills"))
     assert len(shared) == 1
+    assert isinstance(shared[0], SkillsMapping)
     assert shared[0].harnesses == (Harness.CODEX, Harness.COPILOT)
 
 
-def test_all_guidance_projections_share_canonical_agents_source(agent_root: AgentRoot, tmp_path: Path) -> None:
-    projections = build_projections(agent_root, tmp_path / "home", (Harness.ALL,))
+def test_all_instructions_mappings_share_canonical_agents_source(agent_root: AgentRoot, tmp_path: Path) -> None:
+    mappings = build_install_mappings(agent_root, tmp_path / "home", (Harness.ALL,))
 
-    guidance_sources = {projection.source for projection in projections if projection.kind is ProjectionKind.GUIDANCE}
-    assert guidance_sources == {agent_root.path / "AGENTS.md"}
+    instructions_sources = {mapping.source for mapping in mappings if isinstance(mapping, InstructionsMapping)}
+    assert instructions_sources == {agent_root.path / "AGENTS.md"}
+
+
+def test_install_mapping_union_covers_both_concrete_types() -> None:
+    assert InstallMapping == InstructionsMapping | SkillsMapping

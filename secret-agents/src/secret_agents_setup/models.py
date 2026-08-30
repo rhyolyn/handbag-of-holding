@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .harness_profiles import InstallMapping
 
 
 class Harness(StrEnum):
@@ -63,19 +67,10 @@ class SkillDescriptor:
 
 
 @dataclass(frozen=True)
-class Projection:
-    harnesses: tuple[Harness, ...]
-    kind: ProjectionKind
-    source: Path
-    destination: Path
-    is_directory: bool
-
-
-@dataclass(frozen=True)
 class Finding:
     state: FindingState
     path: Path
-    projection: Projection
+    mapping: InstallMapping
     blocking: bool = False
 
 

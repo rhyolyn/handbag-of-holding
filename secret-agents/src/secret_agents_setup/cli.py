@@ -15,7 +15,7 @@ from .catalog import load_skill_catalog
 from .catalog_errors import SkillCatalogError
 from .executor import apply_install_plan, apply_uninstall_plan
 from .executor_errors import BackupPathOccupied, ExecutionError
-from .harness_profiles import build_projections
+from .harness_profiles import InstallMapping, build_install_mappings
 from .link_errors import SymlinkPrivilegeRequired, SymlinkUnsupported
 from .links import LinkBackend, backend_for
 from .models import (
@@ -25,7 +25,6 @@ from .models import (
     Finding,
     Harness,
     InstallPlan,
-    Projection,
     SkillDescriptor,
     UninstallFinding,
 )
@@ -140,7 +139,7 @@ class _Session:
 
     root: AgentRoot
     catalog: tuple[SkillDescriptor, ...]
-    projections: tuple[Projection, ...]
+    mappings: tuple[InstallMapping, ...]
     harnesses: tuple[Harness, ...]
     home: Path
     os_name: str
@@ -160,7 +159,7 @@ class _Session:
         return self.backend or backend_for(self.os_name)
 
     def install_plan(self, *, backup_conflicts: bool) -> InstallPlan:
-        return build_install_plan(self.projections, self.catalog, backup_conflicts, self.now())
+        return build_install_plan(self.mappings, self.catalog, backup_conflicts, self.now())
 
 
 def _open_session(
@@ -181,7 +180,7 @@ def _open_session(
     return _Session(
         root=root,
         catalog=catalog,
-        projections=build_projections(root, home, harnesses),
+        mappings=build_install_mappings(root, home, harnesses),
         harnesses=harnesses,
         home=home,
         os_name=os.name if os_name is None else os_name,

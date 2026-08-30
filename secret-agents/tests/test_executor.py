@@ -14,7 +14,11 @@ import secret_agents_setup.executor as executor_module
 import secret_agents_setup.link_errors as link_errors
 from secret_agents_setup.executor import apply_install_plan, validate_installed_plan
 from secret_agents_setup.executor_errors import BackupPathOccupied, ExecutionError
-from secret_agents_setup.harness_profiles import build_projections
+from secret_agents_setup.harness_profiles import (
+    InstructionsMapping,
+    SkillsMapping,
+    build_install_mappings,
+)
 from secret_agents_setup.link_errors import LinkTargetMismatch, SymlinkUnsupported
 from secret_agents_setup.models import (
     ActionKind,
@@ -27,7 +31,6 @@ from secret_agents_setup.models import (
     InstallPlan,
     InstallReceipt,
     PlannedAction,
-    Projection,
     ProjectionKind,
     ReceiptBackup,
     ReceiptProjection,
@@ -95,23 +98,19 @@ def _event_kinds(report: ExecutionReport) -> list[ExecutionEventKind]:
     return [event.kind for event in report.events]
 
 
-def _guidance_projection(root: AgentRoot, home: Path, harnesses: tuple[Harness, ...]) -> Projection:
-    return Projection(
+def _instructions_mapping(root: AgentRoot, home: Path, harnesses: tuple[Harness, ...]) -> InstructionsMapping:
+    return InstructionsMapping(
         harnesses=harnesses,
-        kind=ProjectionKind.GUIDANCE,
         source=root.path / "AGENTS.md",
         destination=home / ".codex" / "AGENTS.md",
-        is_directory=False,
     )
 
 
-def _skills_projection(root: AgentRoot, home: Path, harnesses: tuple[Harness, ...]) -> Projection:
-    return Projection(
+def _skills_mapping(root: AgentRoot, home: Path, harnesses: tuple[Harness, ...]) -> SkillsMapping:
+    return SkillsMapping(
         harnesses=harnesses,
-        kind=ProjectionKind.SKILLS,
         source=root.path / "skills",
         destination=home / ".agents" / "skills",
-        is_directory=True,
     )
 
 
@@ -121,10 +120,10 @@ def test_install_probes_creates_parents_and_writes_receipt(tmp_path: Path) -> No
     home.mkdir()
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
 
@@ -157,7 +156,7 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
     original.write_text("personal", encoding="utf-8")
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    projection = _instructions_mapping(root, home, (Harness.CODEX,))
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
     plan = InstallPlan(
         findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
@@ -187,7 +186,7 @@ def test_backup_race_never_overwrites_existing_bytes(tmp_path: Path) -> None:
     original.write_bytes(b"personal bytes")
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    projection = _instructions_mapping(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
     plan = build_install_plan((projection,), (), True, TIMESTAMP)
@@ -215,10 +214,10 @@ def test_backup_race_with_prior_rollback_failure_reports_execution_error(tmp_pat
     guidance.write_bytes(b"personal bytes")
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), True, TIMESTAMP)
+    plan = build_install_plan(mappings, (), True, TIMESTAMP)
     backup = next(action.destination for action in plan.actions if action.kind is ActionKind.BACKUP)
     backup.write_bytes(b"occupied bytes")
     earlier_link = home / ".agents" / "skills"
@@ -252,7 +251,7 @@ def test_failed_backup_move_removes_its_reservation(tmp_path: Path, monkeypatch:
     original = home / ".codex" / "AGENTS.md"
     original.write_text("personal", encoding="utf-8")
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
-    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    projection = _instructions_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
         findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
         actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
@@ -274,16 +273,14 @@ def test_failed_backup_move_removes_its_reservation(tmp_path: Path, monkeypatch:
     assert not backup.exists()
 
 
-def test_failed_backup_cleanup_does_not_mask_original_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failed_backup_cleanup_does_not_mask_original_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
     (home / ".codex").mkdir(parents=True)
     original = home / ".codex" / "AGENTS.md"
     original.write_text("personal", encoding="utf-8")
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
-    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    projection = _instructions_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
         findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
         actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
@@ -317,7 +314,7 @@ def test_failed_backup_cleanup_does_not_mask_original_failure(
 def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
-    projection = _skills_projection(root, home, (Harness.CODEX,))
+    projection = _skills_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
         findings=(Finding(FindingState.CORRECT, projection.destination, projection),),
         actions=(),
@@ -337,7 +334,7 @@ def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
 def test_idempotent_owned_install_does_not_rewrite(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
-    skills = _skills_projection(root, home, (Harness.CODEX,))
+    skills = _skills_mapping(root, home, (Harness.CODEX,))
     receipt = InstallReceipt(
         schema_version=1,
         root_identity=IDENTITY,
@@ -368,19 +365,15 @@ def test_second_harness_updates_only_shared_receipt_metadata(tmp_path: Path) -> 
     (home / ".agents").mkdir(parents=True)
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    shared_skills = Projection(
+    shared_skills = SkillsMapping(
         harnesses=(Harness.COPILOT,),
-        kind=ProjectionKind.SKILLS,
         source=root.path / "skills",
         destination=home / ".agents" / "skills",
-        is_directory=True,
     )
-    copilot_guidance = Projection(
+    copilot_guidance = InstructionsMapping(
         harnesses=(Harness.COPILOT,),
-        kind=ProjectionKind.GUIDANCE,
         source=root.path / "AGENTS.md",
         destination=home / ".copilot" / "copilot-instructions.md",
-        is_directory=False,
     )
     existing = InstallReceipt(
         schema_version=1,
@@ -420,10 +413,10 @@ def test_unsupported_capability_leaves_everything_unchanged(tmp_path: Path) -> N
     home.mkdir()
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     backend = RecordingBackend(probe_error=SymlinkUnsupported(OSError("no privilege")))
     receipt_file = receipt_path(home, root.identity)
 
@@ -441,10 +434,10 @@ def test_rollback_after_link_failure_removes_prior_mutations(tmp_path: Path) -> 
     home.mkdir()
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     backend = RecordingBackend()
     guidance_dst = home / ".codex" / "AGENTS.md"
     backend.fail_on = lambda tag: tag == ("create", guidance_dst)
@@ -473,10 +466,10 @@ def test_install_cancellation_rolls_back_and_reraises_same_object(tmp_path: Path
     home.mkdir()
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     skills_destination = home / ".agents" / "skills"
 
     class CancellingBackend(RecordingBackend):
@@ -505,10 +498,10 @@ def test_install_cancellation_with_rollback_failure_notes_recoverable_path(tmp_p
     (home / ".agents").mkdir(parents=True)
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     skills_destination = home / ".agents" / "skills"
     cancellation = KeyboardInterrupt()
 
@@ -536,7 +529,7 @@ def test_rollback_after_backup_restores_original(tmp_path: Path) -> None:
     original.write_text("personal", encoding="utf-8")
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    projection = _instructions_mapping(root, home, (Harness.CODEX,))
     backup = original.with_name("AGENTS.md.backup-20260829-120000")
     plan = InstallPlan(
         findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
@@ -562,10 +555,10 @@ def test_rollback_during_receipt_write_preserves_prior_bytes(tmp_path: Path, mon
     home.mkdir()
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
     prior = InstallReceipt(
@@ -599,10 +592,10 @@ def test_rollback_failure_reports_recoverable_paths(tmp_path: Path) -> None:
     home.mkdir()
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    projections = build_projections(root, home, (Harness.CODEX,))
+    mappings = build_install_mappings(root, home, (Harness.CODEX,))
     from secret_agents_setup.planning import build_install_plan
 
-    plan = build_install_plan(projections, (), False, TIMESTAMP)
+    plan = build_install_plan(mappings, (), False, TIMESTAMP)
     skills_dst = home / ".agents" / "skills"
     guidance_dst = home / ".codex" / "AGENTS.md"
     backend = RecordingBackend()
@@ -621,7 +614,7 @@ def test_partial_backend_cleanup_failure_reports_recoverable_path_without_journa
     root = _make_root(tmp_path)
     home = tmp_path / "home"
     (home / ".agents").mkdir(parents=True)
-    projection = _skills_projection(root, home, (Harness.CODEX,))
+    projection = _skills_mapping(root, home, (Harness.CODEX,))
     destination = projection.destination
     create_error = LinkTargetMismatch(destination, tmp_path / "wrong", projection.source.resolve())
     cleanup_error = OSError("cleanup failed")
@@ -662,7 +655,7 @@ def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:
     skills_dst.mkdir(parents=True)
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    new_skills = _skills_projection(new_root, home, (Harness.CODEX,))
+    new_skills = _skills_mapping(new_root, home, (Harness.CODEX,))
     backend = RecordingBackend()
     backend.targets[skills_dst] = (old_root.path / "skills").resolve()
     kept_backup = ReceiptBackup(
@@ -705,7 +698,7 @@ def test_relocation_failure_restores_prior_links_and_receipt_bytes(
     skills_dst.mkdir(parents=True)
     probe_root = tmp_path / "probe"
     probe_root.mkdir()
-    new_skills = _skills_projection(new_root, home, (Harness.CODEX,))
+    new_skills = _skills_mapping(new_root, home, (Harness.CODEX,))
     backend = RecordingBackend()
     backend.targets[skills_dst] = (old_root.path / "skills").resolve()
     existing = InstallReceipt(
@@ -739,7 +732,7 @@ def test_relocation_failure_restores_prior_links_and_receipt_bytes(
 def test_validate_installed_plan_flags_mismatch(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
-    projection = _skills_projection(root, home, (Harness.CODEX,))
+    projection = _skills_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
         findings=(Finding(FindingState.MISSING, projection.destination, projection),),
         actions=(PlannedAction(ActionKind.CREATE_LINK, projection.source, projection.destination, True),),
@@ -757,7 +750,7 @@ def test_validate_installed_plan_flags_mismatch(tmp_path: Path) -> None:
 def test_apply_blocked_plan_is_programmer_error(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
-    projection = _skills_projection(root, home, (Harness.CODEX,))
+    projection = _skills_mapping(root, home, (Harness.CODEX,))
     plan = InstallPlan(
         findings=(Finding(FindingState.SKILL_NAME_COLLISION, projection.destination, projection, blocking=True),),
         actions=(),
