@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from secret_agents_setup.executor import apply_uninstall_plan
+from secret_agents_setup.executor import AppliedOperation, UninstallResultState, apply_uninstall_plan
 from secret_agents_setup.executor_errors import ExecutionError
 from secret_agents_setup.harness_profiles import InstructionsMapping, SkillsMapping
-from secret_agents_setup.models import ExecutionEventKind, Harness
+from secret_agents_setup.models import Harness
 from secret_agents_setup.planning import (
     DeleteReceipt,
     RemovalState,
@@ -94,13 +94,17 @@ def _states(plan: UninstallPlan) -> set[RemovalState]:
 
 
 def test_no_receipt_is_idempotent_not_installed(tmp_path: Path) -> None:
-    plan = build_uninstall_plan(
-        None, (Harness.ALL,), RecordingBackend(), expected_identity=IDENTITY, home=tmp_path / "home"
-    )
+    backend = RecordingBackend()
+    plan = build_uninstall_plan(None, (Harness.ALL,), backend, expected_identity=IDENTITY, home=tmp_path / "home")
 
     assert plan.is_blocked is False
     assert plan.changes == ()
     assert _states(plan) == {RemovalState.NOT_INSTALLED}
+
+    result = apply_uninstall_plan(plan, backend)
+    assert result.state is UninstallResultState.NOT_INSTALLED
+    assert result.changes == ()
+    assert result.receipt is None
 
 
 def test_full_uninstall_removes_owned_links_and_deletes_receipt(tmp_path: Path) -> None:
@@ -401,15 +405,16 @@ def test_apply_removes_owned_restores_backup_and_preserves_third_party(tmp_path:
 
     plan = build_uninstall_plan(receipt, (Harness.CLAUDE,), backend, expected_identity=IDENTITY, home=home)
     assert isinstance(plan.changes[-1], (WriteReceipt, DeleteReceipt))  # receipt mutation is always last
-    report = apply_uninstall_plan(plan, backend)
+    result = apply_uninstall_plan(plan, backend)
 
     assert not alpha_dst.exists()
     assert (skills_root / "third-party").is_dir()
     assert guidance_dst.read_text(encoding="utf-8") == "original user guidance"
     assert not backup.exists()
     assert not receipt_file.exists()
-    assert report.receipt is None
-    assert ExecutionEventKind.RESTORED_BACKUP in [event.kind for event in report.events]
+    assert result.state is UninstallResultState.UNINSTALLED
+    assert result.receipt is None
+    assert AppliedOperation.RESTORED_BACKUP in [change.operation for change in result.changes]
 
 
 def test_partial_uninstall_replaces_receipt_last(tmp_path: Path) -> None:
@@ -436,13 +441,14 @@ def test_partial_uninstall_replaces_receipt_last(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
     assert isinstance(plan.changes[-1], WriteReceipt)
-    report = apply_uninstall_plan(plan, backend)
+    result = apply_uninstall_plan(plan, backend)
 
     assert not codex_guidance.exists()  # codex-only guidance removed
     assert shared_dst.is_dir()  # shared skills link retained for copilot
     assert receipt_file.exists()
-    assert report.receipt is not None
-    assert report.receipt.links[0].mapping.harnesses == (Harness.COPILOT,)
+    assert result.state is UninstallResultState.PARTIALLY_UNINSTALLED
+    assert result.receipt is not None
+    assert result.receipt.links[0].mapping.harnesses == (Harness.COPILOT,)
 
 
 def test_rollback_after_injected_failure_restores_links(tmp_path: Path) -> None:

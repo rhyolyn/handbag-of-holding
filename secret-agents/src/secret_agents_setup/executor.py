@@ -13,13 +13,7 @@ from .executor_errors import ExecutionError as ExecutionError
 from .harness_profiles import InstructionsMapping
 from .link_errors import PartialLinkCleanupFailed
 from .links import LinkBackend
-from .models import (
-    AgentRoot,
-    ExecutionEvent,
-    ExecutionEventKind,
-    ExecutionReport,
-    Harness,
-)
+from .models import AgentRoot, Harness
 from .planning import (
     BackupFile,
     CreateLink,
@@ -48,6 +42,51 @@ from .receipts import (
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 
 
+class AppliedOperation(StrEnum):
+    PROBED_CAPABILITY = "probed-capability"
+    CREATED_PARENT = "created-parent"
+    REMOVED_STALE_LINK = "removed-stale-link"
+    BACKED_UP = "backed-up"
+    CREATED_LINK = "created-link"
+    WROTE_RECEIPT = "wrote-receipt"
+    REMOVED_LINK = "removed-link"
+    RESTORED_BACKUP = "restored-backup"
+    REMOVED_EMPTY_PARENT = "removed-empty-parent"
+    DELETED_RECEIPT = "deleted-receipt"
+
+
+@dataclass(frozen=True)
+class AppliedChange:
+    operation: AppliedOperation
+    path: Path
+
+
+class InstallResultState(StrEnum):
+    UNCHANGED = "unchanged"
+    INSTALLED = "installed"
+    UPDATED = "updated"
+
+
+class UninstallResultState(StrEnum):
+    NOT_INSTALLED = "not-installed"
+    PARTIALLY_UNINSTALLED = "partially-uninstalled"
+    UNINSTALLED = "uninstalled"
+
+
+@dataclass(frozen=True)
+class InstallResult:
+    state: InstallResultState
+    changes: tuple[AppliedChange, ...]
+    receipt: InstallReceipt | None
+
+
+@dataclass(frozen=True)
+class UninstallResult:
+    state: UninstallResultState
+    changes: tuple[AppliedChange, ...]
+    receipt: InstallReceipt | None
+
+
 def _is_directory_mapping(mapping: object) -> bool:
     return not isinstance(mapping, InstructionsMapping)
 
@@ -59,18 +98,18 @@ def apply_install_plan(
     backend: LinkBackend,
     receipt_file: Path,
     existing_receipt: InstallReceipt | None,
-) -> ExecutionReport:
+) -> InstallResult:
     """Execute an applicable plan transactionally, rolling back every mutation on failure."""
     if plan.is_blocked:
         raise ValueError("cannot apply a blocked install plan")
     if not plan.changes and existing_receipt is None:
-        return ExecutionReport(events=(), receipt=None, receipt_written=False)
+        return InstallResult(InstallResultState.UNCHANGED, (), None)
 
     run = _InstallRun(backend)
 
     if _has_file_link_change(plan):
         backend.probe_file_link_capability(probe_root)
-        run.events.append(ExecutionEvent(ExecutionEventKind.PROBED_CAPABILITY, probe_root))
+        run.events.append(AppliedChange(AppliedOperation.PROBED_CAPABILITY, probe_root))
 
     try:
         for change in plan.changes:
@@ -80,10 +119,14 @@ def apply_install_plan(
             raise _FinalValidationFailed(validation)
 
         receipt = _build_receipt(plan, root, existing_receipt, run)
-        if existing_receipt is None or receipt != existing_receipt:
+        changes = tuple(run.events)
+        if existing_receipt is None:
             run.write_receipt(receipt, receipt_file)
-            return ExecutionReport(tuple(run.events), receipt, True)
-        return ExecutionReport(tuple(run.events), existing_receipt, False)
+            return InstallResult(InstallResultState.INSTALLED, tuple(run.events), receipt)
+        if receipt != existing_receipt:
+            run.write_receipt(receipt, receipt_file)
+            return InstallResult(InstallResultState.UPDATED, tuple(run.events), receipt)
+        return InstallResult(InstallResultState.UNCHANGED, changes, existing_receipt)
     except BaseException as original:
         _finalize_failure("install", original, run)
 
@@ -101,7 +144,7 @@ def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[Pa
     return tuple(statuses)
 
 
-def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend) -> ExecutionReport:
+def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend) -> UninstallResult:
     """Execute an applicable uninstall plan transactionally, rolling back on failure.
 
     The receipt path travels inside the plan's WriteReceipt/DeleteReceipt change, so
@@ -110,18 +153,16 @@ def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend) -> Execution
     if plan.is_blocked:
         raise ValueError("cannot apply a blocked uninstall plan")
     if not plan.changes:
-        return ExecutionReport(events=(), receipt=None, receipt_written=False)
+        return UninstallResult(UninstallResultState.NOT_INSTALLED, (), None)
 
     run = _UninstallRun(backend)
     try:
         for change in plan.changes:
             run.execute(change)
         written = next((change for change in plan.changes if isinstance(change, WriteReceipt)), None)
-        return ExecutionReport(
-            tuple(run.events),
-            written.receipt if written is not None else None,
-            written is not None,
-        )
+        if written is not None:
+            return UninstallResult(UninstallResultState.PARTIALLY_UNINSTALLED, tuple(run.events), written.receipt)
+        return UninstallResult(UninstallResultState.UNINSTALLED, tuple(run.events), None)
     except BaseException as original:
         _finalize_failure("uninstall", original, run)
 
@@ -156,7 +197,7 @@ class _Transaction:
 
     def __init__(self, backend: LinkBackend) -> None:
         self.backend = backend
-        self.events: list[ExecutionEvent] = []
+        self.events: list[AppliedChange] = []
         self.journal: list[_Compensation] = []
 
     def rollback(self) -> tuple[tuple[RollbackFailure, ...], tuple[Path, ...]]:
@@ -255,7 +296,7 @@ class _InstallRun(_Transaction):
         else:
             self.journal.append(_Compensation(_CompensationKind.DELETE_RECEIPT, receipt_file))
         write_receipt_atomic(receipt, receipt_file)
-        self.events.append(ExecutionEvent(ExecutionEventKind.WROTE_RECEIPT, receipt_file))
+        self.events.append(AppliedChange(AppliedOperation.WROTE_RECEIPT, receipt_file))
 
     def _backup(self, change: BackupFile) -> None:
         original, backup = change.original, change.backup
@@ -278,7 +319,7 @@ class _InstallRun(_Transaction):
             raise
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
         self.backups.append(OwnedBackup(original=original, backup=backup, sha256=digest))
-        self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))
+        self.events.append(AppliedChange(AppliedOperation.BACKED_UP, original))
 
     def _create(self, change: CreateLink) -> None:
         mapping = change.mapping
@@ -295,7 +336,7 @@ class _InstallRun(_Transaction):
         destination = mapping.destination
         old_target = self.backend.resolved_target(destination)
         self.backend.remove_link(destination)
-        self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_STALE_LINK, destination))
+        self.events.append(AppliedChange(AppliedOperation.REMOVED_STALE_LINK, destination))
         self.journal.append(
             _Compensation(
                 _CompensationKind.RECREATE_LINK,
@@ -311,7 +352,7 @@ class _InstallRun(_Transaction):
             self.backend.create_directory_link(source, destination)
         else:
             self.backend.create_file_link(source, destination)
-        self.events.append(ExecutionEvent(ExecutionEventKind.CREATED_LINK, destination))
+        self.events.append(AppliedChange(AppliedOperation.CREATED_LINK, destination))
 
     def _ensure_parents(self, target: Path, *, record_projection_parent: bool, emit_event: bool) -> None:
         missing: list[Path] = []
@@ -325,7 +366,7 @@ class _InstallRun(_Transaction):
             if record_projection_parent:
                 self.created_parents.append(parent)
             if emit_event:
-                self.events.append(ExecutionEvent(ExecutionEventKind.CREATED_PARENT, parent))
+                self.events.append(AppliedChange(AppliedOperation.CREATED_PARENT, parent))
 
 
 class _UninstallRun(_Transaction):
@@ -353,29 +394,29 @@ class _UninstallRun(_Transaction):
         self.journal.append(
             _Compensation(_CompensationKind.RECREATE_LINK, destination, other=old_target, is_directory=is_directory)
         )
-        self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_LINK, destination))
+        self.events.append(AppliedChange(AppliedOperation.REMOVED_LINK, destination))
 
     def _restore_backup(self, backup: OwnedBackup) -> None:
         os.replace(backup.backup, backup.original)
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup.original, other=backup.backup))
-        self.events.append(ExecutionEvent(ExecutionEventKind.RESTORED_BACKUP, backup.original))
+        self.events.append(AppliedChange(AppliedOperation.RESTORED_BACKUP, backup.original))
 
     def _remove_parent(self, parent: Path) -> None:
         parent.rmdir()
         self.journal.append(_Compensation(_CompensationKind.MAKE_PARENT, parent))
-        self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_EMPTY_PARENT, parent))
+        self.events.append(AppliedChange(AppliedOperation.REMOVED_EMPTY_PARENT, parent))
 
     def _replace_receipt(self, receipt: InstallReceipt, receipt_file: Path) -> None:
         prior = receipt_file.read_bytes()
         self.journal.append(_Compensation(_CompensationKind.RESTORE_RECEIPT, receipt_file, payload=prior))
         write_receipt_atomic(receipt, receipt_file)
-        self.events.append(ExecutionEvent(ExecutionEventKind.WROTE_RECEIPT, receipt_file))
+        self.events.append(AppliedChange(AppliedOperation.WROTE_RECEIPT, receipt_file))
 
     def _delete_receipt(self, receipt_file: Path) -> None:
         prior = receipt_file.read_bytes()
         self.journal.append(_Compensation(_CompensationKind.RESTORE_RECEIPT, receipt_file, payload=prior))
         receipt_file.unlink()
-        self.events.append(ExecutionEvent(ExecutionEventKind.DELETED_RECEIPT, receipt_file))
+        self.events.append(AppliedChange(AppliedOperation.DELETED_RECEIPT, receipt_file))
 
 
 def _has_file_link_change(plan: InstallPlan) -> bool:

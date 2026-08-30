@@ -12,7 +12,13 @@ import pytest
 
 import secret_agents_setup.executor as executor_module
 import secret_agents_setup.link_errors as link_errors
-from secret_agents_setup.executor import apply_install_plan, validate_installed_plan
+from secret_agents_setup.executor import (
+    AppliedOperation,
+    InstallResult,
+    InstallResultState,
+    apply_install_plan,
+    validate_installed_plan,
+)
 from secret_agents_setup.executor_errors import BackupPathOccupied, ExecutionError
 from secret_agents_setup.harness_profiles import (
     InstructionsMapping,
@@ -20,12 +26,7 @@ from secret_agents_setup.harness_profiles import (
     build_install_mappings,
 )
 from secret_agents_setup.link_errors import LinkTargetMismatch, SymlinkUnsupported
-from secret_agents_setup.models import (
-    AgentRoot,
-    ExecutionEventKind,
-    ExecutionReport,
-    Harness,
-)
+from secret_agents_setup.models import AgentRoot, Harness
 from secret_agents_setup.planning import (
     BackupFile,
     CreateLink,
@@ -99,8 +100,8 @@ def _make_root(tmp_path: Path, name: str = "canonical") -> AgentRoot:
     return AgentRoot(path=root, schema_version=1, identity=IDENTITY)
 
 
-def _event_kinds(report: ExecutionReport) -> list[ExecutionEventKind]:
-    return [event.kind for event in report.events]
+def _operations(result: InstallResult) -> list[AppliedOperation]:
+    return [change.operation for change in result.changes]
 
 
 def _instructions_mapping(root: AgentRoot, home: Path, harnesses: tuple[Harness, ...]) -> InstructionsMapping:
@@ -132,25 +133,25 @@ def test_install_probes_creates_parents_and_writes_receipt(tmp_path: Path) -> No
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
 
-    report = apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+    result = apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
 
     assert backend.calls[0] == ("probe", probe_root)
-    assert _event_kinds(report) == [
-        ExecutionEventKind.PROBED_CAPABILITY,
-        ExecutionEventKind.CREATED_PARENT,
-        ExecutionEventKind.CREATED_LINK,
-        ExecutionEventKind.CREATED_PARENT,
-        ExecutionEventKind.CREATED_LINK,
-        ExecutionEventKind.WROTE_RECEIPT,
+    assert _operations(result) == [
+        AppliedOperation.PROBED_CAPABILITY,
+        AppliedOperation.CREATED_PARENT,
+        AppliedOperation.CREATED_LINK,
+        AppliedOperation.CREATED_PARENT,
+        AppliedOperation.CREATED_LINK,
+        AppliedOperation.WROTE_RECEIPT,
     ]
-    assert report.receipt_written is True
+    assert result.state is InstallResultState.INSTALLED
     assert receipt_file.exists()
-    assert report.receipt is not None
-    assert report.receipt.root_identity == IDENTITY
-    assert report.receipt.installed_root == root.path
-    destinations = {link.mapping.destination for link in report.receipt.links}
+    assert result.receipt is not None
+    assert result.receipt.root_identity == IDENTITY
+    assert result.receipt.installed_root == root.path
+    destinations = {link.mapping.destination for link in result.receipt.links}
     assert destinations == {home / ".agents" / "skills", home / ".codex" / "AGENTS.md"}
-    assert set(report.receipt.created_parents) == {home / ".agents", home / ".codex"}
+    assert set(result.receipt.created_parents) == {home / ".agents", home / ".codex"}
 
 
 def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
@@ -173,14 +174,14 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
 
-    report = apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
+    result = apply_install_plan(plan, root, probe_root, backend, receipt_file, None)
 
     assert backup.read_text(encoding="utf-8") == "personal"
-    assert report.receipt is not None
-    assert report.receipt.backups == (
+    assert result.receipt is not None
+    assert result.receipt.backups == (
         OwnedBackup(original=original, backup=backup, sha256=hashlib.sha256(b"personal").hexdigest()),
     )
-    assert ExecutionEventKind.BACKED_UP in _event_kinds(report)
+    assert AppliedOperation.BACKED_UP in _operations(result)
 
 
 def test_backup_race_never_overwrites_existing_bytes(tmp_path: Path) -> None:
@@ -327,11 +328,11 @@ def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
     backend = RecordingBackend()
     receipt_file = receipt_path(home, root.identity)
 
-    report = apply_install_plan(plan, root, tmp_path / "probe", backend, receipt_file, None)
+    result = apply_install_plan(plan, root, tmp_path / "probe", backend, receipt_file, None)
 
-    assert report.receipt is None
-    assert report.receipt_written is False
-    assert report.events == ()
+    assert result.state is InstallResultState.UNCHANGED
+    assert result.receipt is None
+    assert result.changes == ()
     assert not receipt_file.exists()
     assert backend.calls == []
 
@@ -357,10 +358,10 @@ def test_idempotent_owned_install_does_not_rewrite(tmp_path: Path) -> None:
     )
     backend = RecordingBackend()
 
-    report = apply_install_plan(plan, root, tmp_path / "probe", backend, receipt_file, receipt)
+    result = apply_install_plan(plan, root, tmp_path / "probe", backend, receipt_file, receipt)
 
-    assert report.receipt_written is False
-    assert report.receipt == receipt
+    assert result.state is InstallResultState.UNCHANGED
+    assert result.receipt == receipt
     assert receipt_file.read_bytes() == before
 
 
@@ -399,11 +400,11 @@ def test_second_harness_updates_only_shared_receipt_metadata(tmp_path: Path) -> 
     )
     backend = RecordingBackend()
 
-    report = apply_install_plan(plan, root, probe_root, backend, receipt_file, existing)
+    result = apply_install_plan(plan, root, probe_root, backend, receipt_file, existing)
 
-    assert report.receipt_written is True
-    assert report.receipt is not None
-    shared = next(link for link in report.receipt.links if link.mapping.destination == shared_skills.destination)
+    assert result.state is InstallResultState.UPDATED
+    assert result.receipt is not None
+    shared = next(link for link in result.receipt.links if link.mapping.destination == shared_skills.destination)
     assert shared.mapping.harnesses == (Harness.CODEX, Harness.COPILOT)
     # the shared skills link is never recreated: only the copilot guidance link is
     assert ("create", shared_skills.destination) not in backend.calls
@@ -681,13 +682,13 @@ def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:
         changes=(ReplaceLink(new_skills),),
     )
 
-    report = apply_install_plan(plan, new_root, probe_root, backend, receipt_file, existing)
+    result = apply_install_plan(plan, new_root, probe_root, backend, receipt_file, existing)
 
-    assert report.receipt is not None
-    assert report.receipt.installed_root == new_root.path
-    relocated = next(link for link in report.receipt.links if link.mapping.destination == skills_dst)
+    assert result.receipt is not None
+    assert result.receipt.installed_root == new_root.path
+    relocated = next(link for link in result.receipt.links if link.mapping.destination == skills_dst)
     assert relocated.mapping.source == new_root.path / "skills"
-    assert report.receipt.backups == (kept_backup,)
+    assert result.receipt.backups == (kept_backup,)
     assert backend.targets[skills_dst] == (new_root.path / "skills").resolve()
 
 

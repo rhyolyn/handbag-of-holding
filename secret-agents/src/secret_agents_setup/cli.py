@@ -13,14 +13,13 @@ from pathlib import Path
 
 from .catalog import load_skill_catalog
 from .catalog_errors import SkillCatalogError
-from .executor import apply_install_plan, apply_uninstall_plan
+from .executor import AppliedChange, UninstallResultState, apply_install_plan, apply_uninstall_plan
 from .executor_errors import BackupPathOccupied, ExecutionError
 from .harness_profiles import InstallMapping, InstructionsMapping, build_install_mappings
 from .link_errors import SymlinkPrivilegeRequired, SymlinkUnsupported
 from .links import LinkBackend, backend_for
 from .models import (
     AgentRoot,
-    ExecutionReport,
     Harness,
     SkillDescriptor,
 )
@@ -115,25 +114,27 @@ def _run_uninstall(session: _Session) -> int:
         return _blocked("uninstall plan has blocking conditions; no changes were made")
 
     try:
-        report = apply_uninstall_plan(plan, session.link_backend)
+        result = apply_uninstall_plan(plan, session.link_backend)
     except ExecutionError as exc:
         return _failed(str(exc))
-    _print_events(report)
-    return _not_installed() if _is_noop(report) else _ok()
+    _print_applied(result.changes)
+    if result.state is UninstallResultState.NOT_INSTALLED:
+        return _not_installed()
+    return _ok()
 
 
 def _apply_install(session: _Session, plan: InstallPlan) -> int:
     session.home.mkdir(parents=True, exist_ok=True)
     try:
         existing = load_receipt(session.receipt_file, expected_identity=session.identity, home=session.home)
-        report = apply_install_plan(
+        result = apply_install_plan(
             plan, session.root, session.home, session.link_backend, session.receipt_file, existing
         )
     except (BackupPathOccupied, ReceiptError, SymlinkPrivilegeRequired, SymlinkUnsupported) as exc:
         return _blocked(str(exc))
     except ExecutionError as exc:
         return _failed(str(exc))
-    _print_events(report)
+    _print_applied(result.changes)
     return _ok()
 
 
@@ -221,10 +222,6 @@ def _note_windows_capability(session: _Session, plan: InstallPlan) -> None:
         _print(_CAPABILITY_NOTE)
 
 
-def _is_noop(report: ExecutionReport) -> bool:
-    return report.receipt is None and not report.events
-
-
 def _print_statuses(statuses: Sequence[PathStatus]) -> None:
     for status in statuses:
         _print(f"finding {status.state.output_name} {status.path}")
@@ -235,9 +232,9 @@ def _print_removal_statuses(statuses: Sequence[RemovalStatus]) -> None:
         _print(f"finding {status.state.value} {status.path}")
 
 
-def _print_events(report: ExecutionReport) -> None:
-    for event in report.events:
-        _print(f"did {event.kind.value} {event.path}")
+def _print_applied(changes: Sequence[AppliedChange]) -> None:
+    for change in changes:
+        _print(f"did {change.operation.value} {change.path}")
 
 
 def _ok() -> int:
