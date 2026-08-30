@@ -35,6 +35,19 @@ class ActionKind(StrEnum):
     BACKUP = "backup"
 
 
+class ExecutionEventKind(StrEnum):
+    PROBED_CAPABILITY = "probed-capability"
+    CREATED_PARENT = "created-parent"
+    REMOVED_STALE_LINK = "removed-stale-link"
+    BACKED_UP = "backed-up"
+    CREATED_LINK = "created-link"
+    WROTE_RECEIPT = "wrote-receipt"
+    REMOVED_LINK = "removed-link"
+    RESTORED_BACKUP = "restored-backup"
+    REMOVED_EMPTY_PARENT = "removed-empty-parent"
+    DELETED_RECEIPT = "deleted-receipt"
+
+
 @dataclass(frozen=True)
 class AgentRoot:
     path: Path
@@ -78,6 +91,88 @@ class PlannedAction:
 class InstallPlan:
     findings: tuple[Finding, ...]
     actions: tuple[PlannedAction, ...]
+
+    @property
+    def can_apply(self) -> bool:
+        return not any(finding.blocking for finding in self.findings)
+
+
+@dataclass(frozen=True)
+class ReceiptProjection:
+    destination: Path
+    source: Path
+    kind: ProjectionKind
+    harnesses: tuple[Harness, ...]
+
+
+@dataclass(frozen=True)
+class ReceiptBackup:
+    original: Path
+    backup: Path
+    sha256: str
+
+
+@dataclass(frozen=True)
+class InstallReceipt:
+    schema_version: int
+    root_identity: str
+    installed_root: Path
+    projections: tuple[ReceiptProjection, ...]
+    backups: tuple[ReceiptBackup, ...]
+    created_parents: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class ExecutionEvent:
+    kind: ExecutionEventKind
+    path: Path
+
+
+@dataclass(frozen=True)
+class ExecutionReport:
+    events: tuple[ExecutionEvent, ...]
+    receipt: InstallReceipt | None
+    receipt_written: bool
+
+
+class UninstallFindingState(StrEnum):
+    NOT_INSTALLED = "not-installed"
+    OWNED = "owned"
+    MISSING_OWNED_LINK = "missing-owned-link"
+    SHARED_RETAINED = "shared-retained"
+    FOREIGN_CONTENT = "foreign-content"
+    BACKUP_MISSING = "backup-missing"
+    BACKUP_MODIFIED = "backup-modified"
+    PARENT_PRESERVED = "parent-preserved"
+
+
+class UninstallActionKind(StrEnum):
+    REMOVE_LINK = "remove-link"
+    RESTORE_BACKUP = "restore-backup"
+    REMOVE_EMPTY_PARENT = "remove-empty-parent"
+    REPLACE_RECEIPT = "replace-receipt"
+    DELETE_RECEIPT = "delete-receipt"
+
+
+@dataclass(frozen=True)
+class UninstallFinding:
+    state: UninstallFindingState
+    path: Path
+    blocking: bool = False
+
+
+@dataclass(frozen=True)
+class UninstallAction:
+    kind: UninstallActionKind
+    source: Path | None
+    destination: Path
+
+
+@dataclass(frozen=True)
+class UninstallPlan:
+    findings: tuple[UninstallFinding, ...]
+    actions: tuple[UninstallAction, ...]
+    next_receipt: InstallReceipt | None
 
     @property
     def can_apply(self) -> bool:
