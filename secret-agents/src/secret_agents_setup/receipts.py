@@ -1,19 +1,22 @@
-"""Atomic install-receipt persistence and ownership validation."""
+"""Atomic install-receipt persistence and ownership validation.
+
+Receipts own the record of what an install created: each ``OwnedLink`` wraps the
+concrete ``InstallMapping`` it installed, and each ``OwnedBackup`` records a
+displaced user file. Serialization stays on schema version 1: the JSON keeps the
+``"projections"`` array and its ``"kind": "guidance" | "skills"`` discriminator,
+which deserialize back into ``InstructionsMapping`` and ``SkillsMapping``.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
-from .models import (
-    Harness,
-    InstallReceipt,
-    ProjectionKind,
-    ReceiptBackup,
-    ReceiptProjection,
-)
+from .harness_profiles import InstallMapping, InstructionsMapping, SkillsMapping
+from .models import Harness
 from .path_safety import is_path_within
 from .receipt_errors import (
     DuplicateReceiptDestination,
@@ -29,6 +32,32 @@ from .receipt_errors import ReceiptError as ReceiptError
 RECEIPT_SCHEMA_VERSION = 1
 _RECEIPT_STORE = ".secret-agents"
 _INSTALLATIONS = "installations"
+
+
+@dataclass(frozen=True)
+class OwnedLink:
+    """A link an install created, identified by the mapping it installed."""
+
+    mapping: InstallMapping
+
+
+@dataclass(frozen=True)
+class OwnedBackup:
+    """A user file an install displaced, with the digest proving it unchanged."""
+
+    original: Path
+    backup: Path
+    sha256: str
+
+
+@dataclass(frozen=True)
+class InstallReceipt:
+    schema_version: int
+    root_identity: str
+    installed_root: Path
+    links: tuple[OwnedLink, ...]
+    backups: tuple[OwnedBackup, ...]
+    created_parents: tuple[Path, ...]
 
 
 def receipt_path(home: Path, identity: str) -> Path:
@@ -70,6 +99,10 @@ def load_receipt(path: Path, *, expected_identity: str, home: Path) -> InstallRe
     return _from_document(data, path=path, expected_identity=expected_identity, home=home)
 
 
+def _kind_for(mapping: InstallMapping) -> str:
+    return "skills" if isinstance(mapping, SkillsMapping) else "guidance"
+
+
 def _to_document(receipt: InstallReceipt) -> dict[str, object]:
     return {
         "schema_version": receipt.schema_version,
@@ -77,12 +110,12 @@ def _to_document(receipt: InstallReceipt) -> dict[str, object]:
         "installed_root": str(receipt.installed_root),
         "projections": [
             {
-                "destination": str(projection.destination),
-                "source": str(projection.source),
-                "kind": projection.kind.value,
-                "harnesses": [harness.value for harness in projection.harnesses],
+                "destination": str(link.mapping.destination),
+                "source": str(link.mapping.source),
+                "kind": _kind_for(link.mapping),
+                "harnesses": [harness.value for harness in link.mapping.harnesses],
             }
-            for projection in receipt.projections
+            for link in receipt.links
         ],
         "backups": [
             {
@@ -114,7 +147,7 @@ def _from_document(
         raise ReceiptIdentityMismatch(path, expected_identity, identity)
 
     installed_root = _abs_path(document.get("installed_root"), path, "installed_root")
-    projections = _load_projections(document.get("projections"), path, home, installed_root)
+    links = _load_links(document.get("projections"), path, home, installed_root)
     backups = _load_backups(document.get("backups"), path, home)
     created_parents = _load_created_parents(document.get("created_parents"), path, home)
 
@@ -122,50 +155,61 @@ def _from_document(
         schema_version=RECEIPT_SCHEMA_VERSION,
         root_identity=identity,
         installed_root=installed_root,
-        projections=projections,
+        links=links,
         backups=backups,
         created_parents=created_parents,
     )
 
 
-def _load_projections(value: object, path: Path, home: Path, installed_root: Path) -> tuple[ReceiptProjection, ...]:
+def _load_links(value: object, path: Path, home: Path, installed_root: Path) -> tuple[OwnedLink, ...]:
     entries = _require_list(value, path, "projections")
-    projections: list[ReceiptProjection] = []
+    links: list[OwnedLink] = []
     seen: set[Path] = set()
     for entry in entries:
-        mapping = _require_object(entry, path, "projections[]")
-        destination = _abs_path(mapping.get("destination"), path, "destination")
+        document = _require_object(entry, path, "projections[]")
+        destination = _abs_path(document.get("destination"), path, "destination")
         _require_within_home(destination, path, "destination", home, follow_leaf=False)
         if destination in seen:
             raise DuplicateReceiptDestination(path, destination)
         seen.add(destination)
-        source = _abs_path(mapping.get("source"), path, "source")
+        source = _abs_path(document.get("source"), path, "source")
         if not is_path_within(source, installed_root, follow_leaf=True):
             raise ReceiptSourceOutsideRoot(path, source, installed_root)
-        projections.append(
-            ReceiptProjection(
-                destination=destination,
-                source=source,
-                kind=_require_kind(mapping.get("kind"), path),
-                harnesses=_require_harnesses(mapping.get("harnesses"), path),
-            )
-        )
-    return tuple(projections)
+        harnesses = _require_harnesses(document.get("harnesses"), path)
+        mapping = _mapping_from_document(document.get("kind"), harnesses, source, destination, path)
+        links.append(OwnedLink(mapping))
+    return tuple(links)
 
 
-def _load_backups(value: object, path: Path, home: Path) -> tuple[ReceiptBackup, ...]:
+def _mapping_from_document(
+    kind: object,
+    harnesses: tuple[Harness, ...],
+    source: Path,
+    destination: Path,
+    path: Path,
+) -> InstallMapping:
+    if not isinstance(kind, str):
+        raise MalformedReceipt(path, f"projection kind {kind!r} must be a string")
+    if kind == "skills":
+        return SkillsMapping(harnesses=harnesses, source=source, destination=destination)
+    if kind == "guidance":
+        return InstructionsMapping(harnesses=harnesses, source=source, destination=destination)
+    raise MalformedReceipt(path, f"invalid projection kind {kind!r}")
+
+
+def _load_backups(value: object, path: Path, home: Path) -> tuple[OwnedBackup, ...]:
     entries = _require_list(value, path, "backups")
-    backups: list[ReceiptBackup] = []
+    backups: list[OwnedBackup] = []
     for entry in entries:
-        mapping = _require_object(entry, path, "backups[]")
-        original = _abs_path(mapping.get("original"), path, "original")
+        document = _require_object(entry, path, "backups[]")
+        original = _abs_path(document.get("original"), path, "original")
         _require_within_home(original, path, "original", home, follow_leaf=False)
-        backup = _abs_path(mapping.get("backup"), path, "backup")
+        backup = _abs_path(document.get("backup"), path, "backup")
         _require_within_home(backup, path, "backup", home, follow_leaf=True)
-        sha256 = mapping.get("sha256")
+        sha256 = document.get("sha256")
         if not isinstance(sha256, str):
             raise MalformedReceipt(path, "backup sha256 must be a string")
-        backups.append(ReceiptBackup(original=original, backup=backup, sha256=sha256))
+        backups.append(OwnedBackup(original=original, backup=backup, sha256=sha256))
     return tuple(backups)
 
 
@@ -203,15 +247,6 @@ def _abs_path(value: object, path: Path, field: str) -> Path:
 def _require_within_home(value: Path, path: Path, field: str, home: Path, *, follow_leaf: bool) -> None:
     if not is_path_within(value, home, follow_leaf=follow_leaf):
         raise ReceiptPathOutsideHome(path, field, value, home)
-
-
-def _require_kind(value: object, path: Path) -> ProjectionKind:
-    if not isinstance(value, str):
-        raise MalformedReceipt(path, f"projection kind {value!r} must be a string")
-    try:
-        return ProjectionKind(value)
-    except ValueError as exc:
-        raise MalformedReceipt(path, f"invalid projection kind {value!r}") from exc
 
 
 def _require_harnesses(value: object, path: Path) -> tuple[Harness, ...]:

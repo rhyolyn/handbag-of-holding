@@ -15,10 +15,7 @@ from .models import (
     FindingState,
     Harness,
     InstallPlan,
-    InstallReceipt,
     PlannedAction,
-    ReceiptBackup,
-    ReceiptProjection,
     SkillDescriptor,
     UninstallAction,
     UninstallActionKind,
@@ -27,7 +24,7 @@ from .models import (
     UninstallPlan,
 )
 from .path_safety import is_path_within
-from .receipts import file_sha256, receipt_path
+from .receipts import InstallReceipt, OwnedBackup, OwnedLink, file_sha256, receipt_path
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 
@@ -170,14 +167,14 @@ def build_uninstall_plan(
     findings: list[UninstallFinding] = []
     remove_links: list[UninstallAction] = []
     removed_destinations: set[Path] = set()
-    retained_projections: list[ReceiptProjection] = []
+    retained_links: list[OwnedLink] = []
 
     if receipt.root_identity != expected_identity:
         findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, receipt.installed_root, blocking=True))
 
-    for projection in receipt.projections:
-        _classify_uninstall_projection(
-            projection, selected, backend, home, findings, remove_links, removed_destinations, retained_projections
+    for link in receipt.links:
+        _classify_uninstall_link(
+            link, selected, backend, home, findings, remove_links, removed_destinations, retained_links
         )
 
     restores, retained_backups = _classify_backups(receipt.backups, home, removed_destinations, findings)
@@ -188,9 +185,9 @@ def build_uninstall_plan(
     if any(finding.blocking for finding in findings):
         return UninstallPlan(tuple(findings), (), receipt)
 
-    partial = bool(retained_projections) or bool(retained_backups)
+    partial = bool(retained_links) or bool(retained_backups)
     receipt_file = receipt_path(home, expected_identity)
-    next_receipt = _next_receipt(receipt, retained_projections, retained_backups, retained_parents) if partial else None
+    next_receipt = _next_receipt(receipt, retained_links, retained_backups, retained_parents) if partial else None
     receipt_action = UninstallAction(
         UninstallActionKind.REPLACE_RECEIPT if partial else UninstallActionKind.DELETE_RECEIPT,
         None,
@@ -206,52 +203,53 @@ def build_uninstall_plan(
     return UninstallPlan(tuple(findings), actions, next_receipt)
 
 
-def _classify_uninstall_projection(
-    projection: ReceiptProjection,
+def _classify_uninstall_link(
+    link: OwnedLink,
     selected: set[Harness],
     backend: LinkBackend,
     home: Path,
     findings: list[UninstallFinding],
     remove_links: list[UninstallAction],
     removed_destinations: set[Path],
-    retained_projections: list[ReceiptProjection],
+    retained_links: list[OwnedLink],
 ) -> None:
-    destination = projection.destination
+    mapping = link.mapping
+    destination = mapping.destination
     if not is_path_within(destination, home, follow_leaf=False):
         findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, destination, blocking=True))
-        retained_projections.append(projection)
+        retained_links.append(link)
         return
 
-    remaining = tuple(harness for harness in projection.harnesses if harness not in selected)
-    if len(remaining) == len(projection.harnesses):
+    remaining = tuple(harness for harness in mapping.harnesses if harness not in selected)
+    if len(remaining) == len(mapping.harnesses):
         findings.append(UninstallFinding(UninstallFindingState.SHARED_RETAINED, destination))
-        retained_projections.append(projection)
+        retained_links.append(link)
         return
     if remaining:
         findings.append(UninstallFinding(UninstallFindingState.SHARED_RETAINED, destination))
-        retained_projections.append(replace(projection, harnesses=remaining))
+        retained_links.append(OwnedLink(replace(mapping, harnesses=remaining)))
         return
 
     if not os.path.lexists(destination):
         findings.append(UninstallFinding(UninstallFindingState.MISSING_OWNED_LINK, destination))
         return
-    if backend.resolved_target(destination) == projection.source.resolve():
+    if backend.resolved_target(destination) == mapping.source.resolve():
         findings.append(UninstallFinding(UninstallFindingState.OWNED, destination))
         remove_links.append(UninstallAction(UninstallActionKind.REMOVE_LINK, None, destination))
         removed_destinations.add(destination)
     else:
         findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, destination, blocking=True))
-        retained_projections.append(projection)
+        retained_links.append(link)
 
 
 def _classify_backups(
-    backups: tuple[ReceiptBackup, ...],
+    backups: tuple[OwnedBackup, ...],
     home: Path,
     removed_destinations: set[Path],
     findings: list[UninstallFinding],
-) -> tuple[list[UninstallAction], list[ReceiptBackup]]:
+) -> tuple[list[UninstallAction], list[OwnedBackup]]:
     restores: list[UninstallAction] = []
-    retained: list[ReceiptBackup] = []
+    retained: list[OwnedBackup] = []
     for backup in backups:
         if not is_path_within(backup.original, home, follow_leaf=False):
             findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, backup.original, blocking=True))
@@ -312,15 +310,15 @@ def _classify_parents(
 
 def _next_receipt(
     receipt: InstallReceipt,
-    projections: list[ReceiptProjection],
-    backups: list[ReceiptBackup],
+    links: list[OwnedLink],
+    backups: list[OwnedBackup],
     parents: list[Path],
 ) -> InstallReceipt:
     return InstallReceipt(
         schema_version=receipt.schema_version,
         root_identity=receipt.root_identity,
         installed_root=receipt.installed_root,
-        projections=tuple(sorted(projections, key=lambda projection: projection.destination.as_posix())),
+        links=tuple(sorted(links, key=lambda link: link.mapping.destination.as_posix())),
         backups=tuple(backups),
         created_parents=tuple(parents),
     )

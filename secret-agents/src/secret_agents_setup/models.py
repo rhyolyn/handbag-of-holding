@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .harness_profiles import InstallMapping
+    from .receipts import InstallReceipt
 
 
 class Harness(StrEnum):
@@ -16,11 +17,6 @@ class Harness(StrEnum):
     CLAUDE = "claude"
     COPILOT = "copilot"
     ALL = "all"
-
-
-class ProjectionKind(StrEnum):
-    SKILLS = "skills"
-    GUIDANCE = "guidance"
 
 
 class FindingState(StrEnum):
@@ -90,31 +86,6 @@ class InstallPlan:
     @property
     def can_apply(self) -> bool:
         return not any(finding.blocking for finding in self.findings)
-
-
-@dataclass(frozen=True)
-class ReceiptProjection:
-    destination: Path
-    source: Path
-    kind: ProjectionKind
-    harnesses: tuple[Harness, ...]
-
-
-@dataclass(frozen=True)
-class ReceiptBackup:
-    original: Path
-    backup: Path
-    sha256: str
-
-
-@dataclass(frozen=True)
-class InstallReceipt:
-    schema_version: int
-    root_identity: str
-    installed_root: Path
-    projections: tuple[ReceiptProjection, ...]
-    backups: tuple[ReceiptBackup, ...]
-    created_parents: tuple[Path, ...]
 
 
 @dataclass(frozen=True)

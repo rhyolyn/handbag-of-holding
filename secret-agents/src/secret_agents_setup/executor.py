@@ -10,7 +10,7 @@ from typing import Literal, NoReturn
 
 from .executor_errors import BackupPathOccupied, RollbackFailure
 from .executor_errors import ExecutionError as ExecutionError
-from .harness_profiles import InstallMapping, SkillsMapping
+from .harness_profiles import InstallMapping
 from .link_errors import PartialLinkCleanupFailed
 from .links import LinkBackend
 from .models import (
@@ -23,23 +23,22 @@ from .models import (
     FindingState,
     Harness,
     InstallPlan,
-    InstallReceipt,
     PlannedAction,
-    ProjectionKind,
-    ReceiptBackup,
-    ReceiptProjection,
     UninstallAction,
     UninstallActionKind,
     UninstallPlan,
 )
-from .receipts import RECEIPT_SCHEMA_VERSION, file_sha256, write_receipt_atomic
+from .receipts import (
+    RECEIPT_SCHEMA_VERSION,
+    InstallReceipt,
+    OwnedBackup,
+    OwnedLink,
+    file_sha256,
+    write_receipt_atomic,
+)
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
 _LINK_ACTIONS = (ActionKind.CREATE_LINK, ActionKind.REPLACE_LINK)
-
-
-def _kind_for(mapping: InstallMapping) -> ProjectionKind:
-    return ProjectionKind.SKILLS if isinstance(mapping, SkillsMapping) else ProjectionKind.GUIDANCE
 
 
 def apply_install_plan(
@@ -218,7 +217,7 @@ class _InstallRun(_Transaction):
 
     def __init__(self, backend: LinkBackend) -> None:
         super().__init__(backend)
-        self.backups: list[ReceiptBackup] = []
+        self.backups: list[OwnedBackup] = []
         self.created_parents: list[Path] = []
 
     def execute(self, action: PlannedAction) -> None:
@@ -261,7 +260,7 @@ class _InstallRun(_Transaction):
                 )
             raise
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
-        self.backups.append(ReceiptBackup(original=original, backup=backup, sha256=digest))
+        self.backups.append(OwnedBackup(original=original, backup=backup, sha256=digest))
         self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))
 
     def _create(self, action: PlannedAction) -> None:
@@ -381,41 +380,39 @@ def _build_receipt(
     run: _InstallRun,
     mapping_by_destination: dict[Path, InstallMapping],
 ) -> InstallReceipt:
-    owned: dict[Path, ReceiptProjection] = {}
+    owned: dict[Path, OwnedLink] = {}
     if existing is not None:
-        for projection in existing.projections:
-            owned[projection.destination] = projection
+        for link in existing.links:
+            owned[link.mapping.destination] = link
 
     for finding in plan.findings:
         # A CORRECT finding for a per-skill link carries the *parent* skills mapping,
         # so preserve the already-recorded child source/kind and only widen the harness set.
         if finding.state is FindingState.CORRECT and finding.path in owned:
-            current = owned[finding.path]
-            owned[finding.path] = replace(
-                current, harnesses=_merge_harnesses(current.harnesses, finding.mapping.harnesses)
-            )
+            current = owned[finding.path].mapping
+            merged = _merge_harnesses(current.harnesses, finding.mapping.harnesses)
+            owned[finding.path] = OwnedLink(replace(current, harnesses=merged))
 
     for action in plan.actions:
         if action.kind not in _LINK_ACTIONS:
             continue
         plan_mapping = mapping_by_destination[action.destination]
-        owned_projection = owned.get(action.destination)
-        existing_harnesses = owned_projection.harnesses if owned_projection is not None else ()
-        owned[action.destination] = ReceiptProjection(
-            destination=action.destination,
-            source=action.source,
-            kind=_kind_for(plan_mapping),
-            harnesses=_merge_harnesses(existing_harnesses, plan_mapping.harnesses),
-        )
+        existing_link = owned.get(action.destination)
+        existing_harnesses = existing_link.mapping.harnesses if existing_link is not None else ()
+        merged = _merge_harnesses(existing_harnesses, plan_mapping.harnesses)
+        # The concrete mapping type mirrors the plan mapping (file vs directory) while the
+        # source/destination reflect the exact link this action created.
+        mapping = type(plan_mapping)(harnesses=merged, source=action.source, destination=action.destination)
+        owned[action.destination] = OwnedLink(mapping)
 
-    projections = tuple(owned[destination] for destination in sorted(owned, key=Path.as_posix))
+    links = tuple(owned[destination] for destination in sorted(owned, key=Path.as_posix))
     backups = (existing.backups if existing is not None else ()) + tuple(run.backups)
     parents = _merge_parents(existing.created_parents if existing is not None else (), run.created_parents)
     return InstallReceipt(
         schema_version=RECEIPT_SCHEMA_VERSION,
         root_identity=root.identity,
         installed_root=root.path,
-        projections=projections,
+        links=links,
         backups=backups,
         created_parents=parents,
     )

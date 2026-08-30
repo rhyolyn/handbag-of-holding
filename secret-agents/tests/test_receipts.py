@@ -7,13 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from secret_agents_setup.models import (
-    Harness,
-    InstallReceipt,
-    ProjectionKind,
-    ReceiptBackup,
-    ReceiptProjection,
-)
+from secret_agents_setup.harness_profiles import InstructionsMapping, SkillsMapping
+from secret_agents_setup.models import Harness
 from secret_agents_setup.receipt_errors import (
     DuplicateReceiptDestination,
     MalformedReceipt,
@@ -25,6 +20,9 @@ from secret_agents_setup.receipt_errors import (
     UnsupportedReceiptSchema,
 )
 from secret_agents_setup.receipts import (
+    InstallReceipt,
+    OwnedBackup,
+    OwnedLink,
     load_receipt,
     receipt_path,
     write_receipt_atomic,
@@ -46,22 +44,24 @@ def _receipt(home: Path, root: Path, *, identity: str = IDENTITY) -> InstallRece
         schema_version=1,
         root_identity=identity,
         installed_root=root,
-        projections=(
-            ReceiptProjection(
-                destination=home / ".agents" / "skills",
-                source=root / "skills",
-                kind=ProjectionKind.SKILLS,
-                harnesses=(Harness.CODEX, Harness.COPILOT),
+        links=(
+            OwnedLink(
+                SkillsMapping(
+                    harnesses=(Harness.CODEX, Harness.COPILOT),
+                    source=root / "skills",
+                    destination=home / ".agents" / "skills",
+                )
             ),
-            ReceiptProjection(
-                destination=home / ".codex" / "AGENTS.md",
-                source=root / "AGENTS.md",
-                kind=ProjectionKind.GUIDANCE,
-                harnesses=(Harness.CODEX,),
+            OwnedLink(
+                InstructionsMapping(
+                    harnesses=(Harness.CODEX,),
+                    source=root / "AGENTS.md",
+                    destination=home / ".codex" / "AGENTS.md",
+                )
             ),
         ),
         backups=(
-            ReceiptBackup(
+            OwnedBackup(
                 original=home / ".codex" / "AGENTS.md",
                 backup=home / ".codex" / "AGENTS.md.backup-20260829-120000",
                 sha256="a" * 64,
@@ -105,6 +105,52 @@ def test_round_trip_is_deterministic(tmp_path: Path) -> None:
     assert first == second
     loaded = load_receipt(path, expected_identity=IDENTITY, home=home)
     assert loaded == receipt
+
+
+def test_schema_v1_document_loads_into_owned_links(tmp_path: Path) -> None:
+    home, root = _home_and_root(tmp_path)
+    path = receipt_path(home, IDENTITY)
+    instructions_destination = home / ".codex" / "AGENTS.md"
+    instructions_source = root / "AGENTS.md"
+    skills_destination = home / ".agents" / "skills"
+    skills_source = root / "skills"
+    document = {
+        "schema_version": 1,
+        "root_identity": IDENTITY,
+        "installed_root": str(root),
+        "projections": [
+            {
+                "destination": str(instructions_destination),
+                "source": str(instructions_source),
+                "kind": "guidance",
+                "harnesses": ["codex"],
+            },
+            {
+                "destination": str(skills_destination),
+                "source": str(skills_source),
+                "kind": "skills",
+                "harnesses": ["codex"],
+            },
+        ],
+        "backups": [],
+        "created_parents": [],
+    }
+    _write_raw(path, document)
+
+    receipt = load_receipt(path, expected_identity=IDENTITY, home=home)
+
+    assert receipt is not None
+    assert receipt.links == (
+        OwnedLink(InstructionsMapping((Harness.CODEX,), instructions_source, instructions_destination)),
+        OwnedLink(SkillsMapping((Harness.CODEX,), skills_source, skills_destination)),
+    )
+
+    write_receipt_atomic(receipt, path)
+    written: dict[str, object] = json.loads(path.read_text(encoding="utf-8"))
+    assert "projections" in written
+    projections = written["projections"]
+    assert isinstance(projections, list)
+    assert {entry["kind"] for entry in projections} == {"guidance", "skills"}
 
 
 def test_unknown_schema_version_is_rejected(tmp_path: Path) -> None:

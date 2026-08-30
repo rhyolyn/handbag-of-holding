@@ -29,13 +29,15 @@ from secret_agents_setup.models import (
     FindingState,
     Harness,
     InstallPlan,
-    InstallReceipt,
     PlannedAction,
-    ProjectionKind,
-    ReceiptBackup,
-    ReceiptProjection,
 )
-from secret_agents_setup.receipts import receipt_path, write_receipt_atomic
+from secret_agents_setup.receipts import (
+    InstallReceipt,
+    OwnedBackup,
+    OwnedLink,
+    receipt_path,
+    write_receipt_atomic,
+)
 
 IDENTITY = "handbag-secret-agents"
 TIMESTAMP = datetime(2026, 8, 29, 12, 0, 0)
@@ -143,7 +145,7 @@ def test_install_probes_creates_parents_and_writes_receipt(tmp_path: Path) -> No
     assert report.receipt is not None
     assert report.receipt.root_identity == IDENTITY
     assert report.receipt.installed_root == root.path
-    destinations = {p.destination for p in report.receipt.projections}
+    destinations = {link.mapping.destination for link in report.receipt.links}
     assert destinations == {home / ".agents" / "skills", home / ".codex" / "AGENTS.md"}
     assert set(report.receipt.created_parents) == {home / ".agents", home / ".codex"}
 
@@ -173,7 +175,7 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
     assert backup.read_text(encoding="utf-8") == "personal"
     assert report.receipt is not None
     assert report.receipt.backups == (
-        ReceiptBackup(original=original, backup=backup, sha256=hashlib.sha256(b"personal").hexdigest()),
+        OwnedBackup(original=original, backup=backup, sha256=hashlib.sha256(b"personal").hexdigest()),
     )
     assert ExecutionEventKind.BACKED_UP in _event_kinds(report)
 
@@ -339,7 +341,7 @@ def test_idempotent_owned_install_does_not_rewrite(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root.path,
-        projections=(ReceiptProjection(skills.destination, skills.source, ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), skills.source, skills.destination)),),
         backups=(),
         created_parents=(home / ".agents",),
     )
@@ -379,9 +381,7 @@ def test_second_harness_updates_only_shared_receipt_metadata(tmp_path: Path) -> 
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root.path,
-        projections=(
-            ReceiptProjection(shared_skills.destination, shared_skills.source, ProjectionKind.SKILLS, (Harness.CODEX,)),
-        ),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), shared_skills.source, shared_skills.destination)),),
         backups=(),
         created_parents=(home / ".agents",),
     )
@@ -400,8 +400,8 @@ def test_second_harness_updates_only_shared_receipt_metadata(tmp_path: Path) -> 
 
     assert report.receipt_written is True
     assert report.receipt is not None
-    shared = next(p for p in report.receipt.projections if p.destination == shared_skills.destination)
-    assert shared.harnesses == (Harness.CODEX, Harness.COPILOT)
+    shared = next(link for link in report.receipt.links if link.mapping.destination == shared_skills.destination)
+    assert shared.mapping.harnesses == (Harness.CODEX, Harness.COPILOT)
     # the shared skills link is never recreated: only the copilot guidance link is
     assert ("create", shared_skills.destination) not in backend.calls
     assert ("create", copilot_guidance.destination) in backend.calls
@@ -565,7 +565,7 @@ def test_rollback_during_receipt_write_preserves_prior_bytes(tmp_path: Path, mon
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root.path,
-        projections=(),
+        links=(),
         backups=(),
         created_parents=(),
     )
@@ -658,7 +658,7 @@ def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:
     new_skills = _skills_mapping(new_root, home, (Harness.CODEX,))
     backend = RecordingBackend()
     backend.targets[skills_dst] = (old_root.path / "skills").resolve()
-    kept_backup = ReceiptBackup(
+    kept_backup = OwnedBackup(
         original=home / ".codex" / "AGENTS.md",
         backup=home / ".codex" / "AGENTS.md.backup-20260101-000000",
         sha256="b" * 64,
@@ -667,7 +667,7 @@ def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=old_root.path,
-        projections=(ReceiptProjection(skills_dst, old_root.path / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), old_root.path / "skills", skills_dst)),),
         backups=(kept_backup,),
         created_parents=(home / ".agents",),
     )
@@ -682,8 +682,8 @@ def test_relocation_retargets_and_preserves_backups(tmp_path: Path) -> None:
 
     assert report.receipt is not None
     assert report.receipt.installed_root == new_root.path
-    relocated = next(p for p in report.receipt.projections if p.destination == skills_dst)
-    assert relocated.source == new_root.path / "skills"
+    relocated = next(link for link in report.receipt.links if link.mapping.destination == skills_dst)
+    assert relocated.mapping.source == new_root.path / "skills"
     assert report.receipt.backups == (kept_backup,)
     assert backend.targets[skills_dst] == (new_root.path / "skills").resolve()
 
@@ -705,7 +705,7 @@ def test_relocation_failure_restores_prior_links_and_receipt_bytes(
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=old_root.path,
-        projections=(ReceiptProjection(skills_dst, old_root.path / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), old_root.path / "skills", skills_dst)),),
         backups=(),
         created_parents=(home / ".agents",),
     )

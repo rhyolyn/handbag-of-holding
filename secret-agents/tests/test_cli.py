@@ -12,16 +12,17 @@ import pytest
 import secret_agents_setup.cli as cli_module
 from secret_agents_setup.cli import ExitCode, main
 from secret_agents_setup.executor_errors import BackupPathOccupied
+from secret_agents_setup.harness_profiles import InstructionsMapping, SkillsMapping
 from secret_agents_setup.link_errors import SymlinkPrivilegeRequired
 from secret_agents_setup.links import LinkBackend
-from secret_agents_setup.models import (
-    Harness,
+from secret_agents_setup.models import Harness
+from secret_agents_setup.receipts import (
     InstallReceipt,
-    ProjectionKind,
-    ReceiptBackup,
-    ReceiptProjection,
+    OwnedBackup,
+    OwnedLink,
+    receipt_path,
+    write_receipt_atomic,
 )
-from secret_agents_setup.receipts import receipt_path, write_receipt_atomic
 
 CLOCK = datetime(2026, 8, 29, 12, 0, 0)
 
@@ -278,7 +279,7 @@ def test_uninstall_foreign_content_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity="handbag-secret-agents",
         installed_root=root,
-        projections=(ReceiptProjection(guidance, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance)),),
         backups=(),
         created_parents=(),
     )
@@ -302,7 +303,7 @@ def test_uninstall_execution_failure_names_operation(tmp_path: Path, capsys: pyt
         schema_version=1,
         root_identity="handbag-secret-agents",
         installed_root=root,
-        projections=(ReceiptProjection(guidance, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance)),),
         backups=(),
         created_parents=(),
     )
@@ -333,11 +334,11 @@ def test_uninstall_restores_backup_and_retains_shared(tmp_path: Path) -> None:
         schema_version=1,
         root_identity="handbag-secret-agents",
         installed_root=root,
-        projections=(
-            ReceiptProjection(shared, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX, Harness.COPILOT)),
-            ReceiptProjection(guidance, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),
+        links=(
+            OwnedLink(SkillsMapping((Harness.CODEX, Harness.COPILOT), root / "skills", shared)),
+            OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance)),
         ),
-        backups=(ReceiptBackup(original=guidance, backup=backup, sha256=hashlib.sha256(b"original").hexdigest()),),
+        backups=(OwnedBackup(original=guidance, backup=backup, sha256=hashlib.sha256(b"original").hexdigest()),),
         created_parents=(),
     )
     receipt_file = receipt_path(home, "handbag-secret-agents")
@@ -348,8 +349,8 @@ def test_uninstall_restores_backup_and_retains_shared(tmp_path: Path) -> None:
     assert code == ExitCode.SUCCESS
     assert guidance.read_text(encoding="utf-8") == "original"  # backup restored
     assert shared.is_dir()  # shared skills link retained for copilot
-    loaded_projections = _load_receipt_projections(receipt_file)
-    assert loaded_projections == {shared}  # only the shared retained projection remains
+    loaded_destinations = _load_receipt_destinations(receipt_file)
+    assert loaded_destinations == {shared}  # only the shared retained link remains
 
 
 def test_shared_skill_destination_appears_once(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -363,9 +364,9 @@ def test_shared_skill_destination_appears_once(tmp_path: Path, capsys: pytest.Ca
     assert out.count(str(home / ".agents" / "skills")) == 1
 
 
-def _load_receipt_projections(receipt_file: Path) -> set[Path]:
+def _load_receipt_destinations(receipt_file: Path) -> set[Path]:
     from secret_agents_setup.receipts import load_receipt
 
     receipt = load_receipt(receipt_file, expected_identity="handbag-secret-agents", home=receipt_file.parents[2])
     assert receipt is not None
-    return {projection.destination for projection in receipt.projections}
+    return {link.mapping.destination for link in receipt.links}

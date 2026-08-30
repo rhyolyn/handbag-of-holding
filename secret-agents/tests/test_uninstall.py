@@ -10,19 +10,22 @@ import pytest
 
 from secret_agents_setup.executor import apply_uninstall_plan
 from secret_agents_setup.executor_errors import ExecutionError
+from secret_agents_setup.harness_profiles import InstructionsMapping, SkillsMapping
 from secret_agents_setup.models import (
     ExecutionEventKind,
     Harness,
-    InstallReceipt,
-    ProjectionKind,
-    ReceiptBackup,
-    ReceiptProjection,
     UninstallActionKind,
     UninstallFindingState,
     UninstallPlan,
 )
 from secret_agents_setup.planning import build_uninstall_plan
-from secret_agents_setup.receipts import receipt_path, write_receipt_atomic
+from secret_agents_setup.receipts import (
+    InstallReceipt,
+    OwnedBackup,
+    OwnedLink,
+    receipt_path,
+    write_receipt_atomic,
+)
 
 IDENTITY = "handbag-secret-agents"
 
@@ -111,9 +114,9 @@ def test_full_uninstall_removes_owned_links_and_deletes_receipt(tmp_path: Path) 
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(
-            ReceiptProjection(skills_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),
-            ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),
+        links=(
+            OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", skills_dst)),
+            OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_dst)),
         ),
         backups=(),
         created_parents=(home / ".agents", home / ".codex"),
@@ -139,7 +142,7 @@ def test_missing_owned_link_is_safe_noop(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(skills_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", skills_dst)),),
         backups=(),
         created_parents=(),
     )
@@ -162,7 +165,7 @@ def test_replaced_regular_file_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_dst)),),
         backups=(),
         created_parents=(),
     )
@@ -187,7 +190,7 @@ def test_retargeted_link_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(skills_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", skills_dst)),),
         backups=(),
         created_parents=(),
     )
@@ -208,9 +211,7 @@ def test_shared_projection_retained_for_unselected_harness(tmp_path: Path) -> No
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(
-            ReceiptProjection(shared_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX, Harness.COPILOT)),
-        ),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX, Harness.COPILOT), root / "skills", shared_dst)),),
         backups=(),
         created_parents=(),
     )
@@ -221,8 +222,8 @@ def test_shared_projection_retained_for_unselected_harness(tmp_path: Path) -> No
     assert UninstallFindingState.SHARED_RETAINED in _states(plan)
     assert all(action.kind is not UninstallActionKind.REMOVE_LINK for action in plan.actions)
     assert plan.next_receipt is not None
-    retained = plan.next_receipt.projections[0]
-    assert retained.harnesses == (Harness.COPILOT,)
+    retained = plan.next_receipt.links[0]
+    assert retained.mapping.harnesses == (Harness.COPILOT,)
 
 
 def test_backup_missing_blocks(tmp_path: Path) -> None:
@@ -235,9 +236,9 @@ def test_backup_missing_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_dst)),),
         backups=(
-            ReceiptBackup(
+            OwnedBackup(
                 original=guidance_dst,
                 backup=guidance_dst.with_name("AGENTS.md.backup-20260101-000000"),
                 sha256="a" * 64,
@@ -264,8 +265,8 @@ def test_backup_modified_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
-        backups=(ReceiptBackup(original=guidance_dst, backup=backup, sha256="a" * 64),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_dst)),),
+        backups=(OwnedBackup(original=guidance_dst, backup=backup, sha256="a" * 64),),
         created_parents=(),
     )
 
@@ -287,7 +288,7 @@ def test_non_empty_created_parent_is_preserved(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(skills_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", skills_dst)),),
         backups=(),
         created_parents=(home / ".agents",),
     )
@@ -306,7 +307,7 @@ def test_foreign_identity_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity="someone-else",
         installed_root=root,
-        projections=(),
+        links=(),
         backups=(),
         created_parents=(),
     )
@@ -325,7 +326,7 @@ def test_out_of_home_path_blocks(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(escaping, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),),
+        links=(OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", escaping)),),
         backups=(),
         created_parents=(),
     )
@@ -354,7 +355,7 @@ def test_destination_below_linked_parent_outside_home_blocks(tmp_path: Path) -> 
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(destination, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", destination)),),
         backups=(),
         created_parents=(),
     )
@@ -382,12 +383,12 @@ def test_apply_removes_owned_restores_backup_and_preserves_third_party(tmp_path:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(
-            ReceiptProjection(alpha_dst, root / "skills" / "alpha", ProjectionKind.SKILLS, (Harness.CLAUDE,)),
-            ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CLAUDE,)),
+        links=(
+            OwnedLink(SkillsMapping((Harness.CLAUDE,), root / "skills" / "alpha", alpha_dst)),
+            OwnedLink(InstructionsMapping((Harness.CLAUDE,), root / "AGENTS.md", guidance_dst)),
         ),
         backups=(
-            ReceiptBackup(
+            OwnedBackup(
                 original=guidance_dst,
                 backup=backup,
                 sha256=hashlib.sha256(b"original user guidance").hexdigest(),
@@ -422,9 +423,9 @@ def test_partial_uninstall_replaces_receipt_last(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(
-            ReceiptProjection(shared_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX, Harness.COPILOT)),
-            ReceiptProjection(codex_guidance, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),
+        links=(
+            OwnedLink(SkillsMapping((Harness.CODEX, Harness.COPILOT), root / "skills", shared_dst)),
+            OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", codex_guidance)),
         ),
         backups=(),
         created_parents=(home / ".codex",),
@@ -440,7 +441,7 @@ def test_partial_uninstall_replaces_receipt_last(tmp_path: Path) -> None:
     assert shared_dst.is_dir()  # shared skills link retained for copilot
     assert receipt_file.exists()
     assert report.receipt is not None
-    assert report.receipt.projections[0].harnesses == (Harness.COPILOT,)
+    assert report.receipt.links[0].mapping.harnesses == (Harness.COPILOT,)
 
 
 def test_rollback_after_injected_failure_restores_links(tmp_path: Path) -> None:
@@ -455,9 +456,9 @@ def test_rollback_after_injected_failure_restores_links(tmp_path: Path) -> None:
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(
-            ReceiptProjection(skills_dst, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),
-            ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),
+        links=(
+            OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", skills_dst)),
+            OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_dst)),
         ),
         backups=(),
         created_parents=(),
@@ -508,9 +509,9 @@ def test_uninstall_cancellation_rolls_back_and_reraises_same_object(
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(
-            ReceiptProjection(skills_destination, root / "skills", ProjectionKind.SKILLS, (Harness.CODEX,)),
-            ReceiptProjection(guidance_destination, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),
+        links=(
+            OwnedLink(SkillsMapping((Harness.CODEX,), root / "skills", skills_destination)),
+            OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_destination)),
         ),
         backups=(),
         created_parents=(),
@@ -540,7 +541,7 @@ def test_apply_blocked_uninstall_plan_is_programmer_error(tmp_path: Path) -> Non
         schema_version=1,
         root_identity=IDENTITY,
         installed_root=root,
-        projections=(ReceiptProjection(guidance_dst, root / "AGENTS.md", ProjectionKind.GUIDANCE, (Harness.CODEX,)),),
+        links=(OwnedLink(InstructionsMapping((Harness.CODEX,), root / "AGENTS.md", guidance_dst)),),
         backups=(),
         created_parents=(),
     )
