@@ -10,15 +10,7 @@ from pathlib import Path
 
 from .harness_profiles import InstallMapping, SkillsMapping
 from .links import LinkBackend
-from .models import (
-    Harness,
-    SkillDescriptor,
-    UninstallAction,
-    UninstallActionKind,
-    UninstallFinding,
-    UninstallFindingState,
-    UninstallPlan,
-)
+from .models import Harness, SkillDescriptor
 from .path_safety import is_path_within
 from .receipts import InstallReceipt, OwnedBackup, OwnedLink, file_sha256, receipt_path
 
@@ -215,6 +207,75 @@ def _is_link(path: Path) -> bool:
     return bool(is_junction is not None and is_junction())
 
 
+class RemovalState(StrEnum):
+    NOT_INSTALLED = "not-installed"
+    OWNED = "owned"
+    MISSING_OWNED_LINK = "missing-owned-link"
+    SHARED_RETAINED = "shared-retained"
+    FOREIGN_CONTENT = "foreign-content"
+    BACKUP_MISSING = "backup-missing"
+    BACKUP_MODIFIED = "backup-modified"
+    PARENT_PRESERVED = "parent-preserved"
+
+    @property
+    def blocks_removal(self) -> bool:
+        return self in _BLOCKING_REMOVAL_STATES
+
+
+_BLOCKING_REMOVAL_STATES = frozenset(
+    {RemovalState.FOREIGN_CONTENT, RemovalState.BACKUP_MISSING, RemovalState.BACKUP_MODIFIED}
+)
+
+
+@dataclass(frozen=True)
+class RemovalStatus:
+    state: RemovalState
+    path: Path
+
+    @property
+    def blocks_removal(self) -> bool:
+        return self.state.blocks_removal
+
+
+@dataclass(frozen=True)
+class RemoveLink:
+    link: OwnedLink
+
+
+@dataclass(frozen=True)
+class RestoreFile:
+    backup: OwnedBackup
+
+
+@dataclass(frozen=True)
+class RemoveDirectory:
+    path: Path
+
+
+@dataclass(frozen=True)
+class WriteReceipt:
+    path: Path
+    receipt: InstallReceipt
+
+
+@dataclass(frozen=True)
+class DeleteReceipt:
+    path: Path
+
+
+RemovalChange = RemoveLink | RestoreFile | RemoveDirectory | WriteReceipt | DeleteReceipt
+
+
+@dataclass(frozen=True)
+class UninstallPlan:
+    statuses: tuple[RemovalStatus, ...]
+    changes: tuple[RemovalChange, ...]
+
+    @property
+    def is_blocked(self) -> bool:
+        return any(status.blocks_removal for status in self.statuses)
+
+
 def build_uninstall_plan(
     receipt: InstallReceipt | None,
     harnesses: tuple[Harness, ...],
@@ -225,50 +286,46 @@ def build_uninstall_plan(
 ) -> UninstallPlan:
     """Classify a receipt against the current filesystem and plan a safe, reversible removal."""
     if receipt is None:
-        return UninstallPlan(
-            findings=(UninstallFinding(UninstallFindingState.NOT_INSTALLED, home),),
-            actions=(),
-            next_receipt=None,
-        )
+        return UninstallPlan(statuses=(RemovalStatus(RemovalState.NOT_INSTALLED, home),), changes=())
 
     selected = _selected_harnesses(harnesses)
-    findings: list[UninstallFinding] = []
-    remove_links: list[UninstallAction] = []
+    statuses: list[RemovalStatus] = []
+    remove_links: list[RemoveLink] = []
     removed_destinations: set[Path] = set()
     retained_links: list[OwnedLink] = []
 
     if receipt.root_identity != expected_identity:
-        findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, receipt.installed_root, blocking=True))
+        statuses.append(RemovalStatus(RemovalState.FOREIGN_CONTENT, receipt.installed_root))
 
     for link in receipt.links:
         _classify_uninstall_link(
-            link, selected, backend, home, findings, remove_links, removed_destinations, retained_links
+            link, selected, backend, home, statuses, remove_links, removed_destinations, retained_links
         )
 
-    restores, retained_backups = _classify_backups(receipt.backups, home, removed_destinations, findings)
+    restores, retained_backups = _classify_backups(receipt.backups, home, removed_destinations, statuses)
     parent_removals, retained_parents = _classify_parents(
-        receipt.created_parents, home, remove_links, restores, findings
+        receipt.created_parents, home, remove_links, restores, statuses
     )
 
-    if any(finding.blocking for finding in findings):
-        return UninstallPlan(tuple(findings), (), receipt)
+    if any(status.blocks_removal for status in statuses):
+        return UninstallPlan(tuple(statuses), ())
 
-    partial = bool(retained_links) or bool(retained_backups)
     receipt_file = receipt_path(home, expected_identity)
-    next_receipt = _next_receipt(receipt, retained_links, retained_backups, retained_parents) if partial else None
-    receipt_action = UninstallAction(
-        UninstallActionKind.REPLACE_RECEIPT if partial else UninstallActionKind.DELETE_RECEIPT,
-        None,
-        receipt_file,
-    )
+    partial = bool(retained_links) or bool(retained_backups)
+    receipt_change: RemovalChange
+    if partial:
+        next_receipt = _next_receipt(receipt, retained_links, retained_backups, retained_parents)
+        receipt_change = WriteReceipt(receipt_file, next_receipt)
+    else:
+        receipt_change = DeleteReceipt(receipt_file)
 
-    actions = (
-        *sorted(remove_links, key=lambda action: action.destination.as_posix()),
-        *sorted(restores, key=lambda action: action.destination.as_posix()),
+    changes: tuple[RemovalChange, ...] = (
+        *sorted(remove_links, key=lambda change: change.link.mapping.destination.as_posix()),
+        *sorted(restores, key=lambda change: change.backup.original.as_posix()),
         *parent_removals,
-        receipt_action,
+        receipt_change,
     )
-    return UninstallPlan(tuple(findings), actions, next_receipt)
+    return UninstallPlan(tuple(statuses), changes)
 
 
 def _classify_uninstall_link(
@@ -276,37 +333,37 @@ def _classify_uninstall_link(
     selected: set[Harness],
     backend: LinkBackend,
     home: Path,
-    findings: list[UninstallFinding],
-    remove_links: list[UninstallAction],
+    statuses: list[RemovalStatus],
+    remove_links: list[RemoveLink],
     removed_destinations: set[Path],
     retained_links: list[OwnedLink],
 ) -> None:
     mapping = link.mapping
     destination = mapping.destination
     if not is_path_within(destination, home, follow_leaf=False):
-        findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, destination, blocking=True))
+        statuses.append(RemovalStatus(RemovalState.FOREIGN_CONTENT, destination))
         retained_links.append(link)
         return
 
     remaining = tuple(harness for harness in mapping.harnesses if harness not in selected)
     if len(remaining) == len(mapping.harnesses):
-        findings.append(UninstallFinding(UninstallFindingState.SHARED_RETAINED, destination))
+        statuses.append(RemovalStatus(RemovalState.SHARED_RETAINED, destination))
         retained_links.append(link)
         return
     if remaining:
-        findings.append(UninstallFinding(UninstallFindingState.SHARED_RETAINED, destination))
+        statuses.append(RemovalStatus(RemovalState.SHARED_RETAINED, destination))
         retained_links.append(OwnedLink(replace(mapping, harnesses=remaining)))
         return
 
     if not os.path.lexists(destination):
-        findings.append(UninstallFinding(UninstallFindingState.MISSING_OWNED_LINK, destination))
+        statuses.append(RemovalStatus(RemovalState.MISSING_OWNED_LINK, destination))
         return
     if backend.resolved_target(destination) == mapping.source.resolve():
-        findings.append(UninstallFinding(UninstallFindingState.OWNED, destination))
-        remove_links.append(UninstallAction(UninstallActionKind.REMOVE_LINK, None, destination))
+        statuses.append(RemovalStatus(RemovalState.OWNED, destination))
+        remove_links.append(RemoveLink(link))
         removed_destinations.add(destination)
     else:
-        findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, destination, blocking=True))
+        statuses.append(RemovalStatus(RemovalState.FOREIGN_CONTENT, destination))
         retained_links.append(link)
 
 
@@ -314,52 +371,54 @@ def _classify_backups(
     backups: tuple[OwnedBackup, ...],
     home: Path,
     removed_destinations: set[Path],
-    findings: list[UninstallFinding],
-) -> tuple[list[UninstallAction], list[OwnedBackup]]:
-    restores: list[UninstallAction] = []
+    statuses: list[RemovalStatus],
+) -> tuple[list[RestoreFile], list[OwnedBackup]]:
+    restores: list[RestoreFile] = []
     retained: list[OwnedBackup] = []
     for backup in backups:
         if not is_path_within(backup.original, home, follow_leaf=False):
-            findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, backup.original, blocking=True))
+            statuses.append(RemovalStatus(RemovalState.FOREIGN_CONTENT, backup.original))
             retained.append(backup)
             continue
         if not is_path_within(backup.backup, home, follow_leaf=True):
-            findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, backup.backup, blocking=True))
+            statuses.append(RemovalStatus(RemovalState.FOREIGN_CONTENT, backup.backup))
             retained.append(backup)
             continue
         if backup.original not in removed_destinations:
             retained.append(backup)
             continue
         if not backup.backup.exists():
-            findings.append(UninstallFinding(UninstallFindingState.BACKUP_MISSING, backup.backup, blocking=True))
+            statuses.append(RemovalStatus(RemovalState.BACKUP_MISSING, backup.backup))
             retained.append(backup)
         elif file_sha256(backup.backup) != backup.sha256:
-            findings.append(UninstallFinding(UninstallFindingState.BACKUP_MODIFIED, backup.backup, blocking=True))
+            statuses.append(RemovalStatus(RemovalState.BACKUP_MODIFIED, backup.backup))
             retained.append(backup)
         else:
-            restores.append(UninstallAction(UninstallActionKind.RESTORE_BACKUP, backup.backup, backup.original))
+            restores.append(RestoreFile(backup))
     return restores, retained
 
 
 def _classify_parents(
     created_parents: tuple[Path, ...],
     home: Path,
-    remove_links: list[UninstallAction],
-    restores: list[UninstallAction],
-    findings: list[UninstallFinding],
-) -> tuple[list[UninstallAction], list[Path]]:
-    removals: list[UninstallAction] = []
+    remove_links: list[RemoveLink],
+    restores: list[RestoreFile],
+    statuses: list[RemovalStatus],
+) -> tuple[list[RemoveDirectory], list[Path]]:
+    removals: list[RemoveDirectory] = []
     retained: list[Path] = []
     removed_names: dict[Path, set[str]] = {}
-    for action in remove_links:
-        removed_names.setdefault(action.destination.parent, set()).add(action.destination.name)
+    for remove in remove_links:
+        destination = remove.link.mapping.destination
+        removed_names.setdefault(destination.parent, set()).add(destination.name)
     restored_names: dict[Path, set[str]] = {}
-    for action in restores:
-        restored_names.setdefault(action.destination.parent, set()).add(action.destination.name)
+    for restore in restores:
+        original = restore.backup.original
+        restored_names.setdefault(original.parent, set()).add(original.name)
 
     for parent in created_parents:
         if not is_path_within(parent, home, follow_leaf=True):
-            findings.append(UninstallFinding(UninstallFindingState.FOREIGN_CONTENT, parent, blocking=True))
+            statuses.append(RemovalStatus(RemovalState.FOREIGN_CONTENT, parent))
             retained.append(parent)
             continue
         if not parent.exists():
@@ -367,12 +426,12 @@ def _classify_parents(
         current = {entry.name for entry in parent.iterdir()}
         after = (current - removed_names.get(parent, set())) | restored_names.get(parent, set())
         if after:
-            findings.append(UninstallFinding(UninstallFindingState.PARENT_PRESERVED, parent))
+            statuses.append(RemovalStatus(RemovalState.PARENT_PRESERVED, parent))
             retained.append(parent)
         else:
-            removals.append(UninstallAction(UninstallActionKind.REMOVE_EMPTY_PARENT, None, parent))
+            removals.append(RemoveDirectory(parent))
 
-    removals.sort(key=lambda action: (-len(action.destination.parts), action.destination.as_posix()))
+    removals.sort(key=lambda change: (-len(change.path.parts), change.path.as_posix()))
     return removals, retained
 
 

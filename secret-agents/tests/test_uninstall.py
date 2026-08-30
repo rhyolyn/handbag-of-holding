@@ -11,14 +11,16 @@ import pytest
 from secret_agents_setup.executor import apply_uninstall_plan
 from secret_agents_setup.executor_errors import ExecutionError
 from secret_agents_setup.harness_profiles import InstructionsMapping, SkillsMapping
-from secret_agents_setup.models import (
-    ExecutionEventKind,
-    Harness,
-    UninstallActionKind,
-    UninstallFindingState,
+from secret_agents_setup.models import ExecutionEventKind, Harness
+from secret_agents_setup.planning import (
+    DeleteReceipt,
+    RemovalState,
+    RemoveDirectory,
+    RemoveLink,
     UninstallPlan,
+    WriteReceipt,
+    build_uninstall_plan,
 )
-from secret_agents_setup.planning import build_uninstall_plan
 from secret_agents_setup.receipts import (
     InstallReceipt,
     OwnedBackup,
@@ -87,8 +89,8 @@ def _owned_file_link(backend: RecordingBackend, source: Path, destination: Path)
     backend.targets[destination] = source.resolve()
 
 
-def _states(plan: UninstallPlan) -> set[UninstallFindingState]:
-    return {finding.state for finding in plan.findings}
+def _states(plan: UninstallPlan) -> set[RemovalState]:
+    return {status.state for status in plan.statuses}
 
 
 def test_no_receipt_is_idempotent_not_installed(tmp_path: Path) -> None:
@@ -96,10 +98,9 @@ def test_no_receipt_is_idempotent_not_installed(tmp_path: Path) -> None:
         None, (Harness.ALL,), RecordingBackend(), expected_identity=IDENTITY, home=tmp_path / "home"
     )
 
-    assert plan.can_apply is True
-    assert plan.actions == ()
-    assert plan.next_receipt is None
-    assert _states(plan) == {UninstallFindingState.NOT_INSTALLED}
+    assert plan.is_blocked is False
+    assert plan.changes == ()
+    assert _states(plan) == {RemovalState.NOT_INSTALLED}
 
 
 def test_full_uninstall_removes_owned_links_and_deletes_receipt(tmp_path: Path) -> None:
@@ -124,13 +125,12 @@ def test_full_uninstall_removes_owned_links_and_deletes_receipt(tmp_path: Path) 
 
     plan = build_uninstall_plan(receipt, (Harness.ALL,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is True
-    assert plan.next_receipt is None
-    kinds = [action.kind for action in plan.actions]
-    assert kinds[:2] == [UninstallActionKind.REMOVE_LINK, UninstallActionKind.REMOVE_LINK]
-    assert UninstallActionKind.REMOVE_EMPTY_PARENT in kinds
-    assert kinds[-1] == UninstallActionKind.DELETE_RECEIPT
-    assert UninstallFindingState.OWNED in _states(plan)
+    assert plan.is_blocked is False
+    types = [type(change) for change in plan.changes]
+    assert types[:2] == [RemoveLink, RemoveLink]
+    assert RemoveDirectory in types
+    assert isinstance(plan.changes[-1], DeleteReceipt)
+    assert RemovalState.OWNED in _states(plan)
 
 
 def test_missing_owned_link_is_safe_noop(tmp_path: Path) -> None:
@@ -149,9 +149,9 @@ def test_missing_owned_link_is_safe_noop(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is True
-    assert UninstallFindingState.MISSING_OWNED_LINK in _states(plan)
-    assert all(action.kind is not UninstallActionKind.REMOVE_LINK for action in plan.actions)
+    assert plan.is_blocked is False
+    assert RemovalState.MISSING_OWNED_LINK in _states(plan)
+    assert all(not isinstance(change, RemoveLink) for change in plan.changes)
 
 
 def test_replaced_regular_file_blocks(tmp_path: Path) -> None:
@@ -172,9 +172,9 @@ def test_replaced_regular_file_blocks(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert plan.actions == ()
-    assert UninstallFindingState.FOREIGN_CONTENT in _states(plan)
+    assert plan.is_blocked is True
+    assert plan.changes == ()
+    assert RemovalState.FOREIGN_CONTENT in _states(plan)
 
 
 def test_retargeted_link_blocks(tmp_path: Path) -> None:
@@ -197,11 +197,11 @@ def test_retargeted_link_blocks(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert UninstallFindingState.FOREIGN_CONTENT in _states(plan)
+    assert plan.is_blocked is True
+    assert RemovalState.FOREIGN_CONTENT in _states(plan)
 
 
-def test_shared_projection_retained_for_unselected_harness(tmp_path: Path) -> None:
+def test_shared_link_retained_for_unselected_harness(tmp_path: Path) -> None:
     root = _root(tmp_path)
     home = tmp_path / "home"
     backend = RecordingBackend()
@@ -218,11 +218,11 @@ def test_shared_projection_retained_for_unselected_harness(tmp_path: Path) -> No
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is True
-    assert UninstallFindingState.SHARED_RETAINED in _states(plan)
-    assert all(action.kind is not UninstallActionKind.REMOVE_LINK for action in plan.actions)
-    assert plan.next_receipt is not None
-    retained = plan.next_receipt.links[0]
+    assert plan.is_blocked is False
+    assert RemovalState.SHARED_RETAINED in _states(plan)
+    assert all(not isinstance(change, RemoveLink) for change in plan.changes)
+    assert isinstance(plan.changes[-1], WriteReceipt)
+    retained = plan.changes[-1].receipt.links[0]
     assert retained.mapping.harnesses == (Harness.COPILOT,)
 
 
@@ -249,8 +249,8 @@ def test_backup_missing_blocks(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert UninstallFindingState.BACKUP_MISSING in _states(plan)
+    assert plan.is_blocked is True
+    assert RemovalState.BACKUP_MISSING in _states(plan)
 
 
 def test_backup_modified_blocks(tmp_path: Path) -> None:
@@ -272,8 +272,8 @@ def test_backup_modified_blocks(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert UninstallFindingState.BACKUP_MODIFIED in _states(plan)
+    assert plan.is_blocked is True
+    assert RemovalState.BACKUP_MODIFIED in _states(plan)
 
 
 def test_non_empty_created_parent_is_preserved(tmp_path: Path) -> None:
@@ -295,9 +295,9 @@ def test_non_empty_created_parent_is_preserved(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is True
-    assert UninstallFindingState.PARENT_PRESERVED in _states(plan)
-    assert all(action.kind is not UninstallActionKind.REMOVE_EMPTY_PARENT for action in plan.actions)
+    assert plan.is_blocked is False
+    assert RemovalState.PARENT_PRESERVED in _states(plan)
+    assert all(not isinstance(change, RemoveDirectory) for change in plan.changes)
 
 
 def test_foreign_identity_blocks(tmp_path: Path) -> None:
@@ -314,8 +314,8 @@ def test_foreign_identity_blocks(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.ALL,), RecordingBackend(), expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert UninstallFindingState.FOREIGN_CONTENT in _states(plan)
+    assert plan.is_blocked is True
+    assert RemovalState.FOREIGN_CONTENT in _states(plan)
 
 
 def test_out_of_home_path_blocks(tmp_path: Path) -> None:
@@ -333,8 +333,8 @@ def test_out_of_home_path_blocks(tmp_path: Path) -> None:
 
     plan = build_uninstall_plan(receipt, (Harness.ALL,), RecordingBackend(), expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert UninstallFindingState.FOREIGN_CONTENT in _states(plan)
+    assert plan.is_blocked is True
+    assert RemovalState.FOREIGN_CONTENT in _states(plan)
 
 
 def test_destination_below_linked_parent_outside_home_blocks(tmp_path: Path) -> None:
@@ -362,8 +362,8 @@ def test_destination_below_linked_parent_outside_home_blocks(tmp_path: Path) -> 
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
-    assert plan.can_apply is False
-    assert plan.actions == ()
+    assert plan.is_blocked is True
+    assert plan.changes == ()
 
 
 def test_apply_removes_owned_restores_backup_and_preserves_third_party(tmp_path: Path) -> None:
@@ -400,7 +400,8 @@ def test_apply_removes_owned_restores_backup_and_preserves_third_party(tmp_path:
     write_receipt_atomic(receipt, receipt_file)
 
     plan = build_uninstall_plan(receipt, (Harness.CLAUDE,), backend, expected_identity=IDENTITY, home=home)
-    report = apply_uninstall_plan(plan, backend, receipt_file)
+    assert isinstance(plan.changes[-1], (WriteReceipt, DeleteReceipt))  # receipt mutation is always last
+    report = apply_uninstall_plan(plan, backend)
 
     assert not alpha_dst.exists()
     assert (skills_root / "third-party").is_dir()
@@ -434,8 +435,8 @@ def test_partial_uninstall_replaces_receipt_last(tmp_path: Path) -> None:
     write_receipt_atomic(receipt, receipt_file)
 
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
-    assert plan.actions[-1].kind is UninstallActionKind.REPLACE_RECEIPT
-    report = apply_uninstall_plan(plan, backend, receipt_file)
+    assert isinstance(plan.changes[-1], WriteReceipt)
+    report = apply_uninstall_plan(plan, backend)
 
     assert not codex_guidance.exists()  # codex-only guidance removed
     assert shared_dst.is_dir()  # shared skills link retained for copilot
@@ -471,7 +472,7 @@ def test_rollback_after_injected_failure_restores_links(tmp_path: Path) -> None:
     backend.fail_on = lambda tag: tag == ("remove", guidance_dst)
 
     with pytest.raises(ExecutionError) as raised:
-        apply_uninstall_plan(plan, backend, receipt_file)
+        apply_uninstall_plan(plan, backend)
 
     error = raised.value
     assert error.operation == "uninstall"
@@ -522,7 +523,7 @@ def test_uninstall_cancellation_rolls_back_and_reraises_same_object(
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
     with pytest.raises(type(cancellation)) as raised:
-        apply_uninstall_plan(plan, backend, receipt_file)
+        apply_uninstall_plan(plan, backend)
 
     assert raised.value is cancellation
     assert backend.resolved_target(skills_destination) == (root / "skills").resolve()
@@ -548,4 +549,4 @@ def test_apply_blocked_uninstall_plan_is_programmer_error(tmp_path: Path) -> Non
     plan = build_uninstall_plan(receipt, (Harness.CODEX,), backend, expected_identity=IDENTITY, home=home)
 
     with pytest.raises(ValueError, match="blocked"):
-        apply_uninstall_plan(plan, backend, receipt_path(home, IDENTITY))
+        apply_uninstall_plan(plan, backend)

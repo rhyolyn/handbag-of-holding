@@ -19,18 +19,22 @@ from .models import (
     ExecutionEventKind,
     ExecutionReport,
     Harness,
-    UninstallAction,
-    UninstallActionKind,
-    UninstallPlan,
 )
 from .planning import (
     BackupFile,
     CreateLink,
+    DeleteReceipt,
     InstallChange,
     InstallPlan,
     InstallState,
     PathStatus,
+    RemovalChange,
+    RemoveDirectory,
+    RemoveLink,
     ReplaceLink,
+    RestoreFile,
+    UninstallPlan,
+    WriteReceipt,
 )
 from .receipts import (
     RECEIPT_SCHEMA_VERSION,
@@ -97,19 +101,27 @@ def validate_installed_plan(plan: InstallPlan, backend: LinkBackend) -> tuple[Pa
     return tuple(statuses)
 
 
-def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend, receipt_file: Path) -> ExecutionReport:
-    """Execute an applicable uninstall plan transactionally, rolling back on failure."""
-    if not plan.can_apply:
+def apply_uninstall_plan(plan: UninstallPlan, backend: LinkBackend) -> ExecutionReport:
+    """Execute an applicable uninstall plan transactionally, rolling back on failure.
+
+    The receipt path travels inside the plan's WriteReceipt/DeleteReceipt change, so
+    this entrypoint no longer accepts a competing receipt-file argument.
+    """
+    if plan.is_blocked:
         raise ValueError("cannot apply a blocked uninstall plan")
-    if not plan.actions:
-        return ExecutionReport(events=(), receipt=plan.next_receipt, receipt_written=False)
+    if not plan.changes:
+        return ExecutionReport(events=(), receipt=None, receipt_written=False)
 
     run = _UninstallRun(backend)
     try:
-        for action in plan.actions:
-            run.execute(action, plan.next_receipt, receipt_file)
-        receipt_written = any(action.kind is UninstallActionKind.REPLACE_RECEIPT for action in plan.actions)
-        return ExecutionReport(tuple(run.events), plan.next_receipt, receipt_written)
+        for change in plan.changes:
+            run.execute(change)
+        written = next((change for change in plan.changes if isinstance(change, WriteReceipt)), None)
+        return ExecutionReport(
+            tuple(run.events),
+            written.receipt if written is not None else None,
+            written is not None,
+        )
     except BaseException as original:
         _finalize_failure("uninstall", original, run)
 
@@ -317,25 +329,25 @@ class _InstallRun(_Transaction):
 
 
 class _UninstallRun(_Transaction):
-    """Executes an uninstall plan action-by-action with a reversible journal."""
+    """Executes an uninstall plan change-by-change with a reversible journal."""
 
-    def execute(self, action: UninstallAction, next_receipt: InstallReceipt | None, receipt_file: Path) -> None:
-        if action.kind is UninstallActionKind.REMOVE_LINK:
-            self._remove_link(action.destination)
-        elif action.kind is UninstallActionKind.RESTORE_BACKUP:
-            self._restore_backup(action)
-        elif action.kind is UninstallActionKind.REMOVE_EMPTY_PARENT:
-            self._remove_parent(action.destination)
-        elif action.kind is UninstallActionKind.REPLACE_RECEIPT:
-            assert next_receipt is not None
-            self._replace_receipt(next_receipt, receipt_file)
-        elif action.kind is UninstallActionKind.DELETE_RECEIPT:
-            self._delete_receipt(receipt_file)
+    def execute(self, change: RemovalChange) -> None:
+        if isinstance(change, RemoveLink):
+            self._remove_link(change.link)
+        elif isinstance(change, RestoreFile):
+            self._restore_backup(change.backup)
+        elif isinstance(change, RemoveDirectory):
+            self._remove_parent(change.path)
+        elif isinstance(change, WriteReceipt):
+            self._replace_receipt(change.receipt, change.path)
+        elif isinstance(change, DeleteReceipt):
+            self._delete_receipt(change.path)
         else:  # pragma: no cover - defensive
-            raise ValueError(f"unsupported uninstall action kind: {action.kind}")
+            assert_never(change)
 
-    def _remove_link(self, destination: Path) -> None:
-        is_directory = destination.is_dir()
+    def _remove_link(self, link: OwnedLink) -> None:
+        destination = link.mapping.destination
+        is_directory = _is_directory_mapping(link.mapping)
         old_target = self.backend.resolved_target(destination)
         self.backend.remove_link(destination)
         self.journal.append(
@@ -343,12 +355,10 @@ class _UninstallRun(_Transaction):
         )
         self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_LINK, destination))
 
-    def _restore_backup(self, action: UninstallAction) -> None:
-        assert action.source is not None
-        backup, original = action.source, action.destination
-        os.replace(backup, original)
-        self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, original, other=backup))
-        self.events.append(ExecutionEvent(ExecutionEventKind.RESTORED_BACKUP, original))
+    def _restore_backup(self, backup: OwnedBackup) -> None:
+        os.replace(backup.backup, backup.original)
+        self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup.original, other=backup.backup))
+        self.events.append(ExecutionEvent(ExecutionEventKind.RESTORED_BACKUP, backup.original))
 
     def _remove_parent(self, parent: Path) -> None:
         parent.rmdir()

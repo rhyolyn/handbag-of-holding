@@ -23,12 +23,12 @@ from .models import (
     ExecutionReport,
     Harness,
     SkillDescriptor,
-    UninstallFinding,
 )
 from .planning import (
     CreateLink,
     InstallPlan,
     PathStatus,
+    RemovalStatus,
     ReplaceLink,
     build_install_plan,
     build_uninstall_plan,
@@ -110,12 +110,12 @@ def _run_uninstall(session: _Session) -> int:
     plan = build_uninstall_plan(
         receipt, session.harnesses, session.link_backend, expected_identity=session.identity, home=session.home
     )
-    _print_findings(plan.findings)
-    if not plan.can_apply:
+    _print_removal_statuses(plan.statuses)
+    if plan.is_blocked:
         return _blocked("uninstall plan has blocking conditions; no changes were made")
 
     try:
-        report = apply_uninstall_plan(plan, session.link_backend, receipt_file)
+        report = apply_uninstall_plan(plan, session.link_backend)
     except ExecutionError as exc:
         return _failed(str(exc))
     _print_events(report)
@@ -230,9 +230,9 @@ def _print_statuses(statuses: Sequence[PathStatus]) -> None:
         _print(f"finding {status.state.output_name} {status.path}")
 
 
-def _print_findings(findings: Sequence[UninstallFinding]) -> None:
-    for finding in findings:
-        _print(f"finding {finding.state.value} {finding.path}")
+def _print_removal_statuses(statuses: Sequence[RemovalStatus]) -> None:
+    for status in statuses:
+        _print(f"finding {status.state.value} {status.path}")
 
 
 def _print_events(report: ExecutionReport) -> None:
