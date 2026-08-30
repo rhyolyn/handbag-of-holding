@@ -25,6 +25,17 @@ class LinkTargetMismatch(LinkOperationError):
         super().__init__(f"created link dst {dst} resolved to {resolved_dst}, not src {resolved_src}")
 
 
+class PartialLinkCleanupFailed(LinkOperationError):
+    """Raised when a failed link creation leaves a path requiring manual recovery."""
+
+    def __init__(self, destination: Path, create_error: BaseException, cleanup_error: Exception) -> None:
+        self.destination = destination
+        self.create_error = create_error
+        self.cleanup_error = cleanup_error
+        self.recoverable_path = destination
+        super().__init__(f"failed to clean partial link at {destination}: {cleanup_error}")
+
+
 class NotALink(LinkOperationError):
     def __init__(self, path: Path) -> None:
         super().__init__(f"refuse to remove non-link path: {path}")

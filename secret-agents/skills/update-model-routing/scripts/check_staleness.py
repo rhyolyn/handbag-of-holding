@@ -111,8 +111,7 @@ def check_staleness(reference_path: Path, today: date) -> StalenessReport:
 
     if last_verified > today:
         raise InvalidReferenceError(
-            f"last_verified ({last_verified.isoformat()}) is in the future relative to "
-            f"today ({today.isoformat()})"
+            f"last_verified ({last_verified.isoformat()}) is in the future relative to today ({today.isoformat()})"
         )
 
     age_days = routing_age_days(last_verified, today)

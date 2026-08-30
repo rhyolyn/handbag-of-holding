@@ -1,39 +1,35 @@
-"""Tests for read-only projection classification and install planning."""
+"""Tests for read-only mapping classification and install planning."""
 
 from datetime import datetime
 from pathlib import Path
 
-from secret_agents_setup.models import (
-    ActionKind,
-    FindingState,
-    Harness,
-    PlannedAction,
-    Projection,
-    ProjectionKind,
-    SkillDescriptor,
+from secret_agents_setup.harness_profiles import InstructionsMapping, SkillsMapping
+from secret_agents_setup.models import Harness, SkillDescriptor
+from secret_agents_setup.planning import (
+    BackupFile,
+    CreateLink,
+    InstallState,
+    PathStatus,
+    ReplaceLink,
+    build_install_plan,
 )
-from secret_agents_setup.planning import build_install_plan
 
 TIMESTAMP = datetime(2026, 8, 29, 12, 34, 56)
 
 
-def _guidance_projection(source: Path, destination: Path) -> Projection:
-    return Projection(
+def _instructions_mapping(source: Path, destination: Path) -> InstructionsMapping:
+    return InstructionsMapping(
         harnesses=(Harness.CODEX,),
-        kind=ProjectionKind.GUIDANCE,
         source=source,
         destination=destination,
-        is_directory=False,
     )
 
 
-def _skills_projection(source: Path, destination: Path) -> Projection:
-    return Projection(
+def _skills_mapping(source: Path, destination: Path) -> SkillsMapping:
+    return SkillsMapping(
         harnesses=(Harness.CLAUDE,),
-        kind=ProjectionKind.SKILLS,
         source=source,
         destination=destination,
-        is_directory=True,
     )
 
 
@@ -45,20 +41,14 @@ def test_absent_destination_plans_link_creation(tmp_path: Path) -> None:
     source = tmp_path / "canonical" / "AGENTS.md"
     source.parent.mkdir()
     source.write_text("guidance", encoding="utf-8")
-    projection = _guidance_projection(source, tmp_path / "home" / ".codex" / "AGENTS.md")
+    mapping = _instructions_mapping(source, tmp_path / "home" / ".codex" / "AGENTS.md")
 
-    plan = build_install_plan((projection,), (), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (), False, TIMESTAMP)
 
-    assert plan.can_apply is True
-    assert tuple(finding.state for finding in plan.findings) == (FindingState.MISSING,)
-    assert plan.actions == (
-        PlannedAction(
-            kind=ActionKind.CREATE_LINK,
-            source=source,
-            destination=projection.destination,
-            is_directory=False,
-        ),
-    )
+    assert plan.is_blocked is False
+    assert plan.statuses == (PathStatus(InstallState.MISSING, mapping),)
+    assert plan.statuses[0].path == mapping.destination
+    assert plan.changes == (CreateLink(mapping),)
 
 
 def test_correct_whole_directory_link_needs_no_action(tmp_path: Path) -> None:
@@ -67,11 +57,13 @@ def test_correct_whole_directory_link_needs_no_action(tmp_path: Path) -> None:
     destination = tmp_path / "home" / ".agents" / "skills"
     destination.parent.mkdir(parents=True)
     destination.symlink_to(source, target_is_directory=True)
+    mapping = _skills_mapping(source, destination)
 
-    plan = build_install_plan((_skills_projection(source, destination),), (), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (), False, TIMESTAMP)
 
-    assert tuple(finding.state for finding in plan.findings) == (FindingState.CORRECT,)
-    assert plan.actions == ()
+    assert plan.statuses == (PathStatus(InstallState.CURRENT, mapping),)
+    assert plan.statuses[0].state.output_name == "correct"
+    assert plan.changes == ()
 
 
 def test_stale_link_is_replaced(tmp_path: Path) -> None:
@@ -84,11 +76,12 @@ def test_stale_link_is_replaced(tmp_path: Path) -> None:
     destination = tmp_path / "home" / ".codex" / "AGENTS.md"
     destination.parent.mkdir(parents=True)
     destination.symlink_to(stale_source)
+    mapping = _instructions_mapping(source, destination)
 
-    plan = build_install_plan((_guidance_projection(source, destination),), (), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (), False, TIMESTAMP)
 
-    assert tuple(finding.state for finding in plan.findings) == (FindingState.STALE_LINK,)
-    assert tuple(action.kind for action in plan.actions) == (ActionKind.REPLACE_LINK,)
+    assert plan.statuses == (PathStatus(InstallState.STALE_LINK, mapping),)
+    assert plan.changes == (ReplaceLink(mapping),)
 
 
 def test_broken_link_is_distinguished_and_replaced(tmp_path: Path) -> None:
@@ -98,27 +91,30 @@ def test_broken_link_is_distinguished_and_replaced(tmp_path: Path) -> None:
     destination = tmp_path / "home" / ".codex" / "AGENTS.md"
     destination.parent.mkdir(parents=True)
     destination.symlink_to(tmp_path / "missing" / "AGENTS.md")
+    mapping = _instructions_mapping(source, destination)
 
-    plan = build_install_plan((_guidance_projection(source, destination),), (), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (), False, TIMESTAMP)
 
-    assert tuple(finding.state for finding in plan.findings) == (FindingState.BROKEN_LINK,)
-    assert tuple(action.kind for action in plan.actions) == (ActionKind.REPLACE_LINK,)
+    assert plan.statuses == (PathStatus(InstallState.BROKEN_LINK, mapping),)
+    assert plan.changes == (ReplaceLink(mapping),)
 
 
-def test_unrelated_instruction_file_blocks_without_backup(tmp_path: Path) -> None:
+def test_unrelated_instruction_file_conflicts_without_backup(tmp_path: Path) -> None:
     source = tmp_path / "canonical" / "AGENTS.md"
     source.parent.mkdir()
     source.write_text("canonical", encoding="utf-8")
     destination = tmp_path / "home" / ".codex" / "AGENTS.md"
     destination.parent.mkdir(parents=True)
     destination.write_text("personal", encoding="utf-8")
+    mapping = _instructions_mapping(source, destination)
 
-    plan = build_install_plan((_guidance_projection(source, destination),), (), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (), False, TIMESTAMP)
 
-    assert plan.can_apply is False
-    assert tuple(finding.state for finding in plan.findings) == (FindingState.UNRELATED,)
-    assert plan.findings[0].blocking is True
-    assert plan.actions == ()
+    assert plan.is_blocked is True
+    assert plan.statuses == (PathStatus(InstallState.CONFLICT, mapping),)
+    assert plan.statuses[0].blocks_install is True
+    assert plan.statuses[0].state.output_name == "unrelated"
+    assert plan.changes == ()
 
 
 def test_backup_conflict_names_timestamped_sibling_before_link(tmp_path: Path) -> None:
@@ -128,30 +124,39 @@ def test_backup_conflict_names_timestamped_sibling_before_link(tmp_path: Path) -
     destination = tmp_path / "home" / ".codex" / "AGENTS.md"
     destination.parent.mkdir(parents=True)
     destination.write_text("personal", encoding="utf-8")
+    mapping = _instructions_mapping(source, destination)
 
-    plan = build_install_plan((_guidance_projection(source, destination),), (), True, TIMESTAMP)
+    plan = build_install_plan((mapping,), (), True, TIMESTAMP)
 
-    assert plan.can_apply is True
-    assert plan.findings[0].blocking is False
-    assert plan.actions == (
-        PlannedAction(
-            kind=ActionKind.BACKUP,
-            source=destination,
-            destination=destination.with_name("AGENTS.md.backup-20260829-123456"),
-            is_directory=False,
-        ),
-        PlannedAction(
-            kind=ActionKind.CREATE_LINK,
-            source=source,
-            destination=destination,
-            is_directory=False,
-        ),
+    assert plan.is_blocked is False
+    assert plan.statuses == (PathStatus(InstallState.BACKUP_PLANNED, mapping),)
+    assert plan.statuses[0].blocks_install is False
+    assert plan.statuses[0].state.output_name == "unrelated"
+    assert plan.changes == (
+        BackupFile(destination, destination.with_name("AGENTS.md.backup-20260829-123456")),
+        CreateLink(mapping),
     )
 
 
-def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(
-    tmp_path: Path,
-) -> None:
+def test_backup_planning_uses_next_free_suffix(tmp_path: Path) -> None:
+    source = tmp_path / "canonical" / "AGENTS.md"
+    source.parent.mkdir()
+    source.write_text("canonical", encoding="utf-8")
+    destination = tmp_path / "home" / ".codex" / "AGENTS.md"
+    destination.parent.mkdir(parents=True)
+    destination.write_text("personal", encoding="utf-8")
+    destination.with_name("AGENTS.md.backup-20260829-120000").write_text("occupied", encoding="utf-8")
+    mapping = _instructions_mapping(source, destination)
+
+    plan = build_install_plan((mapping,), (), True, datetime(2026, 8, 29, 12, 0, 0))
+
+    assert plan.changes[0] == BackupFile(
+        destination,
+        destination.with_name("AGENTS.md.backup-20260829-120000-2"),
+    )
+
+
+def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(tmp_path: Path) -> None:
     source = tmp_path / "canonical" / "skills"
     source.mkdir(parents=True)
     alpha = _skill(source, "alpha")
@@ -161,16 +166,18 @@ def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(
     destination = tmp_path / "home" / ".claude" / "skills"
     destination.mkdir(parents=True)
     (destination / "third-party").mkdir()
+    mapping = _skills_mapping(source, destination)
 
-    plan = build_install_plan((_skills_projection(source, destination),), (beta, alpha), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (beta, alpha), False, TIMESTAMP)
 
-    assert tuple(finding.state for finding in plan.findings) == (
-        FindingState.COMPATIBLE_SKILL_DIRECTORY,
-        FindingState.MISSING,
-        FindingState.MISSING,
+    child_alpha = SkillsMapping(mapping.harnesses, alpha.directory, destination / "alpha")
+    child_beta = SkillsMapping(mapping.harnesses, beta.directory, destination / "beta")
+    assert plan.statuses == (
+        PathStatus(InstallState.COMPATIBLE_SKILLS_DIRECTORY, mapping),
+        PathStatus(InstallState.MISSING, child_alpha),
+        PathStatus(InstallState.MISSING, child_beta),
     )
-    assert tuple(action.destination.name for action in plan.actions) == ("alpha", "beta")
-    assert all(action.kind is ActionKind.CREATE_LINK for action in plan.actions)
+    assert plan.changes == (CreateLink(child_alpha), CreateLink(child_beta))
 
 
 def test_correct_per_skill_link_is_preserved(tmp_path: Path) -> None:
@@ -181,14 +188,16 @@ def test_correct_per_skill_link_is_preserved(tmp_path: Path) -> None:
     destination = tmp_path / "home" / ".claude" / "skills"
     destination.mkdir(parents=True)
     (destination / "alpha").symlink_to(alpha.directory, target_is_directory=True)
+    mapping = _skills_mapping(source, destination)
 
-    plan = build_install_plan((_skills_projection(source, destination),), (alpha,), False, TIMESTAMP)
+    plan = build_install_plan((mapping,), (alpha,), False, TIMESTAMP)
 
-    assert tuple(finding.state for finding in plan.findings) == (
-        FindingState.COMPATIBLE_SKILL_DIRECTORY,
-        FindingState.CORRECT,
+    child_alpha = SkillsMapping(mapping.harnesses, alpha.directory, destination / "alpha")
+    assert plan.statuses == (
+        PathStatus(InstallState.COMPATIBLE_SKILLS_DIRECTORY, mapping),
+        PathStatus(InstallState.CURRENT, child_alpha),
     )
-    assert plan.actions == ()
+    assert plan.changes == ()
 
 
 def test_same_name_skill_collision_blocks_entire_plan(tmp_path: Path) -> None:
@@ -199,23 +208,26 @@ def test_same_name_skill_collision_blocks_entire_plan(tmp_path: Path) -> None:
     destination = tmp_path / "home" / ".claude" / "skills"
     destination.mkdir(parents=True)
     (destination / "alpha").mkdir()
-    guidance_source = tmp_path / "canonical" / "AGENTS.md"
-    guidance_source.write_text("guidance", encoding="utf-8")
-    missing_guidance = _guidance_projection(guidance_source, tmp_path / "home" / ".codex" / "AGENTS.md")
+    instructions_source = tmp_path / "canonical" / "AGENTS.md"
+    instructions_source.write_text("guidance", encoding="utf-8")
+    missing_instructions = _instructions_mapping(instructions_source, tmp_path / "home" / ".codex" / "AGENTS.md")
 
     plan = build_install_plan(
-        (_skills_projection(source, destination), missing_guidance),
+        (_skills_mapping(source, destination), missing_instructions),
         (alpha,),
         False,
         TIMESTAMP,
     )
 
-    assert plan.can_apply is False
-    assert FindingState.SKILL_NAME_COLLISION in {finding.state for finding in plan.findings}
-    assert plan.actions == ()
+    assert plan.is_blocked is True
+    collisions = [status for status in plan.statuses if status.state is InstallState.SKILL_NAME_COLLISION]
+    assert len(collisions) == 1
+    assert collisions[0].blocks_install is True
+    assert collisions[0].mapping == SkillsMapping((Harness.CLAUDE,), alpha.directory, destination / "alpha")
+    assert plan.changes == ()
 
 
-def test_findings_and_actions_have_stable_path_order(tmp_path: Path) -> None:
+def test_statuses_and_changes_have_stable_path_order(tmp_path: Path) -> None:
     canonical = tmp_path / "canonical"
     canonical.mkdir()
     source_a = canonical / "A.md"
@@ -223,16 +235,13 @@ def test_findings_and_actions_have_stable_path_order(tmp_path: Path) -> None:
     source_a.write_text("a", encoding="utf-8")
     source_z.write_text("z", encoding="utf-8")
     home = tmp_path / "home"
-    projection_z = _guidance_projection(source_z, home / "z" / "Z.md")
-    projection_a = _guidance_projection(source_a, home / "a" / "A.md")
+    mapping_z = _instructions_mapping(source_z, home / "z" / "Z.md")
+    mapping_a = _instructions_mapping(source_a, home / "a" / "A.md")
 
-    plan = build_install_plan((projection_z, projection_a), (), False, TIMESTAMP)
+    plan = build_install_plan((mapping_z, mapping_a), (), False, TIMESTAMP)
 
-    assert tuple(finding.path for finding in plan.findings) == (
-        projection_a.destination,
-        projection_z.destination,
+    assert tuple(status.path for status in plan.statuses) == (
+        mapping_a.destination,
+        mapping_z.destination,
     )
-    assert tuple(action.destination for action in plan.actions) == (
-        projection_a.destination,
-        projection_z.destination,
-    )
+    assert plan.changes == (CreateLink(mapping_a), CreateLink(mapping_z))
