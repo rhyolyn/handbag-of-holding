@@ -247,8 +247,13 @@ class _InstallRun(_Transaction):
             os.close(descriptor)
             digest = file_sha256(original)
             os.replace(original, backup)
-        except BaseException:
-            backup.unlink(missing_ok=True)
+        except BaseException as original_error:
+            try:
+                backup.unlink(missing_ok=True)
+            except Exception as cleanup_error:
+                original_error.add_note(
+                    f"failed to remove reserved backup path {backup} after backup failure: {cleanup_error}"
+                )
             raise
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
         self.backups.append(ReceiptBackup(original=original, backup=backup, sha256=digest))

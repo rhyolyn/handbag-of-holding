@@ -37,3 +37,19 @@ def test_linked_parent_outside_home_is_rejected(tmp_path: Path) -> None:
         pytest.skip(f"host cannot create parent symlink: {exc}")
 
     assert not is_path_within(home / ".codex" / "AGENTS.md", home, follow_leaf=False)
+
+
+def test_resolve_failure_is_treated_as_outside(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = (tmp_path / "home").resolve()
+    home.mkdir()
+    candidate = home / "child" / "AGENTS.md"
+    original_resolve = Path.resolve
+
+    def resolve_with_failure(self: Path, strict: bool = False) -> Path:
+        if self == candidate.parent:
+            raise OSError("simulated resolve failure")
+        return original_resolve(self, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", resolve_with_failure)
+
+    assert not is_path_within(candidate, home, follow_leaf=False)

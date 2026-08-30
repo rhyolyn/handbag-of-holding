@@ -161,7 +161,9 @@ def _create_and_verify(
         try:
             remove_link(dst)
         except Exception as cleanup_error:
-            raise PartialLinkCleanupFailed(dst, create_error, cleanup_error) from create_error
+            if isinstance(create_error, Exception):
+                raise PartialLinkCleanupFailed(dst, create_error, cleanup_error) from create_error
+            create_error.add_note(f"failed to clean partial link at {dst}: {cleanup_error}")
         raise
 
 

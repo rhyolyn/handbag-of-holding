@@ -250,6 +250,35 @@ def test_backend_preserves_partial_link_cleanup_failure_details(
     assert os.path.lexists(destination)
 
 
+def test_backend_preserves_cancellation_when_partial_cleanup_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "destination.txt"
+    source.write_text("canonical", encoding="utf-8")
+    cancellation = KeyboardInterrupt("cancelled")
+    cleanup_error = OSError("cleanup failed")
+    backend = PosixLinkBackend()
+
+    def fail_verification(_link_source: Path, _link_destination: Path) -> None:
+        raise cancellation
+
+    def fail_cleanup(path: Path) -> None:
+        assert path == destination
+        raise cleanup_error
+
+    monkeypatch.setattr(backend, "_verify_created_link", fail_verification)
+    monkeypatch.setattr(backend, "remove_link", fail_cleanup)
+
+    with pytest.raises(KeyboardInterrupt) as raised:
+        backend.create_file_link(source, destination)
+
+    assert raised.value is cancellation
+    notes = getattr(cancellation, "__notes__", ())
+    assert any("failed to clean partial link" in note for note in notes)
+    assert os.path.lexists(destination)
+
+
 def test_link_backends_never_use_hardlinks_or_copy_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def forbidden(*args: object, **kwargs: object) -> None:
         pytest.fail("hardlink or copy fallback invoked")

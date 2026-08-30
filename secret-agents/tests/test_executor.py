@@ -274,6 +274,46 @@ def test_failed_backup_move_removes_its_reservation(tmp_path: Path, monkeypatch:
     assert not backup.exists()
 
 
+def test_failed_backup_cleanup_does_not_mask_original_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_text("personal", encoding="utf-8")
+    backup = original.with_name("AGENTS.md.backup-20260829-120000")
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    plan = InstallPlan(
+        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
+        actions=(PlannedAction(ActionKind.BACKUP, original, backup, False),),
+    )
+
+    def fail_move(source: Path, destination: Path) -> None:
+        assert source == original
+        assert destination == backup
+        raise OSError("move failed")
+
+    original_unlink = Path.unlink
+
+    def fail_unlink(path: Path, missing_ok: bool = False) -> None:
+        if path == backup:
+            raise PermissionError("cleanup failed")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(os, "replace", fail_move)
+    monkeypatch.setattr(Path, "unlink", fail_unlink)
+
+    with pytest.raises(ExecutionError) as raised:
+        apply_install_plan(plan, root, tmp_path / "probe", RecordingBackend(), receipt_path(home, root.identity), None)
+
+    assert isinstance(raised.value.original, OSError)
+    assert str(raised.value.original) == "move failed"
+    notes = getattr(raised.value.original, "__notes__", ())
+    assert any("failed to remove reserved backup path" in note for note in notes)
+    assert original.read_text(encoding="utf-8") == "personal"
+
+
 def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"
