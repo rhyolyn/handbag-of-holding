@@ -304,6 +304,86 @@ class StatCache:
         _atomic_write(path, json.dumps(data, indent=2))
 
 
+@dataclasses.dataclass(frozen=True)
+class Catalog:
+    schema_version: int
+    generated: str
+    entries: tuple[CanonicalEntry, ...]
+    generated_aliases: dict[str, str]  # alias/shorthand -> canonical name
+
+    @classmethod
+    def build(cls, entries: list[CanonicalEntry], today: str) -> Catalog:
+        """Assemble a Catalog from a list of (already date-resolved) entries."""
+        aliases: dict[str, str] = {}
+        for e in entries:
+            aliases[e.shorthand] = e.name
+            for a in e.aliases:
+                aliases[a] = e.name
+        ordered = tuple(
+            sorted(
+                entries,
+                key=lambda e: (CATEGORY_ORDER.index(e.category), e.display_name),
+            )
+        )
+        return cls(
+            schema_version=SCHEMA_VERSION,
+            generated=today,
+            entries=ordered,
+            generated_aliases=aliases,
+        )
+
+    @classmethod
+    def _from_dict(cls, data: dict) -> Catalog | None:
+        if data.get("schema_version") != SCHEMA_VERSION:
+            return None
+        entries = tuple(
+            CanonicalEntry(**{k: tuple(v) if isinstance(v, list) else v for k, v in e.items()})
+            for e in data.get("entries", [])
+        )
+        return cls(
+            schema_version=data["schema_version"],
+            generated=data.get("generated", ""),
+            entries=entries,
+            generated_aliases=data.get("generated_aliases", {}),
+        )
+
+    @classmethod
+    def load(cls, path: Path) -> Catalog | None:
+        if not path.is_file():
+            return None
+        try:
+            return cls._from_dict(json.loads(path.read_text(encoding="utf-8")))
+        except Exception:
+            return None
+
+    def save(self, path: Path) -> None:
+        data = {
+            "schema_version": self.schema_version,
+            "generated": self.generated,
+            "entries": [dataclasses.asdict(e) for e in self.entries],
+            "generated_aliases": self.generated_aliases,
+        }
+        _atomic_write(path, json.dumps(data, indent=2))
+
+    @staticmethod
+    def _render_category_lines(cat: str, entries: list[CanonicalEntry]) -> list[str]:
+        def entry_line(e: CanonicalEntry) -> str:
+            alias_note = f" · Aliases: {', '.join(e.aliases)}" if e.aliases else ""
+            return f"- {e.display_name} (`{e.shorthand}`) — {e.description}{alias_note}"
+        return ["", f"## {cat} ({CATEGORIES[cat]})", ""] + [entry_line(e) for e in entries]
+
+    def render_toc(self) -> str:
+        by_cat: dict[str, list[CanonicalEntry]] = {}
+        for entry in self.entries:
+            by_cat.setdefault(entry.category, []).append(entry)
+        lines = ["# Skills", "", f"Generated {self.generated}. Run `/<short>` or `/<canonical-name>`."]
+        for cat in CATEGORY_ORDER:
+            cat_entries = by_cat.get(cat)
+            if cat_entries:
+                lines.extend(self._render_category_lines(cat, cat_entries))
+        return "\n".join(lines) + "\n"
+
+
 # ---------------------------------------------------------------------------
 # SkillCatalog — orchestrator
 # ---------------------------------------------------------------------------

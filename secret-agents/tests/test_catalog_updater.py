@@ -210,3 +210,84 @@ def test_show_fast_path_reads_no_skill_bodies(tmp_path: Path) -> None:
         sc.show(out=io.StringIO())
 
     assert read_calls == [], f"Fast path read SKILL.md bodies: {read_calls}"
+
+
+def test_semantic_hash_ignores_updated_date() -> None:
+    text_a = _skill_text("x", updated="2026-01-01")
+    text_b = _skill_text("x", updated="2026-12-31")
+    assert catalog.compute_semantic_hash(text_a) == catalog.compute_semantic_hash(text_b)
+
+
+def test_semantic_hash_differs_on_content_change() -> None:
+    text_a = _skill_text("x", description="Use when foo.")
+    text_b = _skill_text("x", description="Use when bar.")
+    assert catalog.compute_semantic_hash(text_a) != catalog.compute_semantic_hash(text_b)
+
+
+def test_with_updated_returns_new_entry(tmp_path: Path) -> None:
+    text = _skill_text("my-skill", updated="2026-01-01")
+    entry = catalog.CanonicalEntry.from_dir(
+        _write_skill(tmp_path, "my-skill", text), "2026-01-01"
+    )
+    bumped = entry.with_updated("2026-10-10")
+    assert bumped.updated == "2026-10-10"
+    assert bumped.name == entry.name
+
+
+def test_catalog_build_generates_alias_map() -> None:
+    entry = catalog.CanonicalEntry(
+        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
+        "trut", ("rut",), "2026-10-10", "h1", "h2",
+    )
+    c = catalog.Catalog.build([entry], "2026-10-10")
+    assert c.generated_aliases["trut"] == "run-unit-tests"
+    assert c.generated_aliases["rut"] == "run-unit-tests"
+
+
+def test_catalog_build_sorts_by_category_then_display_name() -> None:
+    entries = [
+        catalog.CanonicalEntry("run-unit-tests", "Run Unit Tests", ".", "Testing", "trut", (), "2026-10-10", "h1", "h2"),
+        catalog.CanonicalEntry("agent-plan", "Agent Plan", ".", "Agent Workflow", "ap", (), "2026-10-10", "h3", "h4"),
+    ]
+    c = catalog.Catalog.build(entries, "2026-10-10")
+    assert c.entries[0].name == "agent-plan"
+    assert c.entries[1].name == "run-unit-tests"
+
+
+def test_catalog_load_roundtrip(tmp_path: Path) -> None:
+    entry = catalog.CanonicalEntry(
+        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
+        "trut", ("rut",), "2026-10-10", "h1", "h2",
+    )
+    c = catalog.Catalog.build([entry], "2026-10-10")
+    path = tmp_path / "catalog.json"
+    c.save(path)
+    loaded = catalog.Catalog.load(path)
+    assert loaded is not None
+    assert len(loaded.entries) == 1
+    assert loaded.entries[0].name == "run-unit-tests"
+    assert loaded.entries[0].aliases == ("rut",)
+
+
+def test_render_toc_sorted_by_category_then_display_name() -> None:
+    entries = [
+        catalog.CanonicalEntry("run-unit-tests", "Run Unit Tests", "Run tests.", "Testing", "trut", ("rut",), "2026-10-10", "h1", "h2"),
+        catalog.CanonicalEntry("agent-plan", "Agent Plan", "Plan work.", "Agent Workflow", "ap", (), "2026-10-10", "h3", "h4"),
+    ]
+    c = catalog.Catalog.build(entries, "2026-10-10")
+    toc = c.render_toc()
+    agent_idx = toc.index("Agent Workflow")
+    testing_idx = toc.index("## Testing")
+    assert agent_idx < testing_idx
+    assert "Run Unit Tests" in toc
+    assert "(`trut`)" in toc
+    assert "rut" in toc
+
+
+def test_render_toc_one_bullet_per_canonical_skill() -> None:
+    entries = [
+        catalog.CanonicalEntry("run-unit-tests", "Run Unit Tests", "Run tests.", "Testing", "trut", ("rut",), "2026-10-10", "h1", "h2"),
+    ]
+    c = catalog.Catalog.build(entries, "2026-10-10")
+    toc = c.render_toc()
+    assert toc.count("- ") == 1
