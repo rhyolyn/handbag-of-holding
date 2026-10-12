@@ -302,3 +302,75 @@ class StatCache:
             "entries": {k: dataclasses.asdict(v) for k, v in self.entries.items()},
         }
         _atomic_write(path, json.dumps(data, indent=2))
+
+
+# ---------------------------------------------------------------------------
+# SkillCatalog — orchestrator
+# ---------------------------------------------------------------------------
+
+
+class SkillCatalog:
+    def __init__(
+        self,
+        skills_root: Path,
+        cache_path: Path = CACHE_PATH,
+    ) -> None:
+        self.skills_root = skills_root
+        self.cache_path = cache_path
+
+    # -- Directory scanning --------------------------------------------------
+
+    def _is_canonical_dir(self, child: Path) -> bool:
+        """True when child is a real skill dir (not a generated alias, not a non-dir)."""
+        if not child.is_dir() or child.name in NON_SKILL_NAMES:
+            return False
+        if is_generated_alias(child):
+            return False
+        if not (child / "SKILL.md").is_file():
+            raise CatalogError(f"Non-generated directory '{child.name}' has no SKILL.md")
+        return True
+
+    def _scan_canonical_dirs(self) -> list[Path]:
+        return [child for child in sorted(self.skills_root.iterdir()) if self._is_canonical_dir(child)]
+
+    def _fast_canonical_stats(self, generated_alias_names: set[str]) -> dict[str, StatEntry] | None:
+        """Enumerate canonical dirs by stat only — no SKILL.md reads.
+
+        Returns None when an unexpected dir (no SKILL.md) is found, forcing slow path.
+        """
+        result: dict[str, StatEntry] = {}
+        for child in sorted(self.skills_root.iterdir()):
+            if not child.is_dir() or child.name in NON_SKILL_NAMES:
+                continue
+            if child.name in generated_alias_names:
+                continue
+            skill_file = child / "SKILL.md"
+            if not skill_file.is_file():
+                return None
+            result[f"{child.name}/SKILL.md"] = StatEntry.from_path(child)
+        return result
+
+    # -- CLI commands --------------------------------------------------------
+
+    def show(self, out=None) -> int:
+        """Fast refresh + print TOC. Reads no SKILL.md bodies on a warm cache."""
+        if out is None:
+            out = sys.stdout
+        toc_path = self.skills_root / TOC_FILENAME
+        catalog_path = self.skills_root / CATALOG_FILENAME
+        catalog_text = catalog_path.read_text(encoding="utf-8") if catalog_path.is_file() else None
+        stat_cache = StatCache.load(self.cache_path, self.skills_root)
+        if not (stat_cache and catalog_text):
+            return self._show_slow(out)
+        if stat_cache.catalog_hash != compute_content_hash(catalog_text):
+            return self._show_slow(out)
+        catalog_data = json.loads(catalog_text)
+        generated_alias_names = set(catalog_data.get("generated_aliases", {}).keys())
+        current = self._fast_canonical_stats(generated_alias_names)
+        if current is None or current != stat_cache.entries or not toc_path.is_file():
+            return self._show_slow(out)
+        out.write(toc_path.read_text(encoding="utf-8"))
+        return 0
+
+    def _show_slow(self, out) -> int:  # stub — implemented in Task 5
+        return 1
