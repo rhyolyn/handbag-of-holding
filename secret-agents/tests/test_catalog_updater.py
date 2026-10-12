@@ -435,3 +435,19 @@ def test_show_warm_cache_reads_no_skill_bodies(tmp_path: Path) -> None:
         sc.show(out=io.StringIO())
 
     assert read_calls == []
+
+
+def test_catalog_drift_guard() -> None:
+    """CI guard: catalog.json, TOC.md, and all generated aliases must be current."""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, str(CATALOG_SCRIPT), "check",
+         "--skills-root", str(ROOT / "skills")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"Catalog drift detected:\n{result.stderr}\n\n"
+        "Fix: python skills/query-all-skills/scripts/catalog.py update\n"
+        "Then commit the generated changes."
+    )
