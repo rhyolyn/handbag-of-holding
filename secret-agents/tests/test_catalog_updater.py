@@ -291,3 +291,68 @@ def test_render_toc_one_bullet_per_canonical_skill() -> None:
     c = catalog.Catalog.build(entries, "2026-10-10")
     toc = c.render_toc()
     assert toc.count("- ") == 1
+
+
+def test_generate_alias_skill_md_contains_marker() -> None:
+    text = catalog.generate_alias_skill_md("trut", "run-unit-tests", "2026-10-10", "Run tests.")
+    m = catalog.GENERATED_MARKER_RE.search(text)
+    assert m is not None
+    assert m.group("canonical") == "run-unit-tests"
+    assert m.group("date") == "2026-10-10"
+    fm = catalog.parse_frontmatter(text)
+    assert fm["name"] == "trut"
+
+
+def test_write_generated_aliases_creates_directories(tmp_path: Path) -> None:
+    entry = catalog.CanonicalEntry(
+        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
+        "trut", ("rut",), "2026-10-10", "h1", "h2",
+    )
+    c = catalog.Catalog.build([entry], "2026-10-10")
+    sc = catalog.SkillCatalog(tmp_path)
+    sc._write_generated_aliases(c, "2026-10-10")
+    assert (tmp_path / "trut" / "SKILL.md").is_file()
+    assert (tmp_path / "rut" / "SKILL.md").is_file()
+    assert "run-unit-tests" in (tmp_path / "trut" / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_write_generated_aliases_refuses_human_owned_collision(tmp_path: Path) -> None:
+    import pytest
+    (tmp_path / "trut").mkdir()
+    (tmp_path / "trut" / "SKILL.md").write_text(
+        "---\nname: trut\ndescription: Hand-written.\n---\n\n# trut\n\nBody.\n",
+        encoding="utf-8",
+    )
+    entry = catalog.CanonicalEntry(
+        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
+        "trut", (), "2026-10-10", "h1", "h2",
+    )
+    c = catalog.Catalog.build([entry], "2026-10-10")
+    sc = catalog.SkillCatalog(tmp_path)
+    with pytest.raises(catalog.HumanOwnedCollision):
+        sc._write_generated_aliases(c, "2026-10-10")
+
+
+def test_retire_obsolete_aliases_removes_generated_only(tmp_path: Path) -> None:
+    (tmp_path / "old-alias").mkdir()
+    (tmp_path / "old-alias" / "SKILL.md").write_text(
+        "---\nname: old-alias\ndescription: Alias.\n---\n\n"
+        "<!-- generated:some-skill:2026-10-10 -->\n",
+        encoding="utf-8",
+    )
+    c = catalog.Catalog.build([], "2026-10-10")
+    sc = catalog.SkillCatalog(tmp_path)
+    sc._retire_obsolete_aliases(c)
+    assert not (tmp_path / "old-alias").exists()
+
+
+def test_retire_obsolete_aliases_preserves_human_owned(tmp_path: Path) -> None:
+    (tmp_path / "human-alias").mkdir()
+    (tmp_path / "human-alias" / "SKILL.md").write_text(
+        "---\nname: human-alias\ndescription: Human.\n---\n\n# human-alias\n\nBody.\n",
+        encoding="utf-8",
+    )
+    c = catalog.Catalog.build([], "2026-10-10")
+    sc = catalog.SkillCatalog(tmp_path)
+    sc._retire_obsolete_aliases(c)
+    assert (tmp_path / "human-alias").exists()

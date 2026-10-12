@@ -454,3 +454,32 @@ class SkillCatalog:
 
     def _show_slow(self, out) -> int:  # stub — implemented in Task 5
         return 1
+
+    # -- Alias management ----------------------------------------------------
+
+    def _write_generated_aliases(self, catalog_obj: Catalog, today: str) -> None:
+        entry_by_name = {e.name: e for e in catalog_obj.entries}
+        for alias, canonical in catalog_obj.generated_aliases.items():
+            alias_dir = self.skills_root / alias
+            if alias_dir.exists() and not is_generated_alias(alias_dir):
+                raise HumanOwnedCollision(
+                    f"'{alias}' is a human-owned directory; cannot generate alias there"
+                )
+            entry = entry_by_name.get(canonical)
+            description = entry.description if entry else ""
+            _atomic_write(
+                alias_dir / "SKILL.md",
+                generate_alias_skill_md(alias, canonical, today, description),
+            )
+
+    def _retire_obsolete_aliases(self, catalog_obj: Catalog) -> None:
+        current = set(catalog_obj.generated_aliases.keys())
+        for child in sorted(self.skills_root.iterdir()):
+            if not child.is_dir() or child.name in current:
+                continue
+            if not is_generated_alias(child):
+                continue
+            unexpected = [f for f in child.iterdir() if f.name != "SKILL.md"]
+            if unexpected:
+                continue
+            shutil.rmtree(child)
