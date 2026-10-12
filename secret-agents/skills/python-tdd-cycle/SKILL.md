@@ -5,6 +5,8 @@ description: Use when implementing any new feature or fix in a Python project th
 
 # Python TDD Cycle
 
+**Category:** Testing · **Short:** tptc · **Updated:** 2026-10-10
+
 Use this skill for every implementation task in a pytest-based Python project.
 
 ## The Loop

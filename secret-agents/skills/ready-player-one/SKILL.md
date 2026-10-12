@@ -5,6 +5,8 @@ description: Use when the user invokes @skill ready-player-one (or /ready-player
 
 # ready-player-one
 
+**Category:** Preflight · **Short:** prpo · **Updated:** 2026-10-10 · **Aliases:** agent-preflight
+
 This skill is a shorthand alias for agent-preflight. (Ready Player One: are we ready to start? Run the preflight.)
 
 ## Behavior

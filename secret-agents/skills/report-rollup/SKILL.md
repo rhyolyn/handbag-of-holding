@@ -5,6 +5,8 @@ description: Use when rolling up status reports into a monthly report or an annu
 
 # Report Rollup
 
+**Category:** Reporting · **Short:** rrol · **Updated:** 2026-10-10
+
 Roll status reports up into a monthly summary or an annual performance-review document.
 
 ## Vault Layout

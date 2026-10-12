@@ -5,6 +5,8 @@ description: Use when model-routing.json may be stale, exact Codex or Claude mod
 
 # Update Model Routing
 
+**Category:** Maintenance · **Short:** mumr · **Updated:** 2026-10-10
+
 Verify and, only when needed, refresh the centralized `model-routing.json` reference. Model IDs
 are volatile; never assert them from memory. The deterministic checker decides staleness — you do
 not eyeball dates.

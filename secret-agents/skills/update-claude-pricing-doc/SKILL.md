@@ -5,6 +5,8 @@ description: Use when the user asks to refresh or update Claude API pricing, or 
 
 # Update Claude Pricing Doc Skill
 
+**Category:** Maintenance · **Short:** mucpd · **Updated:** 2026-10-10
+
 Refreshes the cached pricing file used by `report-receipt` so it can price sessions without loading the full claude-api skill bundle.
 
 **Do NOT invoke the `claude-api` skill for this — it loads a large reference bundle and floods context. Use WebFetch only.**

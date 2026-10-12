@@ -5,6 +5,8 @@ description: Use when establishing an architectural rule that must survive futur
 
 # Architecture Guards
 
+**Category:** Code Quality · **Short:** ccag · **Updated:** 2026-10-10 · **Aliases:** architecture-guards
+
 ## Overview
 
 An architectural rule that is not machine-checked does not exist across sessions. This skill holds per-ecosystem recipes for turning rules into checks.

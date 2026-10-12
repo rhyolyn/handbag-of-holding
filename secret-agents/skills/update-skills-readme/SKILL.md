@@ -5,6 +5,8 @@ description: Use when a skill under Agent/skills is added, removed, or edited, w
 
 # Update Skills README
 
+**Category:** Skill Management · **Short:** susr · **Updated:** 2026-10-10
+
 Keep `<skills root>\README.md` and `README.html` in sync with the skill set. The markdown is the source of truth; the HTML is rendered from it and never hand-edited.
 
 ## Paths & Model

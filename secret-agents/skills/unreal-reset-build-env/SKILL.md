@@ -5,6 +5,8 @@ description: Use when Unreal Engine builds, UGS builds, UBT/UAT/Build.bat/RunUAT
 
 # Reset Unreal Build Environment
 
+**Category:** Unreal · **Short:** urbe · **Updated:** 2026-10-10 · **Aliases:** reset-unreal-build-environment
+
 ## Overview
 
 Reset a Windows Unreal build shell before a fresh build. Prefer the bundled PowerShell helper because process trees, UBA workers, reusable MSBuild nodes, and Visual Studio environment variables are easy to miss by hand.

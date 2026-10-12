@@ -5,6 +5,8 @@ description: Use when building, validating, submitting, troubleshooting, or upda
 
 # UGS PCB Release
 
+**Category:** Unreal · **Short:** uur · **Updated:** 2026-10-10 · **Aliases:** ugs-pcb-release
+
 ## Canonical Runbook
 
 Read this first:

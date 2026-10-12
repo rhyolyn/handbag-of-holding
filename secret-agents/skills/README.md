@@ -69,7 +69,7 @@ Model column: pick the cheapest model that does the job — recommendations mark
 | [clean-code-error-handling](#clean-code-error-handling) | technique | none | Sonnet / medium | Design or refactor semantic error contracts without accidental behavior changes |
 | [jira-ht](#jira-ht) | alias | ticket-create arguments | Sonnet / medium | Short alias for creating human-developer Jira tickets |
 | [jira-human-ticket-create](#jira-human-ticket-create) | workflow | `help` or ticket details | Sonnet / medium | Create structured Jira tickets for human developers |
-| [python-quality-gate](#python-quality-gate) | gate | none | Haiku / low | mypy → ruff check → format check → pytest, all clean before commit |
+| [python-quality-gate](#python-quality-gate) | gate | none | Haiku / low | Repo-documented gate, else mypy → ruff → format check → pytest, all clean before commit |
 | [python-tdd-cycle](#python-tdd-cycle) | process | none | Sonnet / medium | Red-green loop with observed failure before implementation |
 | [ready-player-one](#ready-player-one) | alias | agent-preflight arguments | Haiku / o4-mini § | Fun alias for the agent-preflight check |
 | [report-receipt](#report-receipt) | generator | verbatim-text option | Sonnet § / low § | Work receipt with cost analysis and efficiency coaching |
@@ -181,7 +181,7 @@ Model column: pick the cheapest model that does the job — recommendations mark
 
 ### python-quality-gate
 
-**What it does.** Runs the four-tool gate in strict order — `mypy`, `ruff check`, `ruff format --check`, `pytest` — and requires all four to exit clean before any commit. Includes exact pass-criteria strings, a never-suppress policy (`# type: ignore` / `# noqa` need explicit user approval), and observed fix patterns for common mypy/ruff findings.
+**What it does.** Runs the repository's documented quality gate exactly as documented when one exists (repo AGENTS.md, CLAUDE.md, README, or CI config); otherwise runs the four-tool default in strict order — `mypy`, `ruff check`, `ruff format --check`, `pytest` — with source/test paths discovered from the repository layout. Includes exact pass-criteria strings (a zero-file mypy scan counts as failure), a never-suppress policy (`# type: ignore` / `# noqa` need explicit user approval), and a format-only-failure fast path (`ruff format`, then re-run the full gate). Repository-specific fix recipes stay in that repository's own AGENTS.md.
 
 **When to use.** Before committing any Python change; after every violation fix (re-run the full gate, not just the offending tool); as a final pre-PR check.
 
@@ -190,7 +190,7 @@ Model column: pick the cheapest model that does the job — recommendations mark
 **Examples.**
 - Claude: `Run @skill python-quality-gate before committing.` (also auto-triggers on Python commit intent)
 - Codex: `@skill python-quality-gate — run the gate and fix violations, no suppressions.`
-- Copilot: attach the SKILL.md → "Run these four commands in order and fix everything they flag."
+- Copilot: attach the SKILL.md → "Run the repository's documented gate — or these four commands in order — and fix everything they flag."
 
 **Architect's review.**
 - *Strengths:* Ordering (types → lint → format → tests) fails fast on the cheapest tools first. Exact expected output strings prevent "close enough" passes. The never-suppress policy with a surface-to-user escape hatch is the right default; the documented project fix patterns (B008 sentinel, `findChild` assertion) save real debugging time.
@@ -398,7 +398,7 @@ Discovery on this machine, verified 2026-07-12: Claude junction ✅ · Codex jun
 | agent-preflight | ✅ | ✅ | ⚠️ | Codex checks defined; Copilot sections are placeholders |
 | clean-code-architecture-guards | ✅ | ✅ | 📎 | Content fully portable |
 | clean-code-error-handling | ✅ | ✅ | 📎 | Language-agnostic design and refactoring workflow |
-| python-quality-gate | ✅ | ✅ | 📎 | Carries ugs-project baggage |
+| python-quality-gate | ✅ | ✅ | 📎 | Content fully portable |
 | python-tdd-cycle | ✅ ⚠️ | ✅ | 📎 | ⚠️ unstated overlap with superpowers TDD on Claude |
 | ready-player-one | ✅ | ✅ | 📎 | Alias → agent-preflight |
 | report-receipt | ✅ | ✅ | ⚠️ | Copilot: model rec only, no cost recipe |

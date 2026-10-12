@@ -5,6 +5,8 @@ description: Use when creating or revising an implementation plan that may span 
 
 # Smart Plan
 
+**Category:** Agent Workflow · **Short:** ap · **Updated:** 2026-10-10
+
 Produce an execution plan another agent can resume without conversation history. Route each task to the least expensive capable model, batch work by shared context, and make progress durable in the plan itself.
 
 ## Workflow

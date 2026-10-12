@@ -140,7 +140,7 @@
 <td>gate</td>
 <td>none</td>
 <td>Haiku / low</td>
-<td>mypy → ruff check → format check → pytest, all clean before commit</td>
+<td>Repo-documented gate, else mypy → ruff → format check → pytest, all clean before commit</td>
 </tr>
 <tr>
 <td><a href="#python-tdd-cycle">python-tdd-cycle</a></td>
@@ -284,13 +284,13 @@
 <p>Review pending — rerun with "review".</p>
 </blockquote>
 <h3 id="python-quality-gate">python-quality-gate</h3>
-<p><strong>What it does.</strong> Runs the four-tool gate in strict order — <code>mypy</code>, <code>ruff check</code>, <code>ruff format --check</code>, <code>pytest</code> — and requires all four to exit clean before any commit. Includes exact pass-criteria strings, a never-suppress policy (<code># type: ignore</code> / <code># noqa</code> need explicit user approval), and observed fix patterns for common mypy/ruff findings.</p>
+<p><strong>What it does.</strong> Runs the repository's documented quality gate exactly as documented when one exists (repo AGENTS.md, CLAUDE.md, README, or CI config); otherwise runs the four-tool default in strict order — <code>mypy</code>, <code>ruff check</code>, <code>ruff format --check</code>, <code>pytest</code> — with source/test paths discovered from the repository layout. Includes exact pass-criteria strings (a zero-file mypy scan counts as failure), a never-suppress policy (<code># type: ignore</code> / <code># noqa</code> need explicit user approval), and a format-only-failure fast path (<code>ruff format</code>, then re-run the full gate). Repository-specific fix recipes stay in that repository's own AGENTS.md.</p>
 <p><strong>When to use.</strong> Before committing any Python change; after every violation fix (re-run the full gate, not just the offending tool); as a final pre-PR check.</p>
 <p><strong>Parameters.</strong> None. Substitute <code>uv run</code> for <code>python -m</code> when uv is healthy.</p>
 <p><strong>Examples.</strong>
 - Claude: <code>Run @skill python-quality-gate before committing.</code> (also auto-triggers on Python commit intent)
 - Codex: <code>@skill python-quality-gate — run the gate and fix violations, no suppressions.</code>
-- Copilot: attach the SKILL.md → "Run these four commands in order and fix everything they flag."</p>
+- Copilot: attach the SKILL.md → "Run the repository's documented gate — or these four commands in order — and fix everything they flag."</p>
 <p><strong>Architect's review.</strong>
 - <em>Strengths:</em> Ordering (types → lint → format → tests) fails fast on the cheapest tools first. Exact expected output strings prevent "close enough" passes. The never-suppress policy with a surface-to-user escape hatch is the right default; the documented project fix patterns (B008 sentinel, <code>findChild</code> assertion) save real debugging time.
 - <em>Weaknesses:</em> Hard-codes the <code>src/ tests/</code> layout, and the <code>ugs.exe</code> lock advice is project baggage in a shared skill — AGENTS.md's own admission test says repo-specific conventions belong in that repo's AGENTS.md. No mention of the write-mode <code>ruff format</code> fast path (fix then verify with <code>--check</code>). Assumes mypy is configured; silent no-op if a repo lacks <code>[tool.mypy]</code>.
@@ -512,7 +512,7 @@
 <td>✅</td>
 <td>✅</td>
 <td>📎</td>
-<td>Carries ugs-project baggage</td>
+<td>Content fully portable</td>
 </tr>
 <tr>
 <td>python-tdd-cycle</td>

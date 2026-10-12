@@ -5,6 +5,8 @@ description: Use when designing or changing error handling, or when a repository
 
 # Clean Code: Error Handling
 
+**Category:** Code Quality · **Short:** cceh · **Updated:** 2026-10-10
+
 ## Overview
 
 Turn ad hoc failures into a small, semantic error model without changing public behavior accidentally. Error identity represents a condition a consumer can act on; prose alone never earns a type.

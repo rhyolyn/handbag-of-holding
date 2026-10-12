@@ -5,6 +5,8 @@ description: Use when generating a Tue/Thu status report from work receipts, whe
 
 # Status Report Create
 
+**Category:** Reporting · **Short:** rs · **Updated:** 2026-10-10 · **Aliases:** status-report-create
+
 Generate one status report covering a Tue/Thu reporting window from work receipts. Runs headless on a schedule or on demand.
 
 ## Vault Layout

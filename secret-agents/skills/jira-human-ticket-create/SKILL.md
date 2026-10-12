@@ -5,6 +5,8 @@ description: Use when creating Jira tickets intended for human developers, espec
 
 # Jira Human Ticket Create
 
+**Category:** Jira · **Short:** jhtc · **Updated:** 2026-10-10 · **Aliases:** jira-ht
+
 Create Jira issues for human developers using a consistent intake structure, minimal clarifying questions, and safe defaults.
 
 ## Invocation Pattern
