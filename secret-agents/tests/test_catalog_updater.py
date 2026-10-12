@@ -356,3 +356,82 @@ def test_retire_obsolete_aliases_preserves_human_owned(tmp_path: Path) -> None:
     sc = catalog.SkillCatalog(tmp_path)
     sc._retire_obsolete_aliases(c)
     assert (tmp_path / "human-alias").exists()
+
+
+def test_validate_rejects_duplicate_shorthands() -> None:
+    import pytest
+    # tsab is valid for both skill-a (initials: s,a) and skill-b (initials: s,b)
+    entries = [
+        catalog.CanonicalEntry("skill-a", "Skill A", "A.", "Testing", "tsab", (), "2026-10-10", "h1", "h2"),
+        catalog.CanonicalEntry("skill-b", "Skill B", "B.", "Testing", "tsab", (), "2026-10-10", "h3", "h4"),
+    ]
+    c = catalog.Catalog.build(entries, "2026-10-10")
+    with pytest.raises(catalog.DuplicateName):
+        c.validate()
+
+
+def test_validate_rejects_shorthand_without_category_prefix() -> None:
+    import pytest
+    entries = [
+        catalog.CanonicalEntry(
+            "run-unit-tests", "Run Unit Tests", "R.", "Testing", "rut", (), "2026-10-10", "h1", "h2"
+        ),
+    ]
+    # "rut" starts with "r" (Reporting prefix) not "t" (Testing prefix)
+    c = catalog.Catalog(1, "2026-10-10", tuple(entries), {"rut": "run-unit-tests"})
+    with pytest.raises(catalog.InvalidShorthand):
+        c.validate()
+
+
+def test_validate_rejects_empty_entries() -> None:
+    import pytest
+    c = catalog.Catalog.build([], "2026-10-10")
+    with pytest.raises(catalog.EmptyScan):
+        c.validate()
+
+
+def _make_skill_tree(tmp_path: Path) -> None:
+    skill_dir = tmp_path / "run-unit-tests"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        _skill_text("run-unit-tests", "Testing", "trut", aliases="rut"),
+        encoding="utf-8",
+    )
+
+
+def test_update_creates_catalog_and_toc(tmp_path: Path) -> None:
+    import io
+    _make_skill_tree(tmp_path)
+    sc = catalog.SkillCatalog(tmp_path, cache_path=tmp_path / "cache.json")
+    assert sc.update(out=io.StringIO()) == 0
+    assert (tmp_path / catalog.CATALOG_FILENAME).is_file()
+    assert (tmp_path / catalog.TOC_FILENAME).is_file()
+
+
+def test_check_returns_nonzero_on_stale_toc(tmp_path: Path) -> None:
+    import io
+    _make_skill_tree(tmp_path)
+    sc = catalog.SkillCatalog(tmp_path, cache_path=tmp_path / "cache.json")
+    sc.update(out=io.StringIO())
+    (tmp_path / catalog.TOC_FILENAME).write_text("stale\n", encoding="utf-8")
+    assert sc.check(out=io.StringIO()) != 0
+
+
+def test_show_warm_cache_reads_no_skill_bodies(tmp_path: Path) -> None:
+    import io, unittest.mock
+    _make_skill_tree(tmp_path)
+    sc = catalog.SkillCatalog(tmp_path, cache_path=tmp_path / "cache.json")
+    sc.update(out=io.StringIO())
+
+    read_calls: list[str] = []
+    original = Path.read_text
+
+    def spy(self: Path, **kwargs):  # type: ignore[no-untyped-def]
+        if self.name == "SKILL.md":
+            read_calls.append(str(self))
+        return original(self, **kwargs)
+
+    with unittest.mock.patch.object(Path, "read_text", spy):
+        sc.show(out=io.StringIO())
+
+    assert read_calls == []

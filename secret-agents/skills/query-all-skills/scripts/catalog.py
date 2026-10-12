@@ -18,6 +18,7 @@ import sys
 import tempfile
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import IO, Any
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -272,7 +273,7 @@ class StatCache:
     entries: dict[str, StatEntry]  # "skill-name/SKILL.md" -> stat
 
     @classmethod
-    def _from_dict(cls, data: dict, skills_root: Path) -> StatCache | None:
+    def _from_dict(cls, data: dict[str, Any], skills_root: Path) -> StatCache | None:
         if data.get("schema_version") != CACHE_SCHEMA_VERSION:
             return None
         if data.get("agent_root") != str(skills_root):
@@ -333,12 +334,14 @@ class Catalog:
         )
 
     @classmethod
-    def _from_dict(cls, data: dict) -> Catalog | None:
+    def _from_dict(cls, data: dict[str, Any]) -> Catalog | None:
         if data.get("schema_version") != SCHEMA_VERSION:
             return None
+        raw_entries = data.get("entries", [])
+        assert isinstance(raw_entries, list)
         entries = tuple(
-            CanonicalEntry(**{k: tuple(v) if isinstance(v, list) else v for k, v in e.items()})
-            for e in data.get("entries", [])
+            CanonicalEntry(**{k: tuple(v) if isinstance(v, list) else v for k, v in e.items()})  # type: ignore[arg-type]
+            for e in raw_entries
         )
         return cls(
             schema_version=data["schema_version"],
@@ -382,6 +385,57 @@ class Catalog:
             if cat_entries:
                 lines.extend(self._render_category_lines(cat, cat_entries))
         return "\n".join(lines) + "\n"
+
+    @staticmethod
+    def _check_shorthand(entry: CanonicalEntry) -> None:
+        prefix = CATEGORIES[entry.category]
+        initials = "".join(w[0] for w in entry.name.split("-") if w)
+        if not entry.shorthand.startswith(prefix):
+            raise InvalidShorthand(
+                f"{entry.name}: shorthand '{entry.shorthand}' must start with '{prefix}'"
+            )
+        if not all(c in entry.shorthand for c in initials):
+            raise InvalidShorthand(
+                f"{entry.name}: shorthand '{entry.shorthand}' must contain initials '{initials}'"
+            )
+
+    @staticmethod
+    def _register_aliases(
+        entry: CanonicalEntry, seen_aliases: set[str], seen_names: set[str]
+    ) -> None:
+        for alias in entry.aliases:
+            if alias in seen_aliases or alias in seen_names:
+                raise DuplicateName(f"Duplicate alias: {alias}")
+            if alias == entry.name:
+                raise CatalogError(f"Alias '{alias}' equals canonical name")
+            seen_aliases.add(alias)
+
+    @staticmethod
+    def _check_entry(
+        entry: CanonicalEntry,
+        seen_names: set[str],
+        seen_shorthands: set[str],
+        seen_aliases: set[str],
+    ) -> None:
+        if entry.name in seen_names:
+            raise DuplicateName(f"Duplicate canonical name: {entry.name}")
+        seen_names.add(entry.name)
+        if entry.category not in CATEGORIES:
+            raise UnknownCategory(f"{entry.name}: unknown category '{entry.category}'")
+        Catalog._check_shorthand(entry)
+        if entry.shorthand in seen_shorthands:
+            raise DuplicateName(f"Duplicate shorthand: {entry.shorthand}")
+        seen_shorthands.add(entry.shorthand)
+        Catalog._register_aliases(entry, seen_aliases, seen_names)
+
+    def validate(self) -> None:
+        if not self.entries:
+            raise EmptyScan("Catalog has zero canonical entries")
+        seen_names: set[str] = set()
+        seen_shorthands: set[str] = set()
+        seen_aliases: set[str] = set()
+        for entry in self.entries:
+            self._check_entry(entry, seen_names, seen_shorthands, seen_aliases)
 
 
 # ---------------------------------------------------------------------------
@@ -432,7 +486,7 @@ class SkillCatalog:
 
     # -- CLI commands --------------------------------------------------------
 
-    def show(self, out=None) -> int:
+    def show(self, out: IO[str] | None = None) -> int:
         """Fast refresh + print TOC. Reads no SKILL.md bodies on a warm cache."""
         if out is None:
             out = sys.stdout
@@ -452,7 +506,118 @@ class SkillCatalog:
         out.write(toc_path.read_text(encoding="utf-8"))
         return 0
 
-    def _show_slow(self, out) -> int:  # stub — implemented in Task 5
+    # -- Full refresh --------------------------------------------------------
+
+    def _resolve_entry(
+        self, skill_dir: Path, today: str, prev_by_name: dict[str, CanonicalEntry]
+    ) -> CanonicalEntry:
+        entry = CanonicalEntry.from_dir(skill_dir, today)
+        prev = prev_by_name.get(entry.name)
+        return (
+            entry.with_updated(prev.updated)
+            if prev and entry.semantic_hash == prev.semantic_hash
+            else entry
+        )
+
+    def _full_refresh(self) -> tuple[Catalog, str]:
+        from datetime import date as _date
+        today = _date.today().isoformat()
+
+        prev_catalog = Catalog.load(self.skills_root / CATALOG_FILENAME)
+        prev_by_name = {e.name: e for e in prev_catalog.entries} if prev_catalog else {}
+
+        entries = [
+            self._resolve_entry(d, today, prev_by_name)
+            for d in self._scan_canonical_dirs()
+        ]
+        new_catalog = Catalog.build(entries, today)
+        new_catalog.validate()
+        return new_catalog, new_catalog.render_toc()
+
+    def _update_stat_cache(self, catalog_obj: Catalog) -> None:
+        catalog_path = self.skills_root / CATALOG_FILENAME
+        skill_dirs = self._scan_canonical_dirs()
+        StatCache(
+            schema_version=CACHE_SCHEMA_VERSION,
+            agent_root=str(self.skills_root),
+            catalog_hash=compute_content_hash(catalog_path.read_text(encoding="utf-8")),
+            entries={f"{d.name}/SKILL.md": StatEntry.from_path(d) for d in skill_dirs},
+        ).save(self.cache_path)
+
+    def _publish(self, new_catalog: Catalog, toc_text: str) -> None:
+        """Write aliases first, then catalog + TOC last (atomic sequence)."""
+        self._write_generated_aliases(new_catalog, new_catalog.generated)
+        self._retire_obsolete_aliases(new_catalog)
+        new_catalog.save(self.skills_root / CATALOG_FILENAME)
+        _atomic_write(self.skills_root / TOC_FILENAME, toc_text)
+
+    def _show_slow(self, out: IO[str]) -> int:
+        try:
+            new_catalog, toc_text = self._full_refresh()
+        except CatalogError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        self._publish(new_catalog, toc_text)
+        self._update_stat_cache(new_catalog)
+        out.write(toc_text)
+        return 0
+
+    # -- Public CLI commands -------------------------------------------------
+
+    def update(self, out: IO[str] | None = None) -> int:
+        if out is None:
+            out = sys.stdout
+        try:
+            new_catalog, toc_text = self._full_refresh()
+        except CatalogError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        self._publish(new_catalog, toc_text)
+        self._update_stat_cache(new_catalog)
+        out.write(toc_text)
+        return 0
+
+    def _catalog_issue(self, catalog_path: Path, new_catalog: Catalog) -> str | None:
+        if not catalog_path.is_file():
+            return "catalog.json is missing"
+        actual = json.loads(catalog_path.read_text(encoding="utf-8"))
+        expected = {
+            "schema_version": new_catalog.schema_version,
+            "generated": new_catalog.generated,
+            "entries": [dataclasses.asdict(e) for e in new_catalog.entries],
+            "generated_aliases": new_catalog.generated_aliases,
+        }
+        return "catalog.json is stale" if actual != expected else None
+
+    def _toc_issue(self, toc_path: Path, expected_toc: str) -> str | None:
+        if not toc_path.is_file():
+            return "TOC.md is missing"
+        return "TOC.md is stale" if toc_path.read_text(encoding="utf-8") != expected_toc else None
+
+    def _alias_issue(self, alias: str) -> str | None:
+        alias_dir = self.skills_root / alias
+        if not (alias_dir / "SKILL.md").is_file():
+            return f"Generated alias '{alias}' is missing"
+        return None if is_generated_alias(alias_dir) else f"'{alias}' exists but lacks the generated marker"
+
+    def check(self, out: IO[str] | None = None) -> int:
+        if out is None:
+            out = sys.stdout
+        try:
+            new_catalog, expected_toc = self._full_refresh()
+        except CatalogError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        issues = [
+            self._catalog_issue(self.skills_root / CATALOG_FILENAME, new_catalog),
+            self._toc_issue(self.skills_root / TOC_FILENAME, expected_toc),
+            *[self._alias_issue(a) for a in new_catalog.generated_aliases],
+        ]
+        real_issues = [i for i in issues if i is not None]
+        if not real_issues:
+            out.write("ok: catalog is current\n")
+            return 0
+        print("\n".join(f"drift: {i}" for i in real_issues), file=sys.stderr)
         return 1
 
     # -- Alias management ----------------------------------------------------
@@ -483,3 +648,37 @@ class SkillCatalog:
             if unexpected:
                 continue
             shutil.rmtree(child)
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+
+def _default_skills_root() -> Path:
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def main() -> int:
+    parser = ArgumentParser(
+        description="SkillCatalog — validate and refresh secret-agents/skills"
+    )
+    parser.add_argument(
+        "command", choices=["show", "update", "check"],
+        help="show: fast refresh + print TOC; update: force full refresh; check: detect drift",
+    )
+    parser.add_argument("--skills-root", type=Path, default=None)
+    args = parser.parse_args()
+    skills_root: Path = args.skills_root or _default_skills_root()
+    sc = SkillCatalog(skills_root)
+    if args.command == "show":
+        return sc.show()
+    if args.command == "update":
+        return sc.update()
+    if args.command == "check":
+        return sc.check()
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

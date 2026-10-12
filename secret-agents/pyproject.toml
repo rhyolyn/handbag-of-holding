@@ -21,7 +21,7 @@ pythonpath = ["src"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src", "tests", "skills/update-model-routing/scripts"]
+files = ["src", "tests", "skills/update-model-routing/scripts", "skills/query-all-skills/scripts"]
 
 [tool.ruff]
 target-version = "py311"
