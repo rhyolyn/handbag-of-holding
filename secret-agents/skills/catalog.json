@@ -152,8 +152,8 @@
       "shorthand": "sis",
       "aliases": [],
       "updated": "2026-10-10",
-      "semantic_hash": "4e14cc028530e513969d03b9586128b645104effa04f13f0a0e2db99d1f9b10f",
-      "content_hash": "8beebaad42991aac37275b36e3c07fbae24cf53e544dd3061df059eef248db1e"
+      "semantic_hash": "b8ac9087fcd1e5496ffde5ea5e89c22ba840676a2f70c1a30bbbeee41606e581",
+      "content_hash": "3a880623e58181abb2eb58e84b0d925a1c9a75ca4183e25d5d38fb270fad90c7"
     },
     {
       "name": "update-skills-readme",

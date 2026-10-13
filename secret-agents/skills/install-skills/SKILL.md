@@ -15,11 +15,11 @@ Install agent skills into harness discovery locations. Creates a junction (Windo
 
 | Argument | Effect |
 |---|---|
-| *(none)* | Install all skills for the default harness (claude). |
+| *(none)* | Install all skills into all harness directories. |
 | `--all` | Explicitly install all skills (same as no argument). |
 | `<canonical-or-alias> ...` | Install only the named skills. Aliases resolve to their canonical target. |
-| `--harness <harness>` | Target harness: `claude`, `codex`, `copilot`, or `all`. Default: `claude`. |
-| `--target <directory>` | Install into a specific directory instead of the harness default. |
+| `--harness <harness>` | Target harness: `claude`, `codex`, `copilot`, or `all`. Default: `all`. |
+| `--target <directory>` | Install into a specific directory. Mutually exclusive with `--harness`. |
 | `--update` | Run catalog update first, then install new or missing links. Safe to run repeatedly. |
 | `--help` | Print the usage below and stop. Do not install anything. |
 
@@ -28,24 +28,24 @@ Install agent skills into harness discovery locations. Creates a junction (Windo
 When invoked with `--help`, respond with exactly this usage block and do nothing else:
 
 ```
-install-skills — install agent skills as links into harness discovery locations
+install-skills — install agent skills as discoverable links
 
 Usage:
-  /install-skills                         Install all skills for the claude harness
-  /install-skills --all                   Same as above
-  /install-skills run-unit-tests          Install only the named skill(s)
-  /install-skills --harness codex         Install for the codex harness
-  /install-skills --harness all           Install for all known harnesses
-  /install-skills --target <dir>          Install into a specific directory
-  /install-skills --update                Refresh catalog then install new/missing skills
-  /install-skills --help                  Show this help
+  /install-skills                           Install all skills (harness: all)
+  /install-skills --all                     Same as above
+  /install-skills run-unit-tests rut        Install only the named skills (and their aliases)
+  /install-skills --update                  Refresh catalog, then install all
+  /install-skills --harness claude          Install into claude harness directory
+  /install-skills --harness all             Install into all harness directories (default)
+  /install-skills --target <dir>            Install into an explicit directory
+  /install-skills --help                    Show this help
 
 Behavior:
-  - Reads catalog.json to enumerate canonical skills and their aliases
+  - Resolves aliases to canonical skills automatically
   - Creates a junction (Windows) or symlink (Mac/Linux) in the target directory
-  - Create-only: never removes or overwrites existing links
-  - A conflict (existing path that is not a correct link) aborts before any mutation
-  - --update runs catalog update first so new skills are picked up
+  - Create-only: never overwrites an existing link pointing elsewhere
+  - Missing named skills abort before any mutation
+  - --target and --harness are mutually exclusive
   - Reports created and already-correct links; does NOT commit anything
 ```
 
@@ -75,7 +75,9 @@ Read `$SKILLS_ROOT/catalog.json`. Build the install set:
 - No args or `--all`: every canonical entry plus its generated aliases.
 - Named args: resolve each name (canonical name or alias) to its canonical skill directory. Report any name not found in the catalog and continue with the rest.
 
-Determine the target directory from `--harness` / `--target`:
+Determine the target directory from `--harness` / `--target`. `--harness` and `--target` are mutually exclusive; if both are given, abort with an error.
+
+Default harness is `all` — installs into every known harness directory.
 
 | Harness | Default target (Windows) | Default target (Mac/Linux) |
 |---------|--------------------------|----------------------------|
@@ -83,7 +85,7 @@ Determine the target directory from `--harness` / `--target`:
 | codex | `%USERPROFILE%\.codex\skills` | `~/.codex/skills` |
 | copilot | `%USERPROFILE%\.copilot\skills` | `~/.copilot/skills` |
 
-`--target <dir>` overrides the harness default.
+`--target <dir>` installs into that specific directory (all harnesses, one path).
 
 ### Step 3 — Validate destinations before any mutation
 
