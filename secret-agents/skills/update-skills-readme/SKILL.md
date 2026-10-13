@@ -22,7 +22,16 @@ Keep `<skills root>\README.md` and `README.html` in sync with the skill set. The
 
 ## Steps
 
-1. **Inventory.** Every directory under the skills root containing a `SKILL.md`. Read each skill's frontmatter; read full bodies for skills that are new or changed since the README's generated date (all of them under `review`).
+### Step 0 — Refresh the catalog
+
+```bash
+SKILL_DIR="<directory containing this SKILL.md>"
+python3 "$SKILL_DIR/../query-all-skills/scripts/catalog.py" update --skills-root "$SKILL_DIR/.."
+```
+
+If the command exits non-zero, print the error and stop.
+
+1. **Inventory.** Every directory under the skills root containing a `SKILL.md`. Read `catalog.json` for the authoritative list of canonical skills; directories with a `<!-- generated: -->` marker are generated aliases and do not receive independent `### <name>` README sections — skip them. Read each canonical skill's frontmatter; read full bodies for skills that are new or changed since the README's generated date (all of them under `review`).
 2. **Regenerate README.md** keeping its section contract: intro with generated date, Table of Contents, "How skills are wired and invoked", "Skill inventory" table, one `### <skill-name>` section per skill (What it does / When to use / Parameters / Examples for Claude, Codex, and Copilot / Architect's review), "Architect's overview" (harness coverage matrix, skill gaps, token-costly mistakes), "Maintaining this document".
    - Without `review`: copy each existing **Architect's review.** block unchanged; a skill with no existing review gets `> Review pending — rerun with "review".`
    - Verify factual claims (paths, wiring, file existence) with checks before asserting them; never carry a claim forward untested under `review`.

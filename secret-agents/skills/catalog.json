@@ -163,8 +163,8 @@
       "shorthand": "susr",
       "aliases": [],
       "updated": "2026-10-10",
-      "semantic_hash": "9f4da6a08cd18af3a6c56e083c9add97498ff4f841c99038165574ddeca64991",
-      "content_hash": "2e3df616170b99c55f155dc480259090f452efdab572cd64c3a0516856af3ae6"
+      "semantic_hash": "eac85bdefc9ee164d2b84dd7e665e3443b940d326c008197e990c53f2d272825",
+      "content_hash": "3d0a71c849d9db616ae27717dbcc0ed110ba14d4a2c9ec3127872dbaefae35ab"
     },
     {
       "name": "python-tdd-cycle",
