@@ -580,14 +580,17 @@ class SkillCatalog:
     def _catalog_issue(self, catalog_path: Path, new_catalog: Catalog) -> str | None:
         if not catalog_path.is_file():
             return "catalog.json is missing"
-        actual = json.loads(catalog_path.read_text(encoding="utf-8"))
-        expected = {
-            "schema_version": new_catalog.schema_version,
-            "generated": new_catalog.generated,
-            "entries": [dataclasses.asdict(e) for e in new_catalog.entries],
-            "generated_aliases": new_catalog.generated_aliases,
-        }
-        return "catalog.json is stale" if actual != expected else None
+        actual_text = catalog_path.read_text(encoding="utf-8")
+        expected_text = json.dumps(
+            {
+                "schema_version": new_catalog.schema_version,
+                "generated": new_catalog.generated,
+                "entries": [dataclasses.asdict(e) for e in new_catalog.entries],
+                "generated_aliases": new_catalog.generated_aliases,
+            },
+            indent=2,
+        )
+        return "catalog.json is stale" if actual_text != expected_text else None
 
     def _toc_issue(self, toc_path: Path, expected_toc: str) -> str | None:
         if not toc_path.is_file():
