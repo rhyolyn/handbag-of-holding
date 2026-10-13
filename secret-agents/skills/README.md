@@ -2,7 +2,7 @@
 
 The shared, harness-portable skill set for this vault. Each skill is one directory under `<agent-root>\skills\` with a top-level `SKILL.md` following the open Agent Skills structure; harnesses discover them through junctions, never copies (see `runbooks\harness-setup\harness-setup.md`). This README explains how and when to use each skill, how to call it from Claude, Codex, and Copilot, and gives an engineering review of each — plus a cross-cutting look at harness coverage, gaps, and token-costly mistakes.
 
-*Generated 2026-08-29 by `update-skills-readme`. Markdown is the source of truth; `README.html` is rendered from it — regenerate with `/update-skills-readme`, don't hand-edit the HTML.*
+*Generated 2026-10-12 by `update-skills-readme`. Markdown is the source of truth; `README.html` is rendered from it — regenerate with `/update-skills-readme`, don't hand-edit the HTML. For a categorized shorthand listing see [`TOC.md`](TOC.md).*
 
 ## Table of Contents
 
@@ -10,17 +10,19 @@ The shared, harness-portable skill set for this vault. Each skill is one directo
 - [Skill inventory](#skill-inventory)
 - Skills
   - [agent-plan](#agent-plan)
-  - [agent-preflight](#agent-preflight)
   - [clean-code-architecture-guards](#clean-code-architecture-guards)
   - [clean-code-error-handling](#clean-code-error-handling)
-  - [jira-ht](#jira-ht)
+  - [install-skills](#install-skills)
   - [jira-human-ticket-create](#jira-human-ticket-create)
   - [python-quality-gate](#python-quality-gate)
   - [python-tdd-cycle](#python-tdd-cycle)
+  - [query-all-skills](#query-all-skills)
   - [ready-player-one](#ready-player-one)
   - [report-receipt](#report-receipt)
   - [report-rollup](#report-rollup)
   - [report-status](#report-status)
+  - [run-mac-coverage](#run-mac-coverage)
+  - [run-unit-tests](#run-unit-tests)
   - [unreal-reset-build-env](#unreal-reset-build-env)
   - [unreal-ugs-release](#unreal-ugs-release)
   - [update-claude-pricing-doc](#update-claude-pricing-doc)
@@ -64,17 +66,19 @@ Model column: pick the cheapest model that does the job — recommendations mark
 | Skill | Kind | Parameters | Model (Claude / Codex) | One-liner |
 |---|---|---|---|---|
 | [agent-plan](#agent-plan) | planning workflow | none | Sonnet / medium | Make resumable, model-routed execution plans |
-| [agent-preflight](#agent-preflight) | preflight | none (auto-detects) | Haiku / o4-mini § | Binary ready/NOT-READY check before batched prompts |
 | [clean-code-architecture-guards](#clean-code-architecture-guards) | reference | none | Sonnet / medium | Turn architecture rules into CI-enforced checks |
 | [clean-code-error-handling](#clean-code-error-handling) | technique | none | Sonnet / medium | Design or refactor semantic error contracts without accidental behavior changes |
-| [jira-ht](#jira-ht) | alias | ticket-create arguments | Sonnet / medium | Short alias for creating human-developer Jira tickets |
+| [install-skills](#install-skills) | installer | `--all\|<name>`, `--harness`, `--target`, `--update` | Haiku / low | Install skills as junctions/symlinks into harness discovery directories |
 | [jira-human-ticket-create](#jira-human-ticket-create) | workflow | `help` or ticket details | Sonnet / medium | Create structured Jira tickets for human developers |
 | [python-quality-gate](#python-quality-gate) | gate | none | Haiku / low | Repo-documented gate, else mypy → ruff → format check → pytest, all clean before commit |
 | [python-tdd-cycle](#python-tdd-cycle) | process | none | Sonnet / medium | Red-green loop with observed failure before implementation |
-| [ready-player-one](#ready-player-one) | alias | agent-preflight arguments | Haiku / o4-mini § | Fun alias for the agent-preflight check |
+| [query-all-skills](#query-all-skills) | discovery | none | Haiku / low | List all canonical skills with shorthands grouped by category |
+| [ready-player-one](#ready-player-one) | preflight | none (auto-detects) | Haiku / o4-mini § | Binary ready/NOT READY check before batched prompts |
 | [report-receipt](#report-receipt) | generator | verbatim-text option | Sonnet § / low § | Work receipt with cost analysis and efficiency coaching |
 | [report-rollup](#report-rollup) | generator | `month YYYY-MM` \| `year YYYY` (required) | Sonnet / medium | Roll status reports into monthly or annual documents |
 | [report-status](#report-status) | generator | `window <start>..<end>` (optional) | Sonnet / medium | Tue/Thu status report compiled from work receipts |
+| [run-mac-coverage](#run-mac-coverage) | pipeline | `--target`, `--package`, `--help` | Haiku / low | Run Scout Mac LLVM coverage pipeline and verify all four report types |
+| [run-unit-tests](#run-unit-tests) | gate | `--target`, `--fix`, `--help` | Haiku / low | Set up .venv, install deps, run pytest + pre-commit; `--fix` repairs violations |
 | [unreal-reset-build-env](#unreal-reset-build-env) | script wrapper | script flags (see section) | Haiku / low | Stop Unreal build processes and clean shell env on Windows |
 | [unreal-ugs-release](#unreal-ugs-release) | domain workflow | profile overrides | Opus+ / high | Build, validate, and submit UGS precompiled editor binaries |
 | [update-claude-pricing-doc](#update-claude-pricing-doc) | utility | none | Haiku § / — | Refresh the cached Claude pricing JSON |
@@ -97,24 +101,6 @@ Model column: pick the cheapest model that does the job — recommendations mark
 - Copilot: attach `Agent\skills\agent-plan\SKILL.md` → "Create a durable, batch-oriented execution plan."
 
 > Review pending — rerun with "review".
-
-### agent-preflight
-
-**What it does.** Pre-flight environment check before executing a batched prompt: detects harness (claude/codex/copilot) and OS, reports the active model against a cost-optimal recommendation, then runs three gates — skill visibility, execution trust (permission mode / project trust), and uv health + no locked build executables. Binary outcome: `ready` or `NOT READY` with a numbered, OS- and harness-specific remediation list. Strict output contract (blocks reproduced exactly) so headless logs are diffable.
-
-**When to use.** Before handing any batched prompt or long autonomous task to a model — it front-loads the failures that would otherwise stall an unattended run.
-
-**Parameters.** None; harness, OS, and model are auto-detected. Check 3b derives the project executable name from the working directory — override manually when the artifact name differs.
-
-**Examples.**
-- Claude: `/agent-preflight` (then paste the batched prompt once it prints `ready`)
-- Codex: `@skill agent-preflight — preflight before this batch.`
-- Copilot: attach the SKILL.md → "Run this preflight and print the summary block."
-
-**Architect's review.**
-- *Strengths:* The strict output contract is the standout design decision — deterministic, diffable, no model editorializing. Remediation is specific (exact file, exact key, exact command) per OS *and* harness. The model-recommendation step is cost-awareness built into the process. Placeholders for unknown Copilot mechanics are honest rather than invented.
-- *Weaknesses:* Field-tested 2026-07-12 and two cracks showed. (1) Check 2 demands the literal key in both project and global settings, but Claude settings inherit — global `dontAsk` with no project file is effectively `dontAsk`, yet the check fails; worse, the auto-mode classifier *denies agents writing that key* (self-escalation guard), so the skill prescribes a remediation an agent cannot perform and then forbids proceeding: an autonomous dead-end. (2) The "restart on haiku" advice is wrong when the preflight runs inline before a complex batch in the same session — a restart would throw away the correctly-chosen model. Also: the uv check runs even in repos where uv is irrelevant, and the dir-name exe heuristic is a permanent no-op in non-build repos (`worky.exe` will never exist).
-- *Improvements:* Test effective permission mode (project value *or* inherited global) instead of file literals, and mark Check-2 remediation "human-only: classifier blocks agent self-service." Scope the model warning to standalone checklist runs. Gate Check 3 on project type (presence of `pyproject.toml`/`uv.lock`; build-artifact check only where a build exists). Fill the Copilot placeholders when the adapter lands.
 
 ### clean-code-architecture-guards
 
@@ -149,18 +135,28 @@ Model column: pick the cheapest model that does the job — recommendations mark
 
 > Review pending — rerun with "review".
 
-### jira-ht
+### install-skills
 
-**What it does.** Provides a short alias for the jira-human-ticket-create workflow, forwarding every argument to that canonical skill.
+**What it does.** Installs agent skills into harness discovery locations by creating directory junctions (Windows) or symlinks (Mac/Linux) from the target directory into the canonical skill directories. Resolves canonical skill names and their generated aliases from `catalog.json`; never copies files. Validates all destinations before any mutation — aborting on conflict — and reports created and already-correct links.
 
-**When to use.** When a requester invokes `@skill jira-ht` to create a Jira ticket for a human developer.
+**When to use.** When setting up a new machine, adding a new harness, or after skills have been added or removed. Use `--update` to refresh the catalog before installing. Safe to run repeatedly (create-only; existing correct links are left untouched).
 
-**Parameters.** The same arguments accepted by jira-human-ticket-create.
+**Parameters.**
+
+| Argument | Effect |
+|---|---|
+| *(none)* | Install all skills into all harness directories |
+| `--all` | Explicitly install all (same as no argument) |
+| `<canonical-or-alias> ...` | Install only the named skills (aliases resolve to canonical) |
+| `--harness claude\|codex\|copilot\|all` | Target harness; default: `all` |
+| `--target <dir>` | Install into a specific directory; mutually exclusive with `--harness` |
+| `--update` | Refresh catalog before installing |
+| `--help` | Print usage and stop |
 
 **Examples.**
-- Claude: `@skill jira-ht create Jira ticket titled "Create a Perforce stream for Unreal 5.8.1"`
-- Codex: `@skill jira-ht create Jira ticket titled "Document build recovery"`
-- Copilot: attach `Agent\skills\jira-ht\SKILL.md` → "Use this alias to create the requested Jira ticket."
+- Claude: `/install-skills` · `/install-skills run-unit-tests rut` · `/install-skills --update`
+- Codex: `@skill install-skills — install all skills into all harness directories.`
+- Copilot: attach `Agent\skills\install-skills\SKILL.md` → "Install all skills and report what was created."
 
 > Review pending — rerun with "review".
 
@@ -215,18 +211,33 @@ Model column: pick the cheapest model that does the job — recommendations mark
 - *Weaknesses:* Same `ugs.exe` project leak as the quality gate. No guidance for the place TDD actually dies: hard-to-test seams (Qt widgets, filesystem, subprocess). On Claude it overlaps `superpowers:test-driven-development` with no statement of precedence — two skills claiming the same loop invites inconsistent behavior.
 - *Improvements:* Add a short seams section (fake the boundary, test the logic). Declare precedence explicitly ("on Claude, superpowers TDD governs process; this skill supplies the pytest specifics"). Move the Windows/uv note to the ugs repo's AGENTS.md.
 
-### ready-player-one
+### query-all-skills
 
-**What it does.** Shorthand alias for agent-preflight — reads `<skill base dir>\..\agent-preflight\SKILL.md` and follows it exactly, forwarding any arguments. Kept because the codename is fun and muscle-memory-friendly ("Ready Player One: are we ready to start?").
+**What it does.** Lists all canonical skills grouped by category, with their shorthand aliases, by reading `catalog.json` (updating it first if needed). Prints a categorized table covering all canonical skills and their generated aliases (shorthands + compat aliases). The canonical reference for "what skills are available and what are their shorthands."
 
-**When to use.** Whenever you'd reach for agent-preflight but want the memorable name — `/ready-player-one` before a batched prompt.
+**When to use.** When you want to see the full skill set organized by category, or when you need to look up a shorthand alias. Faster than reading the README; also shows generated aliases that the README omits.
 
-**Parameters.** The same arguments accepted by agent-preflight (none required; harness/OS/model auto-detected).
+**Parameters.** None required. The catalog is updated automatically before listing.
 
 **Examples.**
-- Claude: `/ready-player-one`
+- Claude: `/query-all-skills` · `/qas`
+- Codex: `@skill query-all-skills — list all skills grouped by category.`
+- Copilot: attach `Agent\skills\query-all-skills\SKILL.md` → "List all canonical skills with their shorthands."
+
+> Review pending — rerun with "review".
+
+### ready-player-one
+
+**What it does.** Pre-flight environment check before executing a batched prompt. Step 0 auto-detects harness (claude/codex/copilot) and OS, and reports the active model against a cost-optimal recommendation. Then runs three mandatory checks: Check 1 (skill visible in the active skill list), Check 2 (`bypassPermissions` + `skipDangerousModePermissionPrompt: true` in harness settings — required for autonomous runs), Check 3 (uv health + no locked build executables). Offers optional project-specific prep steps. Binary outcome: `READY` or `NOT READY` with a numbered, OS- and harness-specific remediation list. Strict output contract (blocks reproduced exactly) so headless logs are diffable. Canonical preflight skill; `agent-preflight` is a generated alias.
+
+**When to use.** Before handing any batched prompt or long autonomous task to a model — it front-loads the failures that would otherwise stall an unattended run.
+
+**Parameters.** None; harness, OS, and model are auto-detected. Check 3b derives the project executable name from the working directory — override manually when the artifact name differs.
+
+**Examples.**
+- Claude: `/ready-player-one` · `/prpo` (shorthand)
 - Codex: `@skill ready-player-one — preflight before this batch.`
-- Copilot: attach `Agent\skills\ready-player-one\SKILL.md` → "Follow the agent-preflight skill it points to and print the summary block."
+- Copilot: attach `Agent\skills\ready-player-one\SKILL.md` → "Run this preflight and print the summary block."
 
 > Review pending — rerun with "review".
 
@@ -288,6 +299,50 @@ Model column: pick the cheapest model that does the job — recommendations mark
 - *Strengths:* Deriving `window_start` from the last report instead of "today" is the best design decision in the report pipeline — catch-up runs after missed schedules are automatically correct, and re-runs are idempotent. Boundary semantics (the 06:00 comparisons, same-day receipt placement) are written out to the half-open-interval level. "No receipts" produces a real report — an empty period is information. The don't-invent-work rule keeps reports honest.
 - *Weaknesses:* Same hand-rolled Pacific timezone risk and ledger-header duplication as report-rollup. The receipt boundary rules are subtle enough that a weaker scheduled model could plausibly re-derive them wrong — they're specified in prose with no executable check. No model recommendation for what is a recurring, headless, cost-sensitive job.
 - *Improvements:* Same shared helper as report-rollup (window math + ledger append, pytest-covered, planted violations per clean-code-architecture-guards). Add "Sonnet-class" to the skill text. Cross-link report-receipt as the upstream producer so receipt-quality issues get fixed at the source.
+
+### run-mac-coverage
+
+**What it does.** Runs Scout Mac LLVM code coverage via the `laika-build-unreal` coverage pipeline. Builds `ScoutingAppEditor` with LLVM instrumentation, runs automation tests matching a filter pattern, merges raw profiles, and generates four report types (HTML, LCOV, text, summary). Validates all four report types after each run with exact expected coverage numbers. Includes a fast iteration mode (`--skip-build`) once the editor binary exists, and a detailed troubleshooting guide for all exit-code 1 and 2 failure modes.
+
+**When to use.** When running, validating, or debugging Scout Mac LLVM code coverage. Required before merging C++ changes to `Content/ScoutingApp/Source/`.
+
+**Parameters.**
+
+| Argument | Effect |
+|---|---|
+| *(none)* | Use CWD as UE source root; `<cwd>/../laika-build-unreal` as the package |
+| `--target <dir>` | UE source root |
+| `--package <dir>` | `laika-build-unreal` checkout (default: `<target>/../laika-build-unreal`) |
+| `--help` | Print usage and stop |
+
+**Examples.**
+- Claude: `/run-mac-coverage` · `/run-mac-coverage --target ~/p4/root`
+- Codex: `@skill run-mac-coverage — run the full coverage pipeline and verify all four report types.`
+- Copilot: attach `Agent\skills\run-mac-coverage\SKILL.md` → "Run this pipeline from the given UE source root and validate reports."
+
+> Review pending — rerun with "review".
+
+### run-unit-tests
+
+**What it does.** Runs a Python project's full test suite and pre-commit hooks in a managed `.venv`. Guarantees the environment exists and is fully provisioned before running anything — works on a fresh clone. Creates the venv if absent, installs all `requirements*.txt` files plus `pre-commit`, `ruff`, and `mypy`, then runs `pytest` and `pre-commit --all-files`. With `--fix`, repairs failing tests and pre-commit violations, then re-runs until clean, ending with a suggested commit message if files were changed. Short form: `/rut`.
+
+**When to use.** Before committing Python changes; when verifying a fresh checkout; or when the user invokes `rut`. Use `--fix` to have the skill repair violations, not just report them.
+
+**Parameters.**
+
+| Argument | Effect |
+|---|---|
+| *(none)* | Set up venv, install deps, run pytest + pre-commit, report |
+| `--target <dir>` | Project root (default: CWD) |
+| `--fix` | Also repair failing tests / pre-commit violations; re-run until clean |
+| `--help` | Print usage and stop |
+
+**Examples.**
+- Claude: `/run-unit-tests` · `/rut` · `/rut --fix`
+- Codex: `@skill run-unit-tests — set up the venv and run tests; use --fix to repair violations.`
+- Copilot: attach `Agent\skills\run-unit-tests\SKILL.md` → "Provision the venv, run the full suite, and fix any failures."
+
+> Review pending — rerun with "review".
 
 ### unreal-reset-build-env
 
@@ -395,15 +450,19 @@ Discovery on this machine, verified 2026-07-12: Claude junction ✅ · Codex jun
 | Skill | Claude | Codex | Copilot | Notes |
 |---|---|---|---|---|
 | agent-plan | ✅ | ✅ | 📎 | Uses centralized routing profiles |
-| agent-preflight | ✅ | ✅ | ⚠️ | Codex checks defined; Copilot sections are placeholders |
 | clean-code-architecture-guards | ✅ | ✅ | 📎 | Content fully portable |
 | clean-code-error-handling | ✅ | ✅ | 📎 | Language-agnostic design and refactoring workflow |
+| install-skills | ✅ | ✅ | 📎 | Requires catalog.json; links.py handles junction/symlink |
+| jira-human-ticket-create | ✅ | ✅ | 📎 | Jira access required |
 | python-quality-gate | ✅ | ✅ | 📎 | Content fully portable |
 | python-tdd-cycle | ✅ ⚠️ | ✅ | 📎 | ⚠️ unstated overlap with superpowers TDD on Claude |
-| ready-player-one | ✅ | ✅ | 📎 | Alias → agent-preflight |
+| query-all-skills | ✅ | ✅ | 📎 | Requires Python 3.11+; reads catalog.json |
+| ready-player-one | ✅ | ✅ | ⚠️ | Check 2 requires bypassPermissions; Copilot sections TBD |
 | report-receipt | ✅ | ✅ | ⚠️ | Copilot: model rec only, no cost recipe |
 | report-rollup | ✅ | ✅ | 📎 | Portable |
 | report-status | ✅ | ✅ | 📎 | Portable |
+| run-mac-coverage | ✅ | ✅ | 📎 | Mac-only; requires LLVM (Xcode CLT) and laika-build-unreal |
+| run-unit-tests | ✅ | ✅ | 📎 | Requires Python 3.x + venv support |
 | unreal-reset-build-env | ✅ | ✅ | 📎 | Bundled Windows PowerShell helper |
 | unreal-ugs-release | ⚠️ | ⚠️ | 📎 | D:\ runbook path breaks the C:\ machine |
 | update-claude-pricing-doc | ✅ | ❌ | ❌ | Data source is a Claude-bundled skill |

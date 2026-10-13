@@ -68,10 +68,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+_GENERATED_RE = re.compile(r"<!-- generated:[a-z][a-z0-9-]*:\d{4}-\d{2}-\d{2} -->")
+
+
+def _is_generated_alias(skill_dir: Path) -> bool:
+    skill_file = skill_dir / "SKILL.md"
+    if not skill_file.is_file():
+        return False
+    return bool(_GENERATED_RE.search(skill_file.read_text(encoding="utf-8")))
+
+
 def skill_directories(skills_root: Path) -> list[str]:
     return sorted(
         entry.name for entry in skills_root.iterdir()
-        if entry.is_dir() and (entry / "SKILL.md").is_file())
+        if entry.is_dir() and (entry / "SKILL.md").is_file()
+        and not _is_generated_alias(entry)
+    )
 
 
 def verify(md_text: str, skill_names: list[str]) -> list[str]:

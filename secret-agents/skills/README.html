@@ -28,24 +28,26 @@
 <body>
 <h1 id="worky-agent-skills">Worky Agent Skills</h1>
 <p>The shared, harness-portable skill set for this vault. Each skill is one directory under <code>&lt;agent-root&gt;\skills\</code> with a top-level <code>SKILL.md</code> following the open Agent Skills structure; harnesses discover them through junctions, never copies (see <code>runbooks\harness-setup\harness-setup.md</code>). This README explains how and when to use each skill, how to call it from Claude, Codex, and Copilot, and gives an engineering review of each — plus a cross-cutting look at harness coverage, gaps, and token-costly mistakes.</p>
-<p><em>Generated 2026-08-29 by <code>update-skills-readme</code>. Markdown is the source of truth; <code>README.html</code> is rendered from it — regenerate with <code>/update-skills-readme</code>, don't hand-edit the HTML.</em></p>
+<p><em>Generated 2026-10-12 by <code>update-skills-readme</code>. Markdown is the source of truth; <code>README.html</code> is rendered from it — regenerate with <code>/update-skills-readme</code>, don't hand-edit the HTML. For a categorized shorthand listing see <a href="TOC.md"><code>TOC.md</code></a>.</em></p>
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
 <li><a href="#how-skills-are-wired-and-invoked">How skills are wired and invoked</a></li>
 <li><a href="#skill-inventory">Skill inventory</a></li>
 <li>Skills</li>
 <li><a href="#agent-plan">agent-plan</a></li>
-<li><a href="#agent-preflight">agent-preflight</a></li>
 <li><a href="#clean-code-architecture-guards">clean-code-architecture-guards</a></li>
 <li><a href="#clean-code-error-handling">clean-code-error-handling</a></li>
-<li><a href="#jira-ht">jira-ht</a></li>
+<li><a href="#install-skills">install-skills</a></li>
 <li><a href="#jira-human-ticket-create">jira-human-ticket-create</a></li>
 <li><a href="#python-quality-gate">python-quality-gate</a></li>
 <li><a href="#python-tdd-cycle">python-tdd-cycle</a></li>
+<li><a href="#query-all-skills">query-all-skills</a></li>
 <li><a href="#ready-player-one">ready-player-one</a></li>
 <li><a href="#report-receipt">report-receipt</a></li>
 <li><a href="#report-rollup">report-rollup</a></li>
 <li><a href="#report-status">report-status</a></li>
+<li><a href="#run-mac-coverage">run-mac-coverage</a></li>
+<li><a href="#run-unit-tests">run-unit-tests</a></li>
 <li><a href="#unreal-reset-build-env">unreal-reset-build-env</a></li>
 <li><a href="#unreal-ugs-release">unreal-ugs-release</a></li>
 <li><a href="#update-claude-pricing-doc">update-claude-pricing-doc</a></li>
@@ -101,13 +103,6 @@
 <td>Make resumable, model-routed execution plans</td>
 </tr>
 <tr>
-<td><a href="#agent-preflight">agent-preflight</a></td>
-<td>preflight</td>
-<td>none (auto-detects)</td>
-<td>Haiku / o4-mini §</td>
-<td>Binary ready/NOT-READY check before batched prompts</td>
-</tr>
-<tr>
 <td><a href="#clean-code-architecture-guards">clean-code-architecture-guards</a></td>
 <td>reference</td>
 <td>none</td>
@@ -122,11 +117,11 @@
 <td>Design or refactor semantic error contracts without accidental behavior changes</td>
 </tr>
 <tr>
-<td><a href="#jira-ht">jira-ht</a></td>
-<td>alias</td>
-<td>ticket-create arguments</td>
-<td>Sonnet / medium</td>
-<td>Short alias for creating human-developer Jira tickets</td>
+<td><a href="#install-skills">install-skills</a></td>
+<td>installer</td>
+<td><code>--all\|&lt;name&gt;</code>, <code>--harness</code>, <code>--target</code>, <code>--update</code></td>
+<td>Haiku / low</td>
+<td>Install skills as junctions/symlinks into harness discovery directories</td>
 </tr>
 <tr>
 <td><a href="#jira-human-ticket-create">jira-human-ticket-create</a></td>
@@ -150,11 +145,18 @@
 <td>Red-green loop with observed failure before implementation</td>
 </tr>
 <tr>
+<td><a href="#query-all-skills">query-all-skills</a></td>
+<td>discovery</td>
+<td>none</td>
+<td>Haiku / low</td>
+<td>List all canonical skills with shorthands grouped by category</td>
+</tr>
+<tr>
 <td><a href="#ready-player-one">ready-player-one</a></td>
-<td>alias</td>
-<td>agent-preflight arguments</td>
+<td>preflight</td>
+<td>none (auto-detects)</td>
 <td>Haiku / o4-mini §</td>
-<td>Fun alias for the agent-preflight check</td>
+<td>Binary ready/NOT READY check before batched prompts</td>
 </tr>
 <tr>
 <td><a href="#report-receipt">report-receipt</a></td>
@@ -176,6 +178,20 @@
 <td><code>window &lt;start&gt;..&lt;end&gt;</code> (optional)</td>
 <td>Sonnet / medium</td>
 <td>Tue/Thu status report compiled from work receipts</td>
+</tr>
+<tr>
+<td><a href="#run-mac-coverage">run-mac-coverage</a></td>
+<td>pipeline</td>
+<td><code>--target</code>, <code>--package</code>, <code>--help</code></td>
+<td>Haiku / low</td>
+<td>Run Scout Mac LLVM coverage pipeline and verify all four report types</td>
+</tr>
+<tr>
+<td><a href="#run-unit-tests">run-unit-tests</a></td>
+<td>gate</td>
+<td><code>--target</code>, <code>--fix</code>, <code>--help</code></td>
+<td>Haiku / low</td>
+<td>Set up .venv, install deps, run pytest + pre-commit; <code>--fix</code> repairs violations</td>
 </tr>
 <tr>
 <td><a href="#unreal-reset-build-env">unreal-reset-build-env</a></td>
@@ -226,18 +242,6 @@
 <blockquote>
 <p>Review pending — rerun with "review".</p>
 </blockquote>
-<h3 id="agent-preflight">agent-preflight</h3>
-<p><strong>What it does.</strong> Pre-flight environment check before executing a batched prompt: detects harness (claude/codex/copilot) and OS, reports the active model against a cost-optimal recommendation, then runs three gates — skill visibility, execution trust (permission mode / project trust), and uv health + no locked build executables. Binary outcome: <code>ready</code> or <code>NOT READY</code> with a numbered, OS- and harness-specific remediation list. Strict output contract (blocks reproduced exactly) so headless logs are diffable.</p>
-<p><strong>When to use.</strong> Before handing any batched prompt or long autonomous task to a model — it front-loads the failures that would otherwise stall an unattended run.</p>
-<p><strong>Parameters.</strong> None; harness, OS, and model are auto-detected. Check 3b derives the project executable name from the working directory — override manually when the artifact name differs.</p>
-<p><strong>Examples.</strong>
-- Claude: <code>/agent-preflight</code> (then paste the batched prompt once it prints <code>ready</code>)
-- Codex: <code>@skill agent-preflight — preflight before this batch.</code>
-- Copilot: attach the SKILL.md → "Run this preflight and print the summary block."</p>
-<p><strong>Architect's review.</strong>
-- <em>Strengths:</em> The strict output contract is the standout design decision — deterministic, diffable, no model editorializing. Remediation is specific (exact file, exact key, exact command) per OS <em>and</em> harness. The model-recommendation step is cost-awareness built into the process. Placeholders for unknown Copilot mechanics are honest rather than invented.
-- <em>Weaknesses:</em> Field-tested 2026-07-12 and two cracks showed. (1) Check 2 demands the literal key in both project and global settings, but Claude settings inherit — global <code>dontAsk</code> with no project file is effectively <code>dontAsk</code>, yet the check fails; worse, the auto-mode classifier <em>denies agents writing that key</em> (self-escalation guard), so the skill prescribes a remediation an agent cannot perform and then forbids proceeding: an autonomous dead-end. (2) The "restart on haiku" advice is wrong when the preflight runs inline before a complex batch in the same session — a restart would throw away the correctly-chosen model. Also: the uv check runs even in repos where uv is irrelevant, and the dir-name exe heuristic is a permanent no-op in non-build repos (<code>worky.exe</code> will never exist).
-- <em>Improvements:</em> Test effective permission mode (project value <em>or</em> inherited global) instead of file literals, and mark Check-2 remediation "human-only: classifier blocks agent self-service." Scope the model warning to standalone checklist runs. Gate Check 3 on project type (presence of <code>pyproject.toml</code>/<code>uv.lock</code>; build-artifact check only where a build exists). Fill the Copilot placeholders when the adapter lands.</p>
 <h3 id="clean-code-architecture-guards">clean-code-architecture-guards</h3>
 <p><strong>What it does.</strong> Reference recipes for converting architectural rules — layer boundaries, import direction, deleted-module bans, size tripwires — into machine-checked CI guards. Includes a Python AST import scanner, Unreal <code>.Build.cs</code> dependency patterns, TypeScript eslint/dependency-cruiser rules, and the four properties every qualifying guard must have (runs in CI, named for its rule, planted-violation test, fails loudly on empty scan).</p>
 <p><strong>When to use.</strong> The moment an architectural rule exists only in prose, review feedback, or comments. Per AGENTS.md § Enforcement: a rule that is not machine-checked does not exist across sessions — establish rule and check in the same change. Not for one-off style preferences (linter config) or judgment calls (review checklists).</p>
@@ -261,14 +265,52 @@
 <blockquote>
 <p>Review pending — rerun with "review".</p>
 </blockquote>
-<h3 id="jira-ht">jira-ht</h3>
-<p><strong>What it does.</strong> Provides a short alias for the jira-human-ticket-create workflow, forwarding every argument to that canonical skill.</p>
-<p><strong>When to use.</strong> When a requester invokes <code>@skill jira-ht</code> to create a Jira ticket for a human developer.</p>
-<p><strong>Parameters.</strong> The same arguments accepted by jira-human-ticket-create.</p>
+<h3 id="install-skills">install-skills</h3>
+<p><strong>What it does.</strong> Installs agent skills into harness discovery locations by creating directory junctions (Windows) or symlinks (Mac/Linux) from the target directory into the canonical skill directories. Resolves canonical skill names and their generated aliases from <code>catalog.json</code>; never copies files. Validates all destinations before any mutation — aborting on conflict — and reports created and already-correct links.</p>
+<p><strong>When to use.</strong> When setting up a new machine, adding a new harness, or after skills have been added or removed. Use <code>--update</code> to refresh the catalog before installing. Safe to run repeatedly (create-only; existing correct links are left untouched).</p>
+<p><strong>Parameters.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>Install all skills into all harness directories</td>
+</tr>
+<tr>
+<td><code>--all</code></td>
+<td>Explicitly install all (same as no argument)</td>
+</tr>
+<tr>
+<td><code>&lt;canonical-or-alias&gt; ...</code></td>
+<td>Install only the named skills (aliases resolve to canonical)</td>
+</tr>
+<tr>
+<td><code>--harness claude\|codex\|copilot\|all</code></td>
+<td>Target harness; default: <code>all</code></td>
+</tr>
+<tr>
+<td><code>--target &lt;dir&gt;</code></td>
+<td>Install into a specific directory; mutually exclusive with <code>--harness</code></td>
+</tr>
+<tr>
+<td><code>--update</code></td>
+<td>Refresh catalog before installing</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>Print usage and stop</td>
+</tr>
+</tbody>
+</table>
 <p><strong>Examples.</strong>
-- Claude: <code>@skill jira-ht create Jira ticket titled "Create a Perforce stream for Unreal 5.8.1"</code>
-- Codex: <code>@skill jira-ht create Jira ticket titled "Document build recovery"</code>
-- Copilot: attach <code>Agent\skills\jira-ht\SKILL.md</code> → "Use this alias to create the requested Jira ticket."</p>
+- Claude: <code>/install-skills</code> · <code>/install-skills run-unit-tests rut</code> · <code>/install-skills --update</code>
+- Codex: <code>@skill install-skills — install all skills into all harness directories.</code>
+- Copilot: attach <code>Agent\skills\install-skills\SKILL.md</code> → "Install all skills and report what was created."</p>
 <blockquote>
 <p>Review pending — rerun with "review".</p>
 </blockquote>
@@ -307,14 +349,25 @@
 - <em>Strengths:</em> "Confirm red" is the step every agent (and human) skips, and this skill makes it non-negotiable — a test that passes before implementation is declared wrong, which catches tautological tests. Narrow-file-then-full-suite laddering keeps iteration fast. Clean scope boundary with the commit workflow.
 - <em>Weaknesses:</em> Same <code>ugs.exe</code> project leak as the quality gate. No guidance for the place TDD actually dies: hard-to-test seams (Qt widgets, filesystem, subprocess). On Claude it overlaps <code>superpowers:test-driven-development</code> with no statement of precedence — two skills claiming the same loop invites inconsistent behavior.
 - <em>Improvements:</em> Add a short seams section (fake the boundary, test the logic). Declare precedence explicitly ("on Claude, superpowers TDD governs process; this skill supplies the pytest specifics"). Move the Windows/uv note to the ugs repo's AGENTS.md.</p>
-<h3 id="ready-player-one">ready-player-one</h3>
-<p><strong>What it does.</strong> Shorthand alias for agent-preflight — reads <code>&lt;skill base dir&gt;\..\agent-preflight\SKILL.md</code> and follows it exactly, forwarding any arguments. Kept because the codename is fun and muscle-memory-friendly ("Ready Player One: are we ready to start?").</p>
-<p><strong>When to use.</strong> Whenever you'd reach for agent-preflight but want the memorable name — <code>/ready-player-one</code> before a batched prompt.</p>
-<p><strong>Parameters.</strong> The same arguments accepted by agent-preflight (none required; harness/OS/model auto-detected).</p>
+<h3 id="query-all-skills">query-all-skills</h3>
+<p><strong>What it does.</strong> Lists all canonical skills grouped by category, with their shorthand aliases, by reading <code>catalog.json</code> (updating it first if needed). Prints a categorized table covering all canonical skills and their generated aliases (shorthands + compat aliases). The canonical reference for "what skills are available and what are their shorthands."</p>
+<p><strong>When to use.</strong> When you want to see the full skill set organized by category, or when you need to look up a shorthand alias. Faster than reading the README; also shows generated aliases that the README omits.</p>
+<p><strong>Parameters.</strong> None required. The catalog is updated automatically before listing.</p>
 <p><strong>Examples.</strong>
-- Claude: <code>/ready-player-one</code>
+- Claude: <code>/query-all-skills</code> · <code>/qas</code>
+- Codex: <code>@skill query-all-skills — list all skills grouped by category.</code>
+- Copilot: attach <code>Agent\skills\query-all-skills\SKILL.md</code> → "List all canonical skills with their shorthands."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
+<h3 id="ready-player-one">ready-player-one</h3>
+<p><strong>What it does.</strong> Pre-flight environment check before executing a batched prompt. Step 0 auto-detects harness (claude/codex/copilot) and OS, and reports the active model against a cost-optimal recommendation. Then runs three mandatory checks: Check 1 (skill visible in the active skill list), Check 2 (<code>bypassPermissions</code> + <code>skipDangerousModePermissionPrompt: true</code> in harness settings — required for autonomous runs), Check 3 (uv health + no locked build executables). Offers optional project-specific prep steps. Binary outcome: <code>READY</code> or <code>NOT READY</code> with a numbered, OS- and harness-specific remediation list. Strict output contract (blocks reproduced exactly) so headless logs are diffable. Canonical preflight skill; <code>agent-preflight</code> is a generated alias.</p>
+<p><strong>When to use.</strong> Before handing any batched prompt or long autonomous task to a model — it front-loads the failures that would otherwise stall an unattended run.</p>
+<p><strong>Parameters.</strong> None; harness, OS, and model are auto-detected. Check 3b derives the project executable name from the working directory — override manually when the artifact name differs.</p>
+<p><strong>Examples.</strong>
+- Claude: <code>/ready-player-one</code> · <code>/prpo</code> (shorthand)
 - Codex: <code>@skill ready-player-one — preflight before this batch.</code>
-- Copilot: attach <code>Agent\skills\ready-player-one\SKILL.md</code> → "Follow the agent-preflight skill it points to and print the summary block."</p>
+- Copilot: attach <code>Agent\skills\ready-player-one\SKILL.md</code> → "Run this preflight and print the summary block."</p>
 <blockquote>
 <p>Review pending — rerun with "review".</p>
 </blockquote>
@@ -375,6 +428,80 @@
 - <em>Strengths:</em> Deriving <code>window_start</code> from the last report instead of "today" is the best design decision in the report pipeline — catch-up runs after missed schedules are automatically correct, and re-runs are idempotent. Boundary semantics (the 06:00 comparisons, same-day receipt placement) are written out to the half-open-interval level. "No receipts" produces a real report — an empty period is information. The don't-invent-work rule keeps reports honest.
 - <em>Weaknesses:</em> Same hand-rolled Pacific timezone risk and ledger-header duplication as report-rollup. The receipt boundary rules are subtle enough that a weaker scheduled model could plausibly re-derive them wrong — they're specified in prose with no executable check. No model recommendation for what is a recurring, headless, cost-sensitive job.
 - <em>Improvements:</em> Same shared helper as report-rollup (window math + ledger append, pytest-covered, planted violations per clean-code-architecture-guards). Add "Sonnet-class" to the skill text. Cross-link report-receipt as the upstream producer so receipt-quality issues get fixed at the source.</p>
+<h3 id="run-mac-coverage">run-mac-coverage</h3>
+<p><strong>What it does.</strong> Runs Scout Mac LLVM code coverage via the <code>laika-build-unreal</code> coverage pipeline. Builds <code>ScoutingAppEditor</code> with LLVM instrumentation, runs automation tests matching a filter pattern, merges raw profiles, and generates four report types (HTML, LCOV, text, summary). Validates all four report types after each run with exact expected coverage numbers. Includes a fast iteration mode (<code>--skip-build</code>) once the editor binary exists, and a detailed troubleshooting guide for all exit-code 1 and 2 failure modes.</p>
+<p><strong>When to use.</strong> When running, validating, or debugging Scout Mac LLVM code coverage. Required before merging C++ changes to <code>Content/ScoutingApp/Source/</code>.</p>
+<p><strong>Parameters.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>Use CWD as UE source root; <code>&lt;cwd&gt;/../laika-build-unreal</code> as the package</td>
+</tr>
+<tr>
+<td><code>--target &lt;dir&gt;</code></td>
+<td>UE source root</td>
+</tr>
+<tr>
+<td><code>--package &lt;dir&gt;</code></td>
+<td><code>laika-build-unreal</code> checkout (default: <code>&lt;target&gt;/../laika-build-unreal</code>)</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>Print usage and stop</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples.</strong>
+- Claude: <code>/run-mac-coverage</code> · <code>/run-mac-coverage --target ~/p4/root</code>
+- Codex: <code>@skill run-mac-coverage — run the full coverage pipeline and verify all four report types.</code>
+- Copilot: attach <code>Agent\skills\run-mac-coverage\SKILL.md</code> → "Run this pipeline from the given UE source root and validate reports."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
+<h3 id="run-unit-tests">run-unit-tests</h3>
+<p><strong>What it does.</strong> Runs a Python project's full test suite and pre-commit hooks in a managed <code>.venv</code>. Guarantees the environment exists and is fully provisioned before running anything — works on a fresh clone. Creates the venv if absent, installs all <code>requirements*.txt</code> files plus <code>pre-commit</code>, <code>ruff</code>, and <code>mypy</code>, then runs <code>pytest</code> and <code>pre-commit --all-files</code>. With <code>--fix</code>, repairs failing tests and pre-commit violations, then re-runs until clean, ending with a suggested commit message if files were changed. Short form: <code>/rut</code>.</p>
+<p><strong>When to use.</strong> Before committing Python changes; when verifying a fresh checkout; or when the user invokes <code>rut</code>. Use <code>--fix</code> to have the skill repair violations, not just report them.</p>
+<p><strong>Parameters.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>Set up venv, install deps, run pytest + pre-commit, report</td>
+</tr>
+<tr>
+<td><code>--target &lt;dir&gt;</code></td>
+<td>Project root (default: CWD)</td>
+</tr>
+<tr>
+<td><code>--fix</code></td>
+<td>Also repair failing tests / pre-commit violations; re-run until clean</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>Print usage and stop</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples.</strong>
+- Claude: <code>/run-unit-tests</code> · <code>/rut</code> · <code>/rut --fix</code>
+- Codex: <code>@skill run-unit-tests — set up the venv and run tests; use --fix to repair violations.</code>
+- Copilot: attach <code>Agent\skills\run-unit-tests\SKILL.md</code> → "Provision the venv, run the full suite, and fix any failures."</p>
+<blockquote>
+<p>Review pending — rerun with "review".</p>
+</blockquote>
 <h3 id="unreal-reset-build-env">unreal-reset-build-env</h3>
 <p><strong>What it does.</strong> Resets a Windows Unreal build shell before a fresh build via a bundled PowerShell helper: stops process trees seeded by Build.bat/RunUAT/UBT/UAT/UBA/MSBuild nodes, clears Visual Studio/MSBuild/.NET/UAT/<code>uebp_*</code> environment variables, sets <code>MSBUILDDISABLENODEREUSE=1</code> — while deliberately preserving Perforce variables and leaving the editor alive unless told otherwise.</p>
 <p><strong>When to use.</strong> Before starting any fresh Unreal build on Windows, especially after a failed or interrupted build left workers, MSBuild nodes, or poisoned env vars behind.</p>
@@ -487,13 +614,6 @@
 <td>Uses centralized routing profiles</td>
 </tr>
 <tr>
-<td>agent-preflight</td>
-<td>✅</td>
-<td>✅</td>
-<td>⚠️</td>
-<td>Codex checks defined; Copilot sections are placeholders</td>
-</tr>
-<tr>
 <td>clean-code-architecture-guards</td>
 <td>✅</td>
 <td>✅</td>
@@ -506,6 +626,20 @@
 <td>✅</td>
 <td>📎</td>
 <td>Language-agnostic design and refactoring workflow</td>
+</tr>
+<tr>
+<td>install-skills</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Requires catalog.json; links.py handles junction/symlink</td>
+</tr>
+<tr>
+<td>jira-human-ticket-create</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Jira access required</td>
 </tr>
 <tr>
 <td>python-quality-gate</td>
@@ -522,11 +656,18 @@
 <td>⚠️ unstated overlap with superpowers TDD on Claude</td>
 </tr>
 <tr>
-<td>ready-player-one</td>
+<td>query-all-skills</td>
 <td>✅</td>
 <td>✅</td>
 <td>📎</td>
-<td>Alias → agent-preflight</td>
+<td>Requires Python 3.11+; reads catalog.json</td>
+</tr>
+<tr>
+<td>ready-player-one</td>
+<td>✅</td>
+<td>✅</td>
+<td>⚠️</td>
+<td>Check 2 requires bypassPermissions; Copilot sections TBD</td>
 </tr>
 <tr>
 <td>report-receipt</td>
@@ -548,6 +689,20 @@
 <td>✅</td>
 <td>📎</td>
 <td>Portable</td>
+</tr>
+<tr>
+<td>run-mac-coverage</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Mac-only; requires LLVM (Xcode CLT) and laika-build-unreal</td>
+</tr>
+<tr>
+<td>run-unit-tests</td>
+<td>✅</td>
+<td>✅</td>
+<td>📎</td>
+<td>Requires Python 3.x + venv support</td>
 </tr>
 <tr>
 <td>unreal-reset-build-env</td>

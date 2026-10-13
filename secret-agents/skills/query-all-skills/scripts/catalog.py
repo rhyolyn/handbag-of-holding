@@ -8,6 +8,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -52,9 +53,7 @@ HEADER_RE = re.compile(
     r"\*\*Updated:\*\* (?P<updated>\d{4}-\d{2}-\d{2})"
     r"(?: · \*\*Aliases:\*\* (?P<aliases>[^\n]+))?"
 )
-GENERATED_MARKER_RE = re.compile(
-    r"<!-- generated:(?P<canonical>[a-z][a-z0-9-]*):(?P<date>\d{4}-\d{2}-\d{2}) -->"
-)
+GENERATED_MARKER_RE = re.compile(r"<!-- generated:(?P<canonical>[a-z][a-z0-9-]*):(?P<date>\d{4}-\d{2}-\d{2}) -->")
 UPDATED_RE = re.compile(r"(\*\*Updated:\*\* )\d{4}-\d{2}-\d{2}")
 
 # ---------------------------------------------------------------------------
@@ -117,7 +116,7 @@ def parse_frontmatter(text: str) -> dict[str, str]:
     try:
         end = text.index("\n---\n", 4)
     except ValueError:
-        raise UnterminatedFrontmatter("Frontmatter block never closed")
+        raise UnterminatedFrontmatter("Frontmatter block never closed") from None
     block = text[4:end]
     pairs = (line.partition(": ") for line in block.splitlines() if ": " in line)
     return {k.strip(): v.strip().strip('"') for k, _, v in pairs}
@@ -139,8 +138,7 @@ def parse_skill_header(text: str) -> ParsedSkillHeader:
 
 def extract_h1(text: str) -> str:
     h1 = next(
-        (line[2:].strip() for line in text.splitlines()
-         if line.startswith("# ") and not line.startswith("## ")),
+        (line[2:].strip() for line in text.splitlines() if line.startswith("# ") and not line.startswith("## ")),
         None,
     )
     if h1 is None:
@@ -186,10 +184,8 @@ def _atomic_write(path: Path, text: str) -> None:
         os.close(fd)
         os.replace(tmp, path)
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)
-        except OSError:
-            pass
         raise
 
 
@@ -225,9 +221,7 @@ class CanonicalEntry:
         if not name:
             raise CatalogError(f"{skill_dir.name}/SKILL.md: missing 'name' in frontmatter")
         if name != skill_dir.name:
-            raise FrontmatterNameMismatch(
-                f"{skill_dir.name}/SKILL.md: frontmatter name '{name}' != directory"
-            )
+            raise FrontmatterNameMismatch(f"{skill_dir.name}/SKILL.md: frontmatter name '{name}' != directory")
         description = fm.get("description", "")
         if not description:
             raise CatalogError(f"{skill_dir.name}/SKILL.md: missing 'description'")
@@ -373,6 +367,7 @@ class Catalog:
         def entry_line(e: CanonicalEntry) -> str:
             alias_note = f" · Aliases: {', '.join(e.aliases)}" if e.aliases else ""
             return f"- {e.display_name} (`{e.shorthand}`) — {e.description}{alias_note}"
+
         return ["", f"## {cat} ({CATEGORIES[cat]})", ""] + [entry_line(e) for e in entries]
 
     def render_toc(self) -> str:
@@ -391,18 +386,12 @@ class Catalog:
         prefix = CATEGORIES[entry.category]
         initials = "".join(w[0] for w in entry.name.split("-") if w)
         if not entry.shorthand.startswith(prefix):
-            raise InvalidShorthand(
-                f"{entry.name}: shorthand '{entry.shorthand}' must start with '{prefix}'"
-            )
+            raise InvalidShorthand(f"{entry.name}: shorthand '{entry.shorthand}' must start with '{prefix}'")
         if not all(c in entry.shorthand for c in initials):
-            raise InvalidShorthand(
-                f"{entry.name}: shorthand '{entry.shorthand}' must contain initials '{initials}'"
-            )
+            raise InvalidShorthand(f"{entry.name}: shorthand '{entry.shorthand}' must contain initials '{initials}'")
 
     @staticmethod
-    def _register_aliases(
-        entry: CanonicalEntry, seen_aliases: set[str], seen_names: set[str]
-    ) -> None:
+    def _register_aliases(entry: CanonicalEntry, seen_aliases: set[str], seen_names: set[str]) -> None:
         for alias in entry.aliases:
             if alias in seen_aliases or alias in seen_names:
                 raise DuplicateName(f"Duplicate alias: {alias}")
@@ -508,28 +497,20 @@ class SkillCatalog:
 
     # -- Full refresh --------------------------------------------------------
 
-    def _resolve_entry(
-        self, skill_dir: Path, today: str, prev_by_name: dict[str, CanonicalEntry]
-    ) -> CanonicalEntry:
+    def _resolve_entry(self, skill_dir: Path, today: str, prev_by_name: dict[str, CanonicalEntry]) -> CanonicalEntry:
         entry = CanonicalEntry.from_dir(skill_dir, today)
         prev = prev_by_name.get(entry.name)
-        return (
-            entry.with_updated(prev.updated)
-            if prev and entry.semantic_hash == prev.semantic_hash
-            else entry
-        )
+        return entry.with_updated(prev.updated) if prev and entry.semantic_hash == prev.semantic_hash else entry
 
     def _full_refresh(self) -> tuple[Catalog, str]:
         from datetime import date as _date
+
         today = _date.today().isoformat()
 
         prev_catalog = Catalog.load(self.skills_root / CATALOG_FILENAME)
         prev_by_name = {e.name: e for e in prev_catalog.entries} if prev_catalog else {}
 
-        entries = [
-            self._resolve_entry(d, today, prev_by_name)
-            for d in self._scan_canonical_dirs()
-        ]
+        entries = [self._resolve_entry(d, today, prev_by_name) for d in self._scan_canonical_dirs()]
         new_catalog = Catalog.build(entries, today)
         new_catalog.validate()
         return new_catalog, new_catalog.render_toc()
@@ -630,9 +611,7 @@ class SkillCatalog:
         for alias, canonical in catalog_obj.generated_aliases.items():
             alias_dir = self.skills_root / alias
             if alias_dir.exists() and not is_generated_alias(alias_dir):
-                raise HumanOwnedCollision(
-                    f"'{alias}' is a human-owned directory; cannot generate alias there"
-                )
+                raise HumanOwnedCollision(f"'{alias}' is a human-owned directory; cannot generate alias there")
             entry = entry_by_name.get(canonical)
             description = entry.description if entry else ""
             _atomic_write(
@@ -663,11 +642,10 @@ def _default_skills_root() -> Path:
 
 
 def main() -> int:
-    parser = ArgumentParser(
-        description="SkillCatalog — validate and refresh secret-agents/skills"
-    )
+    parser = ArgumentParser(description="SkillCatalog — validate and refresh secret-agents/skills")
     parser.add_argument(
-        "command", choices=["show", "update", "check"],
+        "command",
+        choices=["show", "update", "check"],
         help="show: fast refresh + print TOC; update: force full refresh; check: detect drift",
     )
     parser.add_argument("--skills-root", type=Path, default=None)

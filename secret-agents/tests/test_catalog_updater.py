@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 import importlib.util
+import io
+import json
 import sys
+import unittest.mock
 from pathlib import Path
 from types import ModuleType
 
@@ -49,6 +53,7 @@ def test_parse_frontmatter_returns_name_and_description() -> None:
 
 def test_parse_frontmatter_raises_on_missing_delimiter() -> None:
     import pytest
+
     with pytest.raises(catalog.MissingFrontmatter):
         catalog.parse_frontmatter("# No frontmatter\n")
 
@@ -70,6 +75,7 @@ def test_parse_skill_header_omits_aliases_when_absent() -> None:
 
 def test_parse_skill_header_raises_when_missing() -> None:
     import pytest
+
     text = "---\nname: x\ndescription: y\n---\n\n# X\n\nNo header line.\n"
     with pytest.raises(catalog.MissingSkillHeader):
         catalog.parse_skill_header(text)
@@ -82,12 +88,9 @@ def test_extract_h1_returns_heading_text() -> None:
 
 def test_extract_h1_raises_when_missing() -> None:
     import pytest
+
     with pytest.raises(catalog.MissingDisplayName):
         catalog.extract_h1("---\nname: x\n---\nNo heading.\n")
-
-
-import dataclasses
-import json
 
 
 def _write_skill(root: Path, name: str, text: str) -> Path:
@@ -99,9 +102,7 @@ def _write_skill(root: Path, name: str, text: str) -> Path:
 
 def test_scan_canonical_dirs_excludes_generated_aliases(tmp_path: Path) -> None:
     (tmp_path / "my-skill").mkdir()
-    (tmp_path / "my-skill" / "SKILL.md").write_text(
-        _skill_text("my-skill", "Testing", "tms"), encoding="utf-8"
-    )
+    (tmp_path / "my-skill" / "SKILL.md").write_text(_skill_text("my-skill", "Testing", "tms"), encoding="utf-8")
     (tmp_path / "tms").mkdir()
     (tmp_path / "tms" / "SKILL.md").write_text(
         "---\nname: tms\ndescription: Alias.\n---\n\n<!-- generated:my-skill:2026-10-10 -->\n",
@@ -115,6 +116,7 @@ def test_scan_canonical_dirs_excludes_generated_aliases(tmp_path: Path) -> None:
 
 def test_scan_canonical_dirs_raises_on_missing_skill_file(tmp_path: Path) -> None:
     import pytest
+
     (tmp_path / "bad-skill").mkdir()
     sc = catalog.SkillCatalog(tmp_path)
     with pytest.raises(catalog.CatalogError):
@@ -167,8 +169,6 @@ def test_stat_entry_from_path(tmp_path: Path) -> None:
 
 def test_show_fast_path_reads_no_skill_bodies(tmp_path: Path) -> None:
     """Warm-cache show must not read any SKILL.md body."""
-    import io, unittest.mock
-
     skill_dir = tmp_path / "my-skill"
     skill_dir.mkdir()
     skill_path = skill_dir / "SKILL.md"
@@ -226,9 +226,7 @@ def test_semantic_hash_differs_on_content_change() -> None:
 
 def test_with_updated_returns_new_entry(tmp_path: Path) -> None:
     text = _skill_text("my-skill", updated="2026-01-01")
-    entry = catalog.CanonicalEntry.from_dir(
-        _write_skill(tmp_path, "my-skill", text), "2026-01-01"
-    )
+    entry = catalog.CanonicalEntry.from_dir(_write_skill(tmp_path, "my-skill", text), "2026-01-01")
     bumped = entry.with_updated("2026-10-10")
     assert bumped.updated == "2026-10-10"
     assert bumped.name == entry.name
@@ -236,8 +234,15 @@ def test_with_updated_returns_new_entry(tmp_path: Path) -> None:
 
 def test_catalog_build_generates_alias_map() -> None:
     entry = catalog.CanonicalEntry(
-        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
-        "trut", ("rut",), "2026-10-10", "h1", "h2",
+        "run-unit-tests",
+        "Run Unit Tests",
+        "Run tests.",
+        "Testing",
+        "trut",
+        ("rut",),
+        "2026-10-10",
+        "h1",
+        "h2",
     )
     c = catalog.Catalog.build([entry], "2026-10-10")
     assert c.generated_aliases["trut"] == "run-unit-tests"
@@ -246,7 +251,9 @@ def test_catalog_build_generates_alias_map() -> None:
 
 def test_catalog_build_sorts_by_category_then_display_name() -> None:
     entries = [
-        catalog.CanonicalEntry("run-unit-tests", "Run Unit Tests", ".", "Testing", "trut", (), "2026-10-10", "h1", "h2"),
+        catalog.CanonicalEntry(
+            "run-unit-tests", "Run Unit Tests", ".", "Testing", "trut", (), "2026-10-10", "h1", "h2"
+        ),
         catalog.CanonicalEntry("agent-plan", "Agent Plan", ".", "Agent Workflow", "ap", (), "2026-10-10", "h3", "h4"),
     ]
     c = catalog.Catalog.build(entries, "2026-10-10")
@@ -256,8 +263,15 @@ def test_catalog_build_sorts_by_category_then_display_name() -> None:
 
 def test_catalog_load_roundtrip(tmp_path: Path) -> None:
     entry = catalog.CanonicalEntry(
-        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
-        "trut", ("rut",), "2026-10-10", "h1", "h2",
+        "run-unit-tests",
+        "Run Unit Tests",
+        "Run tests.",
+        "Testing",
+        "trut",
+        ("rut",),
+        "2026-10-10",
+        "h1",
+        "h2",
     )
     c = catalog.Catalog.build([entry], "2026-10-10")
     path = tmp_path / "catalog.json"
@@ -271,8 +285,12 @@ def test_catalog_load_roundtrip(tmp_path: Path) -> None:
 
 def test_render_toc_sorted_by_category_then_display_name() -> None:
     entries = [
-        catalog.CanonicalEntry("run-unit-tests", "Run Unit Tests", "Run tests.", "Testing", "trut", ("rut",), "2026-10-10", "h1", "h2"),
-        catalog.CanonicalEntry("agent-plan", "Agent Plan", "Plan work.", "Agent Workflow", "ap", (), "2026-10-10", "h3", "h4"),
+        catalog.CanonicalEntry(
+            "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing", "trut", ("rut",), "2026-10-10", "h1", "h2"
+        ),
+        catalog.CanonicalEntry(
+            "agent-plan", "Agent Plan", "Plan work.", "Agent Workflow", "ap", (), "2026-10-10", "h3", "h4"
+        ),
     ]
     c = catalog.Catalog.build(entries, "2026-10-10")
     toc = c.render_toc()
@@ -286,7 +304,9 @@ def test_render_toc_sorted_by_category_then_display_name() -> None:
 
 def test_render_toc_one_bullet_per_canonical_skill() -> None:
     entries = [
-        catalog.CanonicalEntry("run-unit-tests", "Run Unit Tests", "Run tests.", "Testing", "trut", ("rut",), "2026-10-10", "h1", "h2"),
+        catalog.CanonicalEntry(
+            "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing", "trut", ("rut",), "2026-10-10", "h1", "h2"
+        ),
     ]
     c = catalog.Catalog.build(entries, "2026-10-10")
     toc = c.render_toc()
@@ -305,8 +325,15 @@ def test_generate_alias_skill_md_contains_marker() -> None:
 
 def test_write_generated_aliases_creates_directories(tmp_path: Path) -> None:
     entry = catalog.CanonicalEntry(
-        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
-        "trut", ("rut",), "2026-10-10", "h1", "h2",
+        "run-unit-tests",
+        "Run Unit Tests",
+        "Run tests.",
+        "Testing",
+        "trut",
+        ("rut",),
+        "2026-10-10",
+        "h1",
+        "h2",
     )
     c = catalog.Catalog.build([entry], "2026-10-10")
     sc = catalog.SkillCatalog(tmp_path)
@@ -318,14 +345,22 @@ def test_write_generated_aliases_creates_directories(tmp_path: Path) -> None:
 
 def test_write_generated_aliases_refuses_human_owned_collision(tmp_path: Path) -> None:
     import pytest
+
     (tmp_path / "trut").mkdir()
     (tmp_path / "trut" / "SKILL.md").write_text(
         "---\nname: trut\ndescription: Hand-written.\n---\n\n# trut\n\nBody.\n",
         encoding="utf-8",
     )
     entry = catalog.CanonicalEntry(
-        "run-unit-tests", "Run Unit Tests", "Run tests.", "Testing",
-        "trut", (), "2026-10-10", "h1", "h2",
+        "run-unit-tests",
+        "Run Unit Tests",
+        "Run tests.",
+        "Testing",
+        "trut",
+        (),
+        "2026-10-10",
+        "h1",
+        "h2",
     )
     c = catalog.Catalog.build([entry], "2026-10-10")
     sc = catalog.SkillCatalog(tmp_path)
@@ -336,8 +371,7 @@ def test_write_generated_aliases_refuses_human_owned_collision(tmp_path: Path) -
 def test_retire_obsolete_aliases_removes_generated_only(tmp_path: Path) -> None:
     (tmp_path / "old-alias").mkdir()
     (tmp_path / "old-alias" / "SKILL.md").write_text(
-        "---\nname: old-alias\ndescription: Alias.\n---\n\n"
-        "<!-- generated:some-skill:2026-10-10 -->\n",
+        "---\nname: old-alias\ndescription: Alias.\n---\n\n<!-- generated:some-skill:2026-10-10 -->\n",
         encoding="utf-8",
     )
     c = catalog.Catalog.build([], "2026-10-10")
@@ -360,6 +394,7 @@ def test_retire_obsolete_aliases_preserves_human_owned(tmp_path: Path) -> None:
 
 def test_validate_rejects_duplicate_shorthands() -> None:
     import pytest
+
     # tsab is valid for both skill-a (initials: s,a) and skill-b (initials: s,b)
     entries = [
         catalog.CanonicalEntry("skill-a", "Skill A", "A.", "Testing", "tsab", (), "2026-10-10", "h1", "h2"),
@@ -372,6 +407,7 @@ def test_validate_rejects_duplicate_shorthands() -> None:
 
 def test_validate_rejects_shorthand_without_category_prefix() -> None:
     import pytest
+
     entries = [
         catalog.CanonicalEntry(
             "run-unit-tests", "Run Unit Tests", "R.", "Testing", "rut", (), "2026-10-10", "h1", "h2"
@@ -385,6 +421,7 @@ def test_validate_rejects_shorthand_without_category_prefix() -> None:
 
 def test_validate_rejects_empty_entries() -> None:
     import pytest
+
     c = catalog.Catalog.build([], "2026-10-10")
     with pytest.raises(catalog.EmptyScan):
         c.validate()
@@ -401,6 +438,7 @@ def _make_skill_tree(tmp_path: Path) -> None:
 
 def test_update_creates_catalog_and_toc(tmp_path: Path) -> None:
     import io
+
     _make_skill_tree(tmp_path)
     sc = catalog.SkillCatalog(tmp_path, cache_path=tmp_path / "cache.json")
     assert sc.update(out=io.StringIO()) == 0
@@ -410,6 +448,7 @@ def test_update_creates_catalog_and_toc(tmp_path: Path) -> None:
 
 def test_check_returns_nonzero_on_stale_toc(tmp_path: Path) -> None:
     import io
+
     _make_skill_tree(tmp_path)
     sc = catalog.SkillCatalog(tmp_path, cache_path=tmp_path / "cache.json")
     sc.update(out=io.StringIO())
@@ -418,7 +457,6 @@ def test_check_returns_nonzero_on_stale_toc(tmp_path: Path) -> None:
 
 
 def test_show_warm_cache_reads_no_skill_bodies(tmp_path: Path) -> None:
-    import io, unittest.mock
     _make_skill_tree(tmp_path)
     sc = catalog.SkillCatalog(tmp_path, cache_path=tmp_path / "cache.json")
     sc.update(out=io.StringIO())
@@ -440,9 +478,9 @@ def test_show_warm_cache_reads_no_skill_bodies(tmp_path: Path) -> None:
 def test_catalog_drift_guard() -> None:
     """CI guard: catalog.json, TOC.md, and all generated aliases must be current."""
     import subprocess
+
     result = subprocess.run(
-        [sys.executable, str(CATALOG_SCRIPT), "check",
-         "--skills-root", str(ROOT / "skills")],
+        [sys.executable, str(CATALOG_SCRIPT), "check", "--skills-root", str(ROOT / "skills")],
         capture_output=True,
         text=True,
     )
