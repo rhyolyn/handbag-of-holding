@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
 
-from .catalog import load_skill_catalog
+from .catalog import load_skill_catalog, resolve_vault_root
 from .catalog_errors import SkillCatalogError
 from .executor import apply_install_plan, apply_uninstall_plan
 from .executor_errors import ExecutionError
@@ -50,7 +50,6 @@ def main(
     *,
     environment: Mapping[str, str] | None = None,
     home: Path | None = None,
-    script_path: Path | None = None,
     os_name: str | None = None,
     now: Callable[[], datetime] | None = None,
     backend: LinkBackend | None = None,
@@ -62,7 +61,7 @@ def main(
         return _exit_code_from(exc)
 
     try:
-        session = _open_session(args, environment, home, script_path, os_name, now, backend)
+        session = _open_session(args, environment, home, os_name, now, backend)
     except (RootResolutionError, SkillCatalogError) as exc:
         _err(str(exc))
         return ExitCode.INVALID_INPUT
@@ -167,16 +166,18 @@ def _open_session(
     args: argparse.Namespace,
     environment: Mapping[str, str] | None,
     home: Path | None,
-    script_path: Path | None,
     os_name: str | None,
     now: Callable[[], datetime] | None,
     backend: LinkBackend | None,
 ) -> _Session:
     environment = os.environ if environment is None else environment
     home = Path.home() if home is None else home
-    script_path = Path(__file__) if script_path is None else script_path
-    root = resolve_agent_root(args.agent_root, environment, script_path)
-    catalog = load_skill_catalog(root.path / "skills")
+    vault_root = resolve_vault_root(args.vault_root, environment=environment, home=home)
+    agent_root = args.agent_root
+    if agent_root is None and "SECRET_AGENTS_ROOT" not in environment:
+        agent_root = vault_root / "handbag-of-holding" / "secret-agents"
+    root = resolve_agent_root(agent_root, environment, home)
+    catalog = load_skill_catalog(root.path / "skills", vault_root)
     harnesses = _harness_selection(args.harness)
     return _Session(
         root=root,
@@ -196,7 +197,18 @@ def _build_parser() -> argparse.ArgumentParser:
     for name in ("install", "check", "uninstall"):
         sub = subcommands.add_parser(name)
         sub.add_argument("--harness", choices=["codex", "claude", "copilot", "all"], default="all")
-        sub.add_argument("--agent-root", type=Path, default=None)
+        sub.add_argument(
+            "--agent-root",
+            type=Path,
+            default=None,
+            help="Source root (default: SECRET_AGENTS_ROOT or ~/obsidian/handbag-of-holding/secret-agents)",
+        )
+        sub.add_argument(
+            "--vault-root",
+            type=Path,
+            default=None,
+            help="Vault root (default: SECRET_AGENTS_VAULT_ROOT or ~/obsidian)",
+        )
         if name == "install":
             sub.add_argument("--dry-run", action="store_true")
             sub.add_argument("--backup-conflicts", action="store_true")

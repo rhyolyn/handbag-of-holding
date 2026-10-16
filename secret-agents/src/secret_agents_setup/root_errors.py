@@ -7,21 +7,14 @@ class RootResolutionError(Exception):
     """Raised when the canonical agent root cannot be resolved or validated."""
 
 
-class RootNotResolved(RootResolutionError):
-    def __init__(self, marker_name: str) -> None:
-        self.marker_name = marker_name
-        super().__init__(
-            "Could not resolve the canonical agent root. Pass it explicitly with --agent-root, "
-            "set the SECRET_AGENTS_ROOT environment variable, or run from a checkout whose "
-            f"ancestor contains a valid {marker_name} marker."
-        )
-
-
 class MissingRootMarker(RootResolutionError):
     def __init__(self, path: Path, marker_name: str) -> None:
         self.path = path
         self.marker_name = marker_name
-        super().__init__(f"{path}: missing {marker_name} marker")
+        super().__init__(
+            f"{path}: missing {marker_name} marker. Sync the vault to this location, "
+            "or select its agent root with --agent-root or SECRET_AGENTS_ROOT."
+        )
 
 
 class InvalidRootMarker(RootResolutionError):

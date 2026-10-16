@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from catalog_fixture import write_catalog
 from secret_agents_setup.cli import ExitCode, main
 from secret_agents_setup.link_errors import SymlinkPrivilegeRequired
 from secret_agents_setup.links import LinkBackend, backend_for
@@ -38,10 +39,7 @@ class _ProbeFailBackend:
 
 def _make_agent_root(tmp_path: Path) -> Path:
     root = tmp_path / "canonical"
-    (root / "skills" / "alpha").mkdir(parents=True)
-    (root / "skills" / "alpha" / "SKILL.md").write_text(
-        "---\nname: alpha\ndescription: Alpha skill\n---\n", encoding="utf-8"
-    )
+    write_catalog(root / "skills", "alpha")
     (root / "runbooks").mkdir()
     (root / "AGENTS.md").write_text("guidance", encoding="utf-8")
     (root / "model-routing.json").write_text("{}", encoding="utf-8")
@@ -77,7 +75,6 @@ def test_full_lifecycle_with_backup_and_third_party(tmp_path: Path) -> None:
             [*extra, "--agent-root", str(root)],
             environment={},
             home=home,
-            script_path=root,
             os_name=os.name,
             now=lambda: CLOCK,
             backend=backend,
@@ -96,7 +93,7 @@ def test_full_lifecycle_with_backup_and_third_party(tmp_path: Path) -> None:
 
     # install: link the skill beside the third-party skill and back up the conflicting guidance
     assert run("install", "--harness", "claude", "--backup-conflicts") == ExitCode.SUCCESS
-    assert alpha_link.resolve() == (root / "skills" / "alpha").resolve()
+    assert alpha_link.resolve() == (root / "skills" / "_generated" / "alpha").resolve()
     assert (skills_dir / "third-party").is_dir()
     assert backup.read_text(encoding="utf-8") == "user guidance"
     assert guidance.resolve() == (root / "AGENTS.md").resolve()
@@ -118,7 +115,7 @@ def test_full_lifecycle_with_backup_and_third_party(tmp_path: Path) -> None:
     assert not backup.exists()
     assert not receipt_file.exists()
     assert receipt_file.parent.exists()  # receipt-storage directory is retained
-    assert (root / "skills" / "alpha").is_dir()  # canonical target intact
+    assert (root / "skills" / "work-tracking" / "alpha").is_dir()  # canonical source intact
 
 
 def test_windows_capability_failure_makes_zero_changes(tmp_path: Path) -> None:
@@ -130,7 +127,6 @@ def test_windows_capability_failure_makes_zero_changes(tmp_path: Path) -> None:
         ["install", "--harness", "codex", "--agent-root", str(root)],
         environment={},
         home=home,
-        script_path=root,
         os_name="nt",
         now=lambda: CLOCK,
         backend=_ProbeFailBackend(),
@@ -153,7 +149,6 @@ def test_backend_for_current_host_completes_or_refuses(tmp_path: Path) -> None:
             ["install", "--harness", "codex", "--agent-root", str(root)],
             environment={},
             home=home,
-            script_path=root,
             os_name=os.name,
             now=lambda: CLOCK,
             backend=backend,

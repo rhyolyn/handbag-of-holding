@@ -7,13 +7,13 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from .models import AgentRoot
+from .paths import agent_root_path
 from .root_errors import (
     InvalidRootMarker,
     MissingRootEntry,
     MissingRootMarker,
     RootIdentityMismatch,
     RootMarkerNotObject,
-    RootNotResolved,
     RootSchemaVersionMismatch,
 )
 from .root_errors import RootResolutionError as RootResolutionError
@@ -27,25 +27,10 @@ REQUIRED_ENTRIES = ("AGENTS.md", "model-routing.json", "skills", "runbooks")
 def resolve_agent_root(
     explicit: Path | None,
     environment: Mapping[str, str],
-    script_path: Path,
+    home: Path | None = None,
 ) -> AgentRoot:
-    """Resolve the canonical root by explicit path, environment, then marker ancestry."""
-    if explicit is not None:
-        return _validate_root(explicit.resolve())
-
-    env_value = environment.get("SECRET_AGENTS_ROOT")
-    if env_value:
-        return _validate_root(Path(env_value).resolve())
-
-    start = script_path.resolve()
-    for candidate in (start, *start.parents):
-        if (candidate / MARKER_NAME).is_file():
-            try:
-                return _validate_root(candidate)
-            except RootResolutionError:
-                continue
-
-    raise RootNotResolved(MARKER_NAME)
+    """Validate the explicit, configured, or home-relative canonical root."""
+    return _validate_root(agent_root_path(explicit, environment=environment, home=home))
 
 
 def _validate_root(path: Path) -> AgentRoot:

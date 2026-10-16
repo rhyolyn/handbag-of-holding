@@ -1,0 +1,505 @@
+{
+  "date": "2026-10-13",
+  "source_root": "C:\\Users\\rhyol\\obsidian\\worky\\Agent",
+  "destination_root": "C:\\Users\\rhyol\\obsidian\\handbag-of-holding\\secret-agents",
+  "archive_sha256": "487bb184e5dca10395c184043d4c5f4a72d7a1c1719bdee97709ac8ddfda39f7",
+  "entries": [
+    {
+      "tree": "worky-Agent",
+      "path": "AGENTS-v1.md",
+      "sha256": "05425c17d43e21a4d5c046fd30570b7d361edc1355ae5c4ec000bd6384ebe28c",
+      "bytes": 19702,
+      "archive_member": "worky-Agent/AGENTS-v1.md",
+      "destination": "AGENTS-v1.md",
+      "canonical_sha256_at_completion": "89364bdb7c1d1aab2103f84b928c48a23b8b82677d84d1af8f58bdadf7e6fc7c"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "AGENTS.md",
+      "sha256": "363c18e76d0ff1a53680c7ce7bf27eea7758962e35dfe4a8e04c477e872bcb17",
+      "bytes": 12370,
+      "archive_member": "worky-Agent/AGENTS.md",
+      "destination": "AGENTS.md",
+      "canonical_sha256_at_completion": "398540e2a538d05896c213ba4ec62f3602b8846ae7b6a35eab3bc428b69601fe"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md",
+      "sha256": "d01f88dce3b51401dc82a5f7b9a34f9723a868a75fd95028c7b4c07b81b90d90",
+      "bytes": 6732,
+      "archive_member": "worky-Agent/docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md",
+      "destination": "docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md",
+      "canonical_sha256_at_completion": "d01f88dce3b51401dc82a5f7b9a34f9723a868a75fd95028c7b4c07b81b90d90"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "docs/superpowers/plans/2026-07-11-automated-reports.md",
+      "sha256": "5d1878bfa4c0b406305570526d16d4b0ed513bd7d424fbc47d4aa5ace31789b1",
+      "bytes": 39974,
+      "archive_member": "worky-Agent/docs/superpowers/plans/2026-07-11-automated-reports.md",
+      "destination": "docs/superpowers/plans/2026-07-11-automated-reports.md",
+      "canonical_sha256_at_completion": "5d1878bfa4c0b406305570526d16d4b0ed513bd7d424fbc47d4aa5ace31789b1"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "docs/superpowers/specs/2026-07-03-ugs-pcb-runbook-skill-design.md",
+      "sha256": "b888da6f5f13880a4f9702c955b7b13271119ce40dcdc95bf8991a7908a1bf20",
+      "bytes": 4452,
+      "archive_member": "worky-Agent/docs/superpowers/specs/2026-07-03-ugs-pcb-runbook-skill-design.md",
+      "destination": "docs/superpowers/specs/2026-07-03-ugs-pcb-runbook-skill-design.md",
+      "canonical_sha256_at_completion": "b888da6f5f13880a4f9702c955b7b13271119ce40dcdc95bf8991a7908a1bf20"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "docs/superpowers/specs/2026-07-11-automated-reports-design.md",
+      "sha256": "3ff9381c1f595a6750925c80e89618154e5594282e557e49dc1ec34125bce2a0",
+      "bytes": 7327,
+      "archive_member": "worky-Agent/docs/superpowers/specs/2026-07-11-automated-reports-design.md",
+      "destination": "docs/superpowers/specs/2026-07-11-automated-reports-design.md",
+      "canonical_sha256_at_completion": "3ff9381c1f595a6750925c80e89618154e5594282e557e49dc1ec34125bce2a0"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "HUMANS.md",
+      "sha256": "ccf41865bbb4dd748bea8b5304a3ecd3c9e90cd0bf2eef944d7dc28a0f2ebb07",
+      "bytes": 17939,
+      "archive_member": "worky-Agent/HUMANS.md",
+      "destination": "HUMANS.md",
+      "canonical_sha256_at_completion": "fd9d3952b5f9a3f70d5a6e215026fbf81d67d8a8b524a866519cfb6ed66ec819"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "runbooks/harness-setup/harness-setup.md",
+      "sha256": "73d929da16f47fde1f9f78f9f89f343349110313eda382aed1d03db7af216cd8",
+      "bytes": 3839,
+      "archive_member": "worky-Agent/runbooks/harness-setup/harness-setup.md",
+      "destination": "runbooks/harness-setup/harness-setup.md",
+      "canonical_sha256_at_completion": "7fd23db70ae1a6e793dc5ac19be37611ae8b362ed9614c59cc753d9d85714a54"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "runbooks/ugs-p4-workspace-recovery.md",
+      "sha256": "f864d9ba20abb49c8f8774039e383c3d7704fb8a63cf2e9bbff81b00a4b81953",
+      "bytes": 2576,
+      "archive_member": "worky-Agent/runbooks/ugs-p4-workspace-recovery.md",
+      "destination": "runbooks/ugs-p4-workspace-recovery.md",
+      "canonical_sha256_at_completion": "f864d9ba20abb49c8f8774039e383c3d7704fb8a63cf2e9bbff81b00a4b81953"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "runbooks/ugs-pcb/UGS_PCB_Runbook.md",
+      "sha256": "2221a7373ef9ac0baa58a55f5aa51457ce9f0d6b9eb21e16c5c447ad71cdbbfe",
+      "bytes": 8314,
+      "archive_member": "worky-Agent/runbooks/ugs-pcb/UGS_PCB_Runbook.md",
+      "destination": "runbooks/ugs-pcb/UGS_PCB_Runbook.md",
+      "canonical_sha256_at_completion": "2221a7373ef9ac0baa58a55f5aa51457ce9f0d6b9eb21e16c5c447ad71cdbbfe"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md",
+      "sha256": "921ea98d63a224ad12186d493d12652652fe65b8a734141bc93cf470d3e9d18a",
+      "bytes": 32218,
+      "archive_member": "worky-Agent/runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md",
+      "destination": "runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md",
+      "canonical_sha256_at_completion": "921ea98d63a224ad12186d493d12652652fe65b8a734141bc93cf470d3e9d18a"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/architecture-guards/SKILL.md",
+      "sha256": "01373aa9c6efab7dc5ab45700ab2633f7ec39db3a587ff44a7f4fca0883ad385",
+      "bytes": 6917,
+      "archive_member": "worky-Agent/skills/architecture-guards/SKILL.md",
+      "destination": "skills/clean-code-architecture-guards/SKILL.md",
+      "canonical_sha256_at_completion": "07c4ebf133c14a22118baf45cc11d10e5c51a6bc5ca781617112aae7468fb7eb"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/checkin-receipt-create/SKILL.md",
+      "sha256": "98464d412fdbfae54656ee0bc7c600539b3de7ada11d87aeff359ab2bed48b0c",
+      "bytes": 5502,
+      "archive_member": "worky-Agent/skills/checkin-receipt-create/SKILL.md",
+      "destination": "skills/checkin-receipt-create/SKILL.md",
+      "canonical_sha256_at_completion": "b084331f02e3116ebcd9fb7f3cbd7b16064d5226144beb3b03113108050d4864"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/checkin-receipt-range/SKILL.md",
+      "sha256": "3dd5d56c80a3d1a54bbba432352f800181511b08f59c7b427a400afad222ed11",
+      "bytes": 3271,
+      "archive_member": "worky-Agent/skills/checkin-receipt-range/SKILL.md",
+      "destination": "skills/checkin-receipt-range/SKILL.md",
+      "canonical_sha256_at_completion": "276debae16b2939ac890fc8961725bb7b4c810eac23affd4859b96c0e9282d9f"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/checkin-rollup/SKILL.md",
+      "sha256": "0aa68232ad8741451ace560907812912935c27d69d3e6a005097f8c526ee65a7",
+      "bytes": 3505,
+      "archive_member": "worky-Agent/skills/checkin-rollup/SKILL.md",
+      "destination": "skills/checkin-rollup/SKILL.md",
+      "canonical_sha256_at_completion": "cb4a93e5f8a2298a1af190d3a5f539027cf9de4fd8dbf49adb84ec0f8c5f61c7"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/install-skills/SKILL.md",
+      "sha256": "d3da4c3649295ccbde7c4900930a4afd51e25860d4a524cd8fd8ef865eb092eb",
+      "bytes": 8068,
+      "archive_member": "worky-Agent/skills/install-skills/SKILL.md",
+      "destination": "skills/install-skills/SKILL.md",
+      "canonical_sha256_at_completion": "32bdcc00ac3fe0775b27d2e1c16cc3a7788c01480734fdec5af1b8a29c218940"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/jira-ht/SKILL.md",
+      "sha256": "7e65ea4730b72fdd6ed1ed0e574e78ce116577029c470ee10625640a5f7d32f4",
+      "bytes": 555,
+      "archive_member": "worky-Agent/skills/jira-ht/SKILL.md",
+      "destination": "skills/jira-ht/SKILL.md",
+      "canonical_sha256_at_completion": "555d7ff0c589ab8dda397ab77e9df7b4ebe1c545aee3048fb1d682b9e27ff169"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/jira-human-ticket-create/SKILL.md",
+      "sha256": "642092b941420c6de9eca68df3ae178cabd9ea4bf5098e09d8b61c0465bc5ad4",
+      "bytes": 6002,
+      "archive_member": "worky-Agent/skills/jira-human-ticket-create/SKILL.md",
+      "destination": "skills/jira-human-ticket-create/SKILL.md",
+      "canonical_sha256_at_completion": "86cf18218642aae47b8b9761069a4bb1fca52637e81a8cc836e923bbe1b4abd4"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/python-quality-gate/SKILL.md",
+      "sha256": "ae5056ab7c6316b908d995c931452ab59a9acaff23f918d2159c5f8d4647260c",
+      "bytes": 1841,
+      "archive_member": "worky-Agent/skills/python-quality-gate/SKILL.md",
+      "destination": "skills/python-quality-gate/SKILL.md",
+      "canonical_sha256_at_completion": "342ae757f447c8aa38b7c76727e598e3d1ec140725ee2689816b21a61f234f85"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/python-tdd-cycle/SKILL.md",
+      "sha256": "3538a85f3b52da6a4f5c35cf455ea5f14ffbd44f70963f9a4a3839d78e9e09aa",
+      "bytes": 1759,
+      "archive_member": "worky-Agent/skills/python-tdd-cycle/SKILL.md",
+      "destination": "skills/python-tdd-cycle/SKILL.md",
+      "canonical_sha256_at_completion": "2b6ce052e6a24cec5079fa9e02f4911f0b8e21f0203b131f75fdc4fd3d6d6da8"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/qas/SKILL.md",
+      "sha256": "2d8ad8fb9022df836b3656728dcb7de46753cbcda3cd9f3812e7cf414dfa5e52",
+      "bytes": 2060,
+      "archive_member": "worky-Agent/skills/qas/SKILL.md",
+      "destination": "skills/qas/SKILL.md",
+      "canonical_sha256_at_completion": "2540fafa2e39833a6dc0c3172149271c5418ce35ee5150d4bd7028eb73ca64a9"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/query-all-skills/SKILL.md",
+      "sha256": "08ef83f23d60f18a8acd450721bfb24c425fedbc40ca3328b020db05a20dd2e1",
+      "bytes": 3342,
+      "archive_member": "worky-Agent/skills/query-all-skills/SKILL.md",
+      "destination": "skills/query-all-skills/SKILL.md",
+      "canonical_sha256_at_completion": "c05d0aade1c60271ec125e84b46139107554163bf5cf012fcfc6d62bf6058929"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/README.md",
+      "sha256": "7ead37de2cc34ae0b92cedb4542556a88d1040e78623e7ae947ebc24fb0cfd1b",
+      "bytes": 53852,
+      "archive_member": "worky-Agent/skills/README.md",
+      "destination": "skills/README.md",
+      "canonical_sha256_at_completion": "a911516a8aca943e16bf22b974c4634ae3674b652398b14d15c16883e1ab691d"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/ready-player-one/SKILL.md",
+      "sha256": "e54d2c447ae439c4540f7a3aa99be83901698235411a337fe6fb9ff3b4fad6b5",
+      "bytes": 16446,
+      "archive_member": "worky-Agent/skills/ready-player-one/SKILL.md",
+      "destination": "skills/agent-preflight/SKILL.md",
+      "canonical_sha256_at_completion": "3d7de7e9c471317d67cd50b2a82fcd0763d930788d5f13d4f79dcee6e87d67dd"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/report-rollup/SKILL.md",
+      "sha256": "01118ea991547bb7093689e45839cc5074e082baa91e52f399b8801ff0e4629f",
+      "bytes": 5357,
+      "archive_member": "worky-Agent/skills/report-rollup/SKILL.md",
+      "destination": "skills/report-rollup/SKILL.md",
+      "canonical_sha256_at_completion": "737ba7d2bb02d252b27cad97f299af5f74d06324a4bee9618f7c0f28727f9696"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/reset-unreal-build-environment/SKILL.md",
+      "sha256": "b448059837cf1f3086ff17d1ddbdd5c711379f92232680d2276d66a61723ba66",
+      "bytes": 2871,
+      "archive_member": "worky-Agent/skills/reset-unreal-build-environment/SKILL.md",
+      "destination": "skills/unreal-reset-build-env/SKILL.md",
+      "canonical_sha256_at_completion": "509429e32dcf935e2c9fdda6586c68266e4404e064416eca35d175bb94259967"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/run-mac-coverage/SKILL.md",
+      "sha256": "e8289d5d617df47e0af503db924fae93b286a77decdf3069a7e0dabe3726e6d6",
+      "bytes": 10630,
+      "archive_member": "worky-Agent/skills/run-mac-coverage/SKILL.md",
+      "destination": "skills/run-mac-coverage/SKILL.md",
+      "canonical_sha256_at_completion": "b18bed2e061f96226e04550e0559967725cf6f5115e91d0aa467be52e213cef8"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/run-unit-tests/SKILL.md",
+      "sha256": "47d0ae343f30a29313d9258c6cf23332af92431ccf0539988508ada861973b68",
+      "bytes": 6354,
+      "archive_member": "worky-Agent/skills/run-unit-tests/SKILL.md",
+      "destination": "skills/run-unit-tests/SKILL.md",
+      "canonical_sha256_at_completion": "90ac8e406a4c469619806ef0ee000e702bb795cd1c3926bb31708b585a4773a0"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/rut/SKILL.md",
+      "sha256": "e63ef2d5bfd99d43a4916631916ab30d278ef8efc0a660c5bebcaace1056c726",
+      "bytes": 5031,
+      "archive_member": "worky-Agent/skills/rut/SKILL.md",
+      "destination": "skills/rut/SKILL.md",
+      "canonical_sha256_at_completion": "0d0a041bef55ea2e4c7e1629077243865296f15087da9ef54ee19053e80c7982"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/status-report-create/SKILL.md",
+      "sha256": "6764f330e2765e3cda6c04dfd805f415f3cadc8bbb261a2a38eb9c7e68343b48",
+      "bytes": 8145,
+      "archive_member": "worky-Agent/skills/status-report-create/SKILL.md",
+      "destination": "skills/report-status/SKILL.md",
+      "canonical_sha256_at_completion": "6963ee4b51114cfc223ae4b15232abccfeaa4253fbebee0da1ebde40ee83cff8"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/ugs-pcb-release/SKILL.md",
+      "sha256": "52e66a93faece6a4898e045d53c0def79855d381a4a9098e1de1cc6590e50c0a",
+      "bytes": 8143,
+      "archive_member": "worky-Agent/skills/ugs-pcb-release/SKILL.md",
+      "destination": "skills/unreal-ugs-release/SKILL.md",
+      "canonical_sha256_at_completion": "3bdfe0aa89644428958adb72f3faa1224d821c32accbc9b26ce0e3225dde8bf3"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/update-claude-pricing-doc/SKILL.md",
+      "sha256": "ce9e9dfccb12bf459e3997995ea37cb3732a500ea4d3b656bd61dcd1d2d9c868",
+      "bytes": 2265,
+      "archive_member": "worky-Agent/skills/update-claude-pricing-doc/SKILL.md",
+      "destination": "skills/update-claude-pricing-doc/SKILL.md",
+      "canonical_sha256_at_completion": "43dca0a6d3d84055f3822ae8282a9e6486df0dcf90f80afce9f2ab9f66069d76"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/update-skills-readme/SKILL.md",
+      "sha256": "8107b6ec7052862671ce22cf4360e9aa80a68fe72be4ff40207079f97f33d026",
+      "bytes": 2899,
+      "archive_member": "worky-Agent/skills/update-skills-readme/SKILL.md",
+      "destination": "skills/update-skills-readme/SKILL.md",
+      "canonical_sha256_at_completion": "4f21f4af95eeca0d5f96e50e9c793d38715c21dc9694f43c275b9f60795f628a"
+    },
+    {
+      "tree": "worky-Agent",
+      "path": "skills/work-receipt-create/SKILL.md",
+      "sha256": "ba82aa22ee53b1069580f36bf62f346d4fb8a957132575b1552cd5d6db4ae6c5",
+      "bytes": 12259,
+      "archive_member": "worky-Agent/skills/work-receipt-create/SKILL.md",
+      "destination": "skills/report-receipt/SKILL.md",
+      "canonical_sha256_at_completion": "5964001b6e085f59dbbf94698eac9cda428c0f600b40db01f54dfcf895b1b0e0"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "AGENTS-v1.md",
+      "sha256": "89364bdb7c1d1aab2103f84b928c48a23b8b82677d84d1af8f58bdadf7e6fc7c",
+      "bytes": 19955,
+      "archive_member": "handbag-secret-agents/AGENTS-v1.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "AGENTS.md",
+      "sha256": "2f6146472c2158002b303e3270fa2f5c12dfadc3bf0e5d3ecbacafa4b1b3dcd3",
+      "bytes": 12709,
+      "archive_member": "handbag-secret-agents/AGENTS.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "docs/superpowers/plans/2026-08-28-cross-platform-harness-setup.md",
+      "sha256": "fa69337ad494483cda255a22087b14db82a58f8d7f22bec7f1672c5507d409f8",
+      "bytes": 78074,
+      "archive_member": "handbag-secret-agents/docs/superpowers/plans/2026-08-28-cross-platform-harness-setup.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "docs/superpowers/plans/2026-10-13-consolidate-worky-agent.md",
+      "sha256": "89a45d30666e6709f588244b3ba3fce087eb2ab3647e26dfe06fabb5d54ec3ac",
+      "bytes": 3059,
+      "archive_member": "handbag-secret-agents/docs/superpowers/plans/2026-10-13-consolidate-worky-agent.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "docs/superpowers/specs/2026-08-28-harness-setup-design.md",
+      "sha256": "be4fa1d3ae47cedbad624ca8ec631fcfb33d859596a066e63c8d6cbc3b4d1cca",
+      "bytes": 19151,
+      "archive_member": "handbag-secret-agents/docs/superpowers/specs/2026-08-28-harness-setup-design.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "docs/todo/harness-profiles-and-adapter-discussion.md",
+      "sha256": "bef2a2252b8162509881d78419d476f5a82a4ecaf2a6604a8d224550a64f9765",
+      "bytes": 9844,
+      "archive_member": "handbag-secret-agents/docs/todo/harness-profiles-and-adapter-discussion.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "docs/todo/ready-player-one-analysis-and-solutions.md",
+      "sha256": "12c59e16e965f9d3b43d792a0f79057345661e111fbd3a41e0e8a33d472b460b",
+      "bytes": 12330,
+      "archive_member": "handbag-secret-agents/docs/todo/ready-player-one-analysis-and-solutions.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "HUMANS.md",
+      "sha256": "fd9d3952b5f9a3f70d5a6e215026fbf81d67d8a8b524a866519cfb6ed66ec819",
+      "bytes": 18184,
+      "archive_member": "handbag-secret-agents/HUMANS.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "runbooks/harness-setup/harness-setup.md",
+      "sha256": "5bdc80cfa72e10be84571846a7d25d476bb51c0efc98024e58e1d54767e78f4e",
+      "bytes": 3892,
+      "archive_member": "handbag-secret-agents/runbooks/harness-setup/harness-setup.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "runbooks/ugs-p4-workspace-recovery.md",
+      "sha256": "6526a7b38f74607df273864b070a8a076c7a7581df672fd578f5467423e5b965",
+      "bytes": 2638,
+      "archive_member": "handbag-secret-agents/runbooks/ugs-p4-workspace-recovery.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "runbooks/ugs-pcb/UGS_PCB_Runbook.md",
+      "sha256": "3e70924055f84880b267a224e7dc0e599160e6f94d0e82c09b19873ac40da45b",
+      "bytes": 8568,
+      "archive_member": "handbag-secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md",
+      "sha256": "921ea98d63a224ad12186d493d12652652fe65b8a734141bc93cf470d3e9d18a",
+      "bytes": 32218,
+      "archive_member": "handbag-secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/agent-plan/SKILL.md",
+      "sha256": "251a92fb87f2780650cd79f3df68ccb94c3a839c6c7806b5ecc11dd7bf9373a1",
+      "bytes": 5762,
+      "archive_member": "handbag-secret-agents/skills/agent-plan/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/agent-preflight/SKILL.md",
+      "sha256": "d8c29676584e501c4413892d3a7243338aaa9ffbab967ce4b18daf422d7c9279",
+      "bytes": 16838,
+      "archive_member": "handbag-secret-agents/skills/agent-preflight/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/clean-code-architecture-guards/SKILL.md",
+      "sha256": "27bf2c7814b96e974e575c0288e4ffbc302884f7f76431abdd6b3c136716bbd1",
+      "bytes": 7041,
+      "archive_member": "handbag-secret-agents/skills/clean-code-architecture-guards/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/jira-ht/SKILL.md",
+      "sha256": "7e65ea4730b72fdd6ed1ed0e574e78ce116577029c470ee10625640a5f7d32f4",
+      "bytes": 555,
+      "archive_member": "handbag-secret-agents/skills/jira-ht/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/jira-human-ticket-create/SKILL.md",
+      "sha256": "69f97c395060d6f40665f02d7dae4541038dfcdbfe4fb73919894208bd4506ea",
+      "bytes": 4543,
+      "archive_member": "handbag-secret-agents/skills/jira-human-ticket-create/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/python-quality-gate/SKILL.md",
+      "sha256": "ae5056ab7c6316b908d995c931452ab59a9acaff23f918d2159c5f8d4647260c",
+      "bytes": 1841,
+      "archive_member": "handbag-secret-agents/skills/python-quality-gate/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/python-tdd-cycle/SKILL.md",
+      "sha256": "73079b6410d6b8304db0bdeedf554a5706780ab9b0f393586fe4ad7033e0a542",
+      "bytes": 1757,
+      "archive_member": "handbag-secret-agents/skills/python-tdd-cycle/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/README.md",
+      "sha256": "cfe14c0dcd1462b943ed09669d922766387d09b60110fdf49c63a5f3f4a8cc68",
+      "bytes": 45145,
+      "archive_member": "handbag-secret-agents/skills/README.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/ready-player-one/SKILL.md",
+      "sha256": "804d57aacf8a7950d5186627286ffd638d4ccf2940d674727f812bf1586e6ac5",
+      "bytes": 679,
+      "archive_member": "handbag-secret-agents/skills/ready-player-one/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/report-receipt/SKILL.md",
+      "sha256": "95f4a226bfb83d179ef178ca359aafec602e56554f3d0090c47473ec1833d3f9",
+      "bytes": 12244,
+      "archive_member": "handbag-secret-agents/skills/report-receipt/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/report-rollup/SKILL.md",
+      "sha256": "3be9ea7fd4709e65558dcbb4244c3e44d339dcddcf80320f6d1e201869a562c3",
+      "bytes": 3518,
+      "archive_member": "handbag-secret-agents/skills/report-rollup/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/report-status/SKILL.md",
+      "sha256": "a27d72a99df030a0f5f2157abda4889244147458ff4b133f4f9e9059e037a5d5",
+      "bytes": 8124,
+      "archive_member": "handbag-secret-agents/skills/report-status/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/unreal-reset-build-env/SKILL.md",
+      "sha256": "d9e0a4dcf977b5fc628e12862ae7319948786e715426b1242bd479d18477d2e3",
+      "bytes": 2912,
+      "archive_member": "handbag-secret-agents/skills/unreal-reset-build-env/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/unreal-ugs-release/SKILL.md",
+      "sha256": "4617f7115813b26285787bf51e6690b9c1b2a8f13a1400283e783630c8793570",
+      "bytes": 8282,
+      "archive_member": "handbag-secret-agents/skills/unreal-ugs-release/SKILL.md"
+    },
+    {
+      "tree": "handbag-secret-agents",
+      "path": "skills/update-claude-pricing-doc/SKILL.md",
+      "sha256": "4856f588c56613411d1bc299e43412919dcd265ff77b497513dca31af0c0ccd2",
+      "bytes": 2302,
+      "archive_member": "handbag-secret-agents/skills/update-claude-pricing-doc/SKILL.md"
+    }
+  ],
+  "retired_source_snapshot": ".retired-worky-tree",
+  "removal_method": "Reversible move of verified source into a read-only recovery snapshot; recursive deletion was blocked by automatic approval review."
+}

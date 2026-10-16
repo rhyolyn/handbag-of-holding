@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_verified": "2026-08-28",
+  "last_verified": "2026-10-15",
   "stale_after_days": 31,
   "sources": {
     "codex": "https://developers.openai.com/api/docs/models",
@@ -8,20 +8,20 @@
   },
   "profiles": {
     "high-risk": {
-      "codex": {"model": "gpt-5.6-sol", "reasoning": "high"},
-      "claude": {"model": "claude-opus-5", "effort": "high"}
+      "codex": {"model": "gpt-6-astra", "reasoning": "high"},
+      "claude": {"model": "claude-fable-5-1", "effort": "high"}
     },
     "balanced": {
-      "codex": {"model": "gpt-5.6-terra", "reasoning": "high"},
-      "claude": {"model": "claude-sonnet-5", "effort": "high"}
+      "codex": {"model": "gpt-6.1-sol", "reasoning": "high"},
+      "claude": {"model": "claude-sonnet-5-5", "effort": "high"}
     },
     "routine": {
-      "codex": {"model": "gpt-5.6-terra", "reasoning": "medium"},
-      "claude": {"model": "claude-sonnet-5", "effort": "medium"}
+      "codex": {"model": "gpt-6.1-sol", "reasoning": "medium"},
+      "claude": {"model": "claude-sonnet-5-5", "effort": "medium"}
     },
     "economy": {
-      "codex": {"model": "gpt-5.6-luna", "reasoning": "low"},
-      "claude": {"model": "claude-haiku-4-5-20251001", "effort": "standard"}
+      "codex": {"model": "gpt-6-luna", "reasoning": "low"},
+      "claude": {"model": "claude-haiku-5-5", "effort": "medium"}
     }
   }
 }

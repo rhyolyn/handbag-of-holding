@@ -18,25 +18,25 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 REFERENCE_PATH = ROOT / "model-routing.json"
-SCRIPT_PATH = ROOT / "skills" / "update-model-routing" / "scripts" / "check_staleness.py"
+SCRIPT_PATH = ROOT / "skills" / "maintenance" / "update-model-routing" / "scripts" / "check_staleness.py"
 
-# The authoritative bootstrap content from the plan's Centralized Model Routing Reference.
+# The current provider-verified profiles from model-routing.json.
 EXPECTED_PROFILES = {
     "high-risk": {
-        "codex": {"model": "gpt-5.6-sol", "reasoning": "high"},
-        "claude": {"model": "claude-opus-5", "effort": "high"},
+        "codex": {"model": "gpt-6-astra", "reasoning": "high"},
+        "claude": {"model": "claude-fable-5-1", "effort": "high"},
     },
     "balanced": {
-        "codex": {"model": "gpt-5.6-terra", "reasoning": "high"},
-        "claude": {"model": "claude-sonnet-5", "effort": "high"},
+        "codex": {"model": "gpt-6.1-sol", "reasoning": "high"},
+        "claude": {"model": "claude-sonnet-5-5", "effort": "high"},
     },
     "routine": {
-        "codex": {"model": "gpt-5.6-terra", "reasoning": "medium"},
-        "claude": {"model": "claude-sonnet-5", "effort": "medium"},
+        "codex": {"model": "gpt-6.1-sol", "reasoning": "medium"},
+        "claude": {"model": "claude-sonnet-5-5", "effort": "medium"},
     },
     "economy": {
-        "codex": {"model": "gpt-5.6-luna", "reasoning": "low"},
-        "claude": {"model": "claude-haiku-4-5-20251001", "effort": "standard"},
+        "codex": {"model": "gpt-6-luna", "reasoning": "low"},
+        "claude": {"model": "claude-haiku-5-5", "effort": "medium"},
     },
 }
 EXPECTED_SOURCES = {
@@ -81,10 +81,10 @@ def test_reference_matches_schema_and_profiles() -> None:
 
 def test_age_31_days_is_current(capsys: pytest.CaptureFixture[str]) -> None:
     mod = _load_checker()
-    report = mod.check_staleness(REFERENCE_PATH, date(2026, 9, 28))
+    report = mod.check_staleness(REFERENCE_PATH, date(2026, 11, 15))
     assert report.age_days == 31
     assert report.is_stale is False
-    exit_code = mod.main(["--reference", str(REFERENCE_PATH), "--today", "2026-09-28"])
+    exit_code = mod.main(["--reference", str(REFERENCE_PATH), "--today", "2026-11-15"])
     out = capsys.readouterr().out
     assert out.startswith("CURRENT")
     assert "age_days=31" in out
@@ -94,10 +94,10 @@ def test_age_31_days_is_current(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_age_32_days_is_stale(capsys: pytest.CaptureFixture[str]) -> None:
     mod = _load_checker()
-    report = mod.check_staleness(REFERENCE_PATH, date(2026, 9, 29))
+    report = mod.check_staleness(REFERENCE_PATH, date(2026, 11, 16))
     assert report.age_days == 32
     assert report.is_stale is True
-    exit_code = mod.main(["--reference", str(REFERENCE_PATH), "--today", "2026-09-29"])
+    exit_code = mod.main(["--reference", str(REFERENCE_PATH), "--today", "2026-11-16"])
     out = capsys.readouterr().out
     assert out.startswith("STALE")
     assert "age_days=32" in out
@@ -133,9 +133,9 @@ def test_cli_today_override_is_deterministic(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     mod = _load_checker()
-    exit_code = mod.main(["--reference", str(REFERENCE_PATH), "--today", "2026-09-29"])
+    exit_code = mod.main(["--reference", str(REFERENCE_PATH), "--today", "2026-11-16"])
     out = capsys.readouterr().out
     assert out.startswith("STALE")
-    assert "last_verified=2026-08-28" in out
+    assert "last_verified=2026-10-15" in out
     assert "age_days=32" in out
     assert exit_code == 3

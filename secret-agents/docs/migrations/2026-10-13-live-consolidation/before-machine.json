@@ -1,0 +1,100 @@
+[
+  {
+    "Path": "C:\\Users\\rhyol\\AGENTS.md",
+    "LinkType": null,
+    "Target": null,
+    "IsDirectory": false,
+    "Content": "# Agent Bootstrap\n\nThis file bootstraps AI harnesses on this machine only when the canonical skills are not already visible to the active harness.\n\nBefore running any setup command, inspect the active session's available skills. If skills from `<agent-root>\\skills` are visible (for example, `ready-player-one`), the harness is already bootstrapped: do not inspect, recreate, or validate adapter links. Read `<agent-root>\\AGENTS.md` once at session start for shared guidance. When executing a skill, read its `SKILL.md` and only the resources it explicitly references; skill execution must not trigger another `AGENTS.md` read unless the skill explicitly requires it.\n\nRun the harness setup below only when those canonical skills are not visible.\n\n## Canonical Agent Root\n\n| Machine | Path |\n|---------|------|\n| Home (this machine) | `C:\\git\\worky\\Agent` |\n| Work machine | `D:\\git\\worky\\Agent` |\n\n## Harness Setup\n\n### Claude (Claude Code)\n\n```powershell\nNew-Item -ItemType SymbolicLink -Path \"$env:USERPROFILE\\.claude\\AGENTS.md\" -Target \"C:\\git\\worky\\Agent\\AGENTS.md\"\nNew-Item -ItemType Junction    -Path \"$env:USERPROFILE\\.claude\\skills\"     -Target \"C:\\git\\worky\\Agent\\skills\"\n```\n\n### Codex\n\n```powershell\nNew-Item -ItemType SymbolicLink -Path \"$env:USERPROFILE\\.codex\\AGENTS.md\" -Target \"C:\\git\\worky\\Agent\\AGENTS.md\"\nNew-Item -ItemType Junction    -Path \"$env:USERPROFILE\\.agents\\skills\"     -Target \"C:\\git\\worky\\Agent\\skills\"\n```\n\n### Copilot\n\nTBD — update this section once the Copilot user-level instruction path is confirmed.\n\n## After Setup\n\nAfter setup, restart the harness so it can discover the canonical skills and load its configured instructions normally. The harness adapter should request one `<agent-root>\\AGENTS.md` read at session start. Do not add another `AGENTS.md` read to skill execution unless the skill explicitly requires it.\n"
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\AGENTS.md",
+    "LinkType": null,
+    "Target": null,
+    "IsDirectory": false,
+    "Content": "At the start of each session, read and follow C:\\git\\worky\\Agent\\AGENTS.md once for shared development guidance.\n\nIf canonical skills from C:\\git\\worky\\Agent\\skills are visible in the active session (for example, ready-player-one), the harness is already bootstrapped. Do not run or validate bootstrap infrastructure. Executing a skill must not trigger another AGENTS.md read: read and follow the selected skill's SKILL.md and only the resources it explicitly references. Re-read AGENTS.md later in the session only when a skill explicitly instructs you to do so or the user explicitly requests it.\n\nOnly when those canonical skills are not visible, load and follow C:\\Users\\rhyol\\AGENTS.md to bootstrap the harness.\n"
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.claude\\AGENTS.md",
+    "LinkType": null,
+    "Target": null,
+    "IsDirectory": false,
+    "Content": "Load and follow all instructions in C:\\Users\\rhyol\\AGENTS.md before proceeding."
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.agents\\AGENTS.md",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\AGENTS.md",
+    "IsDirectory": false,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.agents\\skills",
+    "LinkType": "Junction",
+    "Target": "C:\\git\\worky\\Agent\\skills",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.claude\\skills",
+    "LinkType": "Junction",
+    "Target": "C:\\git\\worky\\Agent\\skills",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\.system",
+    "LinkType": null,
+    "Target": null,
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\architecture-guards",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\architecture-guards",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\python-quality-gate",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\python-quality-gate",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\python-tdd-cycle",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\python-tdd-cycle",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\ready-player-one",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\ready-player-one",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\reset-unreal-build-environment",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\reset-unreal-build-environment",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\ugs-pcb-release",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\ugs-pcb-release",
+    "IsDirectory": true,
+    "Content": null
+  },
+  {
+    "Path": "C:\\Users\\rhyol\\.codex\\skills\\work-receipt-create",
+    "LinkType": "SymbolicLink",
+    "Target": "C:\\git\\worky\\Agent\\skills\\work-receipt-create",
+    "IsDirectory": true,
+    "Content": null
+  }
+]

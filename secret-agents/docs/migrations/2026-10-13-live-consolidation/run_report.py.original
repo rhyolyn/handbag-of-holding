@@ -1,0 +1,149 @@
+"""Cross-platform runner for scheduled worky reports.
+
+Invoked by the OS scheduler as:  python run_report.py {status|monthly} [--dry-run]
+
+Runs the matching Claude Code skill headless, records the outcome on the System
+Status dashboard, and commits generated output on success. Standard library only
+so the same script runs unchanged on Windows and Linux.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+VAULT = Path(__file__).resolve().parent.parent
+DASHBOARD = VAULT / "Dashboards" / "System Status.md"
+LOG_DIR = VAULT / "Scripts" / "logs"
+
+
+@dataclass(frozen=True)
+class ReportType:
+    task: str  # dashboard line key, e.g. "status-report"
+    prompt: str  # prompt passed to `claude -p`
+    commit_message: str
+    stage_paths: tuple[str, ...]  # paths to `git add` on a real (non-dry-run) success
+    produced_output: Callable[[], bool]  # True once the expected report file exists
+
+
+def build_status_report() -> ReportType:
+    reports = VAULT / "Status Reports"
+    before = _count_reports(reports)
+    return ReportType(
+        task="status-report",
+        prompt="/status-report-create",
+        commit_message=f"Scheduled status report {date.today():%Y-%m-%d}",
+        stage_paths=(
+            "Status Reports",
+            "Receipts/cost-ledger.csv",
+            "Dashboards/System Status.md",
+        ),
+        produced_output=lambda: _count_reports(reports) > before,
+    )
+
+
+def build_monthly_rollup() -> ReportType:
+    prev_month = _previous_month()
+    expected = (
+        VAULT
+        / "Status Reports"
+        / prev_month[:4]
+        / prev_month
+        / f"monthly-{prev_month}.md"
+    )
+    return ReportType(
+        task="monthly-rollup",
+        prompt=f"/report-rollup month {prev_month}",
+        commit_message=f"Scheduled monthly rollup {prev_month}",
+        stage_paths=("Status Reports", "Receipts/cost-ledger.csv"),
+        produced_output=expected.exists,
+    )
+
+
+BUILDERS = {"status": build_status_report, "monthly": build_monthly_rollup}
+
+
+def run(report: ReportType, dry_run: bool) -> int:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LOG_DIR / f"{report.task}-{datetime.now():%Y-%m-%d-%H%M}.log"
+
+    exit_code = _invoke_claude(report.prompt, log_path)
+    skipped = _log_mentions(log_path, "already exists")
+
+    # Success = claude exited 0 AND (the expected report appeared OR the log shows an idempotent skip).
+    if exit_code != 0 or not (report.produced_output() or skipped):
+        _update_status_line(
+            report.task, f"FAILED (exit {exit_code}, see {log_path.name})"
+        )
+        return 1
+    if skipped:
+        _update_status_line(report.task, "success (skipped - already up to date)")
+        return 0
+    if dry_run:
+        _update_status_line(report.task, "success (dry-run, not committed)")
+        return 0
+
+    _commit(report)
+    return 0
+
+
+def _invoke_claude(prompt: str, log_path: Path) -> int:
+    command = ["claude", "-p", prompt, "--permission-mode", "acceptEdits"]
+    result = subprocess.run(
+        command, cwd=VAULT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    log_path.write_text(result.stdout, encoding="utf-8")  # tee: keep the log,
+    sys.stdout.write(result.stdout)  # and echo for interactive/dry runs.
+    return result.returncode
+
+
+def _commit(report: ReportType) -> None:
+    _git("add", *report.stage_paths)
+    _update_status_line(report.task, "success")
+    _git("add", "Dashboards/System Status.md")
+    _git("commit", "-m", report.commit_message)
+
+
+def _update_status_line(task: str, result: str) -> None:
+    stamp = f"{datetime.now():%Y-%m-%d %H:%M}"
+    new_line = f"- {task}: last run {stamp}, result: {result}"
+    content = DASHBOARD.read_text(encoding="utf-8")
+    content = re.sub(rf"(?m)^- {re.escape(task)}:.*$", new_line, content)
+    DASHBOARD.write_text(content, encoding="utf-8", newline="")
+
+
+def _count_reports(root: Path) -> int:
+    return sum(1 for _ in root.rglob("sr-*.md")) if root.exists() else 0
+
+
+def _previous_month() -> str:
+    last_month = date.today().replace(day=1) - timedelta(days=1)
+    return f"{last_month:%Y-%m}"
+
+
+def _log_mentions(log_path: Path, needle: str) -> bool:
+    return needle in log_path.read_text(encoding="utf-8")
+
+
+def _git(*args: str) -> None:
+    subprocess.run(["git", "-C", str(VAULT), *args], check=True)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run a scheduled worky report.")
+    parser.add_argument("report", choices=BUILDERS, help="Which report to generate.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Run the skill but skip the git commit."
+    )
+    args = parser.parse_args(argv)
+    return run(BUILDERS[args.report](), args.dry_run)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

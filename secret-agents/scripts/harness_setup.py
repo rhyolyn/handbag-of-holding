@@ -12,7 +12,7 @@ def _run() -> int:
     sys.path.insert(0, str(root / "src"))
     from secret_agents_setup.cli import main
 
-    return main(script_path=Path(__file__))
+    return main()
 
 
 if __name__ == "__main__":

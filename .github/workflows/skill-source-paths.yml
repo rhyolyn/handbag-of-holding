@@ -1,0 +1,31 @@
+name: Skill source paths
+
+on:
+  push:
+    paths: ["secret-agents/**", ".github/workflows/skill-source-paths.yml"]
+  pull_request:
+    paths: ["secret-agents/**", ".github/workflows/skill-source-paths.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  source-paths:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: secret-agents
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: python -m pip install -e ".[dev]"
+      - name: Verify source selection and standalone tools
+        run: python -m pytest tests/test_root.py tests/test_cli.py tests/test_skill_source_paths.py tests/test_catalog_updater.py tests/test_skills_readme.py tests/test_model_routing.py -q
+      - name: Check this checkout's catalog explicitly
+        run: python skills/skill-authoring/query-all-skills/scripts/catalog.py check --skills-root skills

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from catalog_fixture import write_catalog
 from secret_agents_setup.cli import ExitCode, main
 from secret_agents_setup.link_errors import SymlinkPrivilegeRequired
 from secret_agents_setup.links import LinkBackend
@@ -69,10 +70,7 @@ class FakeBackend:
 
 def _make_agent_root(tmp_path: Path) -> Path:
     root = tmp_path / "canonical"
-    (root / "skills" / "alpha").mkdir(parents=True)
-    (root / "skills" / "alpha" / "SKILL.md").write_text(
-        "---\nname: alpha\ndescription: Alpha skill\n---\n", encoding="utf-8"
-    )
+    write_catalog(root / "skills", "alpha")
     (root / "runbooks").mkdir()
     (root / "AGENTS.md").write_text("guidance", encoding="utf-8")
     (root / "model-routing.json").write_text("{}", encoding="utf-8")
@@ -87,7 +85,6 @@ def _run(args: list[str], *, home: Path, root: Path, os_name: str = "posix", bac
         [*args, "--agent-root", str(root)],
         environment={},
         home=home,
-        script_path=root,
         os_name=os_name,
         now=lambda: CLOCK,
         backend=backend,
@@ -109,11 +106,24 @@ def test_unresolved_root_is_invalid_input(tmp_path: Path) -> None:
         ["install"],
         environment={},
         home=tmp_path / "home",
-        script_path=tmp_path / "nowhere" / "script.py",
         os_name="posix",
         now=lambda: CLOCK,
     )
     assert code == ExitCode.INVALID_INPUT
+
+
+def test_default_install_uses_injected_home_source(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    home = tmp_path / "User With Spaces"
+    original = _make_agent_root(tmp_path)
+    root = home / "obsidian" / "handbag-of-holding" / "secret-agents"
+    root.parent.mkdir(parents=True)
+    original.rename(root)
+    backend = FakeBackend()
+    code = main(["install", "--dry-run"], environment={}, home=home, backend=backend)
+    assert code == ExitCode.SUCCESS
+    assert f"root {root.resolve()}" in capsys.readouterr().out
+    assert backend.calls == []
+    assert not (home / ".agents").exists()
 
 
 def test_dry_run_reports_plan_without_mutation(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -1,0 +1,1090 @@
+{
+  "entries": [
+    {
+      "tree": "git-source",
+      "path": ".claude/settings.local.json",
+      "sha256": "6d083d404f610b5023d801d4453152ae22988dac32453dedf0a6a5a54556c052",
+      "member": "git-source/.claude/settings.local.json"
+    },
+    {
+      "tree": "git-source",
+      "path": ".gitignore",
+      "sha256": "47f3dc44d5d558960d6869cb34e821e5a34c2a0fa6ea6d0158af9a32cfa28eac",
+      "member": "git-source/.gitignore"
+    },
+    {
+      "tree": "git-source",
+      "path": "CONTEXT.md",
+      "sha256": "323cd648bbefd82d33623fed81aa751e99d0b50255f74e5327e559fd26d04f60",
+      "member": "git-source/CONTEXT.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "README.md",
+      "sha256": "c8de7f28e73938b2d7dc9665befa23320aabfdedbffe9ed82f85c9f4d9e9addb",
+      "member": "git-source/README.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/.agent-root.json",
+      "sha256": "9a9cf431461cca4009e939a47094723bed809ff039a208ee6fb1b118666c99c3",
+      "member": "git-source/secret-agents/.agent-root.json"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/.gitignore",
+      "sha256": "6a1612db0283895550032af65af881ee5b32897ba0980e652a282bc4800eccec",
+      "member": "git-source/secret-agents/.gitignore"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/AGENTS-v1.md",
+      "sha256": "89364bdb7c1d1aab2103f84b928c48a23b8b82677d84d1af8f58bdadf7e6fc7c",
+      "member": "git-source/secret-agents/AGENTS-v1.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/AGENTS.md",
+      "sha256": "5214b85649607db3e22f8aad68bd37213ab3d0541f2ea5bb275dbcdbfcf4c3da",
+      "member": "git-source/secret-agents/AGENTS.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/2026-08-29-symlink-installer-reset-handoff.md",
+      "sha256": "37b5b951755e1e177eea0e264265548eefae598ae913dc470ab6a03743b9e8e6",
+      "member": "git-source/secret-agents/docs/2026-08-29-symlink-installer-reset-handoff.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/plans/2026-08-30-ready-player-one-rewrite.md",
+      "sha256": "8ff2cb22a3f26c25c0f4bfcc9c8b2569b5a6397443cb330ba6379c3bda969801",
+      "member": "git-source/secret-agents/docs/plans/2026-08-30-ready-player-one-rewrite.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/specs/2026-08-30-ready-player-one-design.md",
+      "sha256": "7d8dadf1b2529279d062b00677e964f036f18ddc0b9ba05ecee7ab9c71e1cada",
+      "member": "git-source/secret-agents/docs/specs/2026-08-30-ready-player-one-design.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/specs/2026-10-10-skills-library-integration-design.md",
+      "sha256": "6acc9b4ab95cb7c009b38d9d195ac0eaf26dd627d70a6e0d80e961ee407c430e",
+      "member": "git-source/secret-agents/docs/specs/2026-10-10-skills-library-integration-design.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/superpowers/plans/2026-08-28-cross-platform-harness-setup.md",
+      "sha256": "f847a15f3a468306526454ecabf397edfad63f448587d6bb47ef7fd2f56b4154",
+      "member": "git-source/secret-agents/docs/superpowers/plans/2026-08-28-cross-platform-harness-setup.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md",
+      "sha256": "d33daa86072e584d51127b3741b439f43f6c258dbf507f485c9267f949fc6d71",
+      "member": "git-source/secret-agents/docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/superpowers/plans/2026-10-10-skills-library-integration.md",
+      "sha256": "7f21623db52812b7d94c88e393279bc0e0eccfe7f8c68000e70cdcaaf6d0fe80",
+      "member": "git-source/secret-agents/docs/superpowers/plans/2026-10-10-skills-library-integration.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/superpowers/specs/2026-08-28-harness-setup-design.md",
+      "sha256": "be4fa1d3ae47cedbad624ca8ec631fcfb33d859596a066e63c8d6cbc3b4d1cca",
+      "member": "git-source/secret-agents/docs/superpowers/specs/2026-08-28-harness-setup-design.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/superpowers/specs/2026-08-29-installer-domain-and-cli-design.md",
+      "sha256": "9d4e45083c8f29cf296a78215de09ca3c88a9696c73143f26a47e8aaf24a233d",
+      "member": "git-source/secret-agents/docs/superpowers/specs/2026-08-29-installer-domain-and-cli-design.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/superpowers/specs/2026-08-29-installer-vocabulary-and-cli-redesign-handoff.md",
+      "sha256": "84281307d9d4b6562094649cebb4b7a6c39f32ad2d659fe484928b8fac66a9e4",
+      "member": "git-source/secret-agents/docs/superpowers/specs/2026-08-29-installer-vocabulary-and-cli-redesign-handoff.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/todo/harness-profiles-and-adapter-discussion.md",
+      "sha256": "bef2a2252b8162509881d78419d476f5a82a4ecaf2a6604a8d224550a64f9765",
+      "member": "git-source/secret-agents/docs/todo/harness-profiles-and-adapter-discussion.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/todo/quality-gate-decontamination-followups.md",
+      "sha256": "acabd3a08969dfb572ccd664fe689fae0454c7d4d86de558015365e1706c21b1",
+      "member": "git-source/secret-agents/docs/todo/quality-gate-decontamination-followups.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/docs/todo/ready-player-one-analysis-and-solutions.md",
+      "sha256": "12c59e16e965f9d3b43d792a0f79057345661e111fbd3a41e0e8a33d472b460b",
+      "member": "git-source/secret-agents/docs/todo/ready-player-one-analysis-and-solutions.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/HUMANS.md",
+      "sha256": "fd9d3952b5f9a3f70d5a6e215026fbf81d67d8a8b524a866519cfb6ed66ec819",
+      "member": "git-source/secret-agents/HUMANS.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/model-routing.json",
+      "sha256": "3f01ab69431d7f39d49082f9f8ef814b9805e4a62cb0ff788633125eeb451e27",
+      "member": "git-source/secret-agents/model-routing.json"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/pyproject.toml",
+      "sha256": "bdb50087af1fffd44eed0dc593f0891b0999c150b09ccb32dfae84b3ed17d2f5",
+      "member": "git-source/secret-agents/pyproject.toml"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/runbooks/harness-setup/harness-setup.md",
+      "sha256": "dff5cd7a48aa5ff7930ebcb23611244ce92c5e8a3e80d596245a88c9de744900",
+      "member": "git-source/secret-agents/runbooks/harness-setup/harness-setup.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/runbooks/ugs-p4-workspace-recovery.md",
+      "sha256": "6526a7b38f74607df273864b070a8a076c7a7581df672fd578f5467423e5b965",
+      "member": "git-source/secret-agents/runbooks/ugs-p4-workspace-recovery.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.md",
+      "sha256": "3e70924055f84880b267a224e7dc0e599160e6f94d0e82c09b19873ac40da45b",
+      "member": "git-source/secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md",
+      "sha256": "921ea98d63a224ad12186d493d12652652fe65b8a734141bc93cf470d3e9d18a",
+      "member": "git-source/secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/scripts/harness_setup.py",
+      "sha256": "2eff24d2d71b78698173c6f11cd15518babb775033ad791298a154bd2203b041",
+      "member": "git-source/secret-agents/scripts/harness_setup.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/agent-plan/agents/openai.yaml",
+      "sha256": "502a1b55f74baee486cc2f0bcade4eb31068ec5e774abc5a99a5cc96a8b14462",
+      "member": "git-source/secret-agents/skills/agent-plan/agents/openai.yaml"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/agent-plan/SKILL.md",
+      "sha256": "537e347b289bac2d59681616ac1fcf3c7797696cd0f72b870aa9effddedfad5f",
+      "member": "git-source/secret-agents/skills/agent-plan/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/agent-preflight/SKILL.md",
+      "sha256": "f20a9ac289b222dc159203a7044336de3324a388444cc463207fa70848642604",
+      "member": "git-source/secret-agents/skills/agent-preflight/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/ap/SKILL.md",
+      "sha256": "e3df432123c17fe799c70332cba76fb035bba7754080c5f231a72b664f9d5b33",
+      "member": "git-source/secret-agents/skills/ap/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/architecture-guards/SKILL.md",
+      "sha256": "8e31386b5ca0fed968e08c0c0010e75e101b119a09be88dc31ad5fd68c99cf66",
+      "member": "git-source/secret-agents/skills/architecture-guards/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/catalog.json",
+      "sha256": "2cdfa7da7fa617494618726dfb0d48c1cb888d83cac47fd2f2d95a93a82a3496",
+      "member": "git-source/secret-agents/skills/catalog.json"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/ccag/SKILL.md",
+      "sha256": "6503318ab4dad20b368617ddc66aa6cca4c8d3fd8f3df36bc5344b2a6029114d",
+      "member": "git-source/secret-agents/skills/ccag/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/cceh/SKILL.md",
+      "sha256": "cfebaf96b6d86fa477e4707fa4fddf5caae7dabecc445faa24bed8c4456d48ac",
+      "member": "git-source/secret-agents/skills/cceh/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/clean-code-architecture-guards/SKILL.md",
+      "sha256": "eb1370b82e5164de52a8b3636d8c7a1ddfbc806fcf452308f62a456509dabe16",
+      "member": "git-source/secret-agents/skills/clean-code-architecture-guards/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/clean-code-error-handling/agents/openai.yaml",
+      "sha256": "7d0596a1ff985d4f44f08a877e7da08d0b54a2775b48ec901a3c8ad1c8dc4c69",
+      "member": "git-source/secret-agents/skills/clean-code-error-handling/agents/openai.yaml"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/clean-code-error-handling/SKILL.md",
+      "sha256": "069ee81cd7559aca4f6c1038c071438f947109b3103f844a5fcd7b7c20751e1a",
+      "member": "git-source/secret-agents/skills/clean-code-error-handling/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/cpqg/SKILL.md",
+      "sha256": "83d2daef86b562f9d2151b4bdb37b672a24cc3ae34aca2408dd39702a66b3ab7",
+      "member": "git-source/secret-agents/skills/cpqg/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/install-skills/SKILL.md",
+      "sha256": "3a880623e58181abb2eb58e84b0d925a1c9a75ca4183e25d5d38fb270fad90c7",
+      "member": "git-source/secret-agents/skills/install-skills/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/jhtc/SKILL.md",
+      "sha256": "2f0eae21979b5244025ac9cf67590d82b96e52cd2ac304b88067fd80338d9cd2",
+      "member": "git-source/secret-agents/skills/jhtc/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/jira-ht/SKILL.md",
+      "sha256": "25b39768632564e0fddedd432f446f93f7ea23779974a561ce7691e9ea0d28f2",
+      "member": "git-source/secret-agents/skills/jira-ht/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/jira-human-ticket-create/SKILL.md",
+      "sha256": "8fb4ecec8ba5b46d410e2af15abe15f0e47a40bc6102ab9d8b58b241b5525390",
+      "member": "git-source/secret-agents/skills/jira-human-ticket-create/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/mucpd/SKILL.md",
+      "sha256": "936589f9f794ff41b717c0a0e17088a0957a4ccc9debf84fe7e9ae011bda8289",
+      "member": "git-source/secret-agents/skills/mucpd/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/mumr/SKILL.md",
+      "sha256": "9fc5bae2667160e9f7a6aa5c36772f874cd04c9361f654fa4921550d51a39ac4",
+      "member": "git-source/secret-agents/skills/mumr/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/prpo/SKILL.md",
+      "sha256": "2436b05e2cdbd11a3b17728ec667691ea40ff2b466332ccd01b8de7bc70f8125",
+      "member": "git-source/secret-agents/skills/prpo/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/python-quality-gate/SKILL.md",
+      "sha256": "b95000d943e93f2eccd3c8fd38ca465df364c7ab435a709b40b842a77eb9c134",
+      "member": "git-source/secret-agents/skills/python-quality-gate/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/python-tdd-cycle/SKILL.md",
+      "sha256": "21c15ad6eb8734eb81154e5f99f30669e22b4b8cf405a21af7663ebb4556aabb",
+      "member": "git-source/secret-agents/skills/python-tdd-cycle/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/qas/SKILL.md",
+      "sha256": "369be8ba135964be253c797f27f24c9aac318043ebc9a959ab7c45adfe71f716",
+      "member": "git-source/secret-agents/skills/qas/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/query-all-skills/scripts/catalog.py",
+      "sha256": "86376403465b2ae71fda92e8deaeda55899fb9bf0b8ca3e7e4af5dd1e68192c7",
+      "member": "git-source/secret-agents/skills/query-all-skills/scripts/catalog.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/query-all-skills/SKILL.md",
+      "sha256": "32dd470e26d966af82b9c0302b678f52b3272461b4f1ed54d82b80c167a3a5e2",
+      "member": "git-source/secret-agents/skills/query-all-skills/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/README.html",
+      "sha256": "8f786392d33e3d6ef16f557ba095b2b092be08d84fefb3c9e4d5aaf70d802c8a",
+      "member": "git-source/secret-agents/skills/README.html"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/README.md",
+      "sha256": "07d9dd50874e7438ed66350a04d74a6cba1ea2d2b132b7e3273d2ea42119a0a7",
+      "member": "git-source/secret-agents/skills/README.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/ready-player-one/SKILL.md",
+      "sha256": "c360b367dcf40268ee78837e0d9f87f343c5408428d6c31764df4c5cec697bde",
+      "member": "git-source/secret-agents/skills/ready-player-one/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/report-receipt/SKILL.md",
+      "sha256": "ad58ee407f0e930d415b3cc43b9de8e949ffc21cc460349ab59679ef555186af",
+      "member": "git-source/secret-agents/skills/report-receipt/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/report-rollup/SKILL.md",
+      "sha256": "7b896cd0cd6af85305ed1312940b33578e079716d22ad7158bf1e736091d0a2d",
+      "member": "git-source/secret-agents/skills/report-rollup/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/report-status/SKILL.md",
+      "sha256": "07e507a47e1d23b562f0126b007b2fbc36a781d707a696379894cef45ba001fc",
+      "member": "git-source/secret-agents/skills/report-status/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/reset-unreal-build-environment/SKILL.md",
+      "sha256": "42549e6cbe598810a5810f92f03a0f8955a15f70a57b93cb75d688be0f946c1a",
+      "member": "git-source/secret-agents/skills/reset-unreal-build-environment/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/rrec/SKILL.md",
+      "sha256": "82ccebecb21f13bab3700c49a2fb3b8628e562dc71df5abfe03d3a15c9a1c2a1",
+      "member": "git-source/secret-agents/skills/rrec/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/rrol/SKILL.md",
+      "sha256": "f16b48c54538533d5ab02f9b8b253c8ba611afc17e85c8d3a7602672c85f184f",
+      "member": "git-source/secret-agents/skills/rrol/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/rs/SKILL.md",
+      "sha256": "1ebe74a377880753d9d19f17324f1c7c373481d91ea5cb23eb965acf67e5ac1b",
+      "member": "git-source/secret-agents/skills/rs/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/run-mac-coverage/SKILL.md",
+      "sha256": "624d3baa598dbeeb94d707ede2130512456fe207d8199eab6b2b68c155a99a2a",
+      "member": "git-source/secret-agents/skills/run-mac-coverage/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/run-unit-tests/SKILL.md",
+      "sha256": "f81f82b5fadcf1d6b1eb4c602c911615e5d4e70106b4e76a104aaa1a097a18c1",
+      "member": "git-source/secret-agents/skills/run-unit-tests/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/rut/SKILL.md",
+      "sha256": "da3673ef7f737d407a6d9ba615d833db4f7d67d5e423bda8471827db9fa1a0c7",
+      "member": "git-source/secret-agents/skills/rut/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/sis/SKILL.md",
+      "sha256": "ebd7b5b797b05c8b950e2dbecbf3808408a6b42d26a896b526fd2d1185ab5d23",
+      "member": "git-source/secret-agents/skills/sis/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/status-report-create/SKILL.md",
+      "sha256": "37563d24377fa323052fc015448278d4ec8629abab9ad6b3195d1474dd61b259",
+      "member": "git-source/secret-agents/skills/status-report-create/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/susr/SKILL.md",
+      "sha256": "45c060a9c885b280a614ad86f81d5c8250784e14b01f8bc9457c264ce2ce0346",
+      "member": "git-source/secret-agents/skills/susr/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/TOC.md",
+      "sha256": "e242a743800acf7da7cb16752d3ff49292aa92f3774a0001c40f392c624bea21",
+      "member": "git-source/secret-agents/skills/TOC.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/tptc/SKILL.md",
+      "sha256": "d72b83b27c6afcb57970c3206a62ef389c457de827a0aab63544a988db2560ee",
+      "member": "git-source/secret-agents/skills/tptc/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/trmc/SKILL.md",
+      "sha256": "1edd42dd0ad38edb375e5ef8b3714c6fa11ae583cbb33a13802b37fcbb4b2dd9",
+      "member": "git-source/secret-agents/skills/trmc/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/trut/SKILL.md",
+      "sha256": "0a57d85bfd29b4b78397259f57d6f97df31c8662e0ee9e60facecba7ddf1a60b",
+      "member": "git-source/secret-agents/skills/trut/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/ugs-pcb-release/SKILL.md",
+      "sha256": "0b97c3da85b3f8c90f1ec800a90a094ae71a30e4a4cda26a7010f99357673413",
+      "member": "git-source/secret-agents/skills/ugs-pcb-release/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/unreal-reset-build-env/agents/openai.yaml",
+      "sha256": "d213a67a05a3e4a2a95eb5ef1d6f41971066bcbef1e27180f9f43db486fb4f7b",
+      "member": "git-source/secret-agents/skills/unreal-reset-build-env/agents/openai.yaml"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/unreal-reset-build-env/scripts/Stop-UnrealBuildAndCleanEnv.ps1",
+      "sha256": "c02f9f6ddb23a85d07b255dcc1d9f64ddd7e198ad33693211e33208b025f5e76",
+      "member": "git-source/secret-agents/skills/unreal-reset-build-env/scripts/Stop-UnrealBuildAndCleanEnv.ps1"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/unreal-reset-build-env/SKILL.md",
+      "sha256": "67b1d0bf278832102da0447b4f0a2a5ae728680726427003c11e81164bb25920",
+      "member": "git-source/secret-agents/skills/unreal-reset-build-env/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/unreal-ugs-release/SKILL.md",
+      "sha256": "ca8692470168212081e70f1f04d5da627ce506bab9500841da7c773502528e83",
+      "member": "git-source/secret-agents/skills/unreal-ugs-release/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-claude-pricing-doc/output/claude-pricing.json",
+      "sha256": "06ea04661242e2b8d6919be4015d186c356496636916cd77a92e5da68d06c482",
+      "member": "git-source/secret-agents/skills/update-claude-pricing-doc/output/claude-pricing.json"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-claude-pricing-doc/SKILL.md",
+      "sha256": "0e611255c77e435ee4f945aa59fdb79786cb80a7e824181792c9da811dd80686",
+      "member": "git-source/secret-agents/skills/update-claude-pricing-doc/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-model-routing/agents/openai.yaml",
+      "sha256": "c2c258ffb9ab80b29c28f57ff0f1788708a091173a4e85d4db2226511bf0b1c7",
+      "member": "git-source/secret-agents/skills/update-model-routing/agents/openai.yaml"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-model-routing/scripts/check_staleness.py",
+      "sha256": "e34a5bfe2976b9303f9d437bbebe54e2bb46741206ce17feca6d03ad571b3849",
+      "member": "git-source/secret-agents/skills/update-model-routing/scripts/check_staleness.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-model-routing/SKILL.md",
+      "sha256": "330c9ad9244ececc73bfa29d5443a9f18e5971a2c7104538c138644d846e5c5b",
+      "member": "git-source/secret-agents/skills/update-model-routing/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-skills-readme/scripts/render_html.py",
+      "sha256": "f0a7672ead0a68822b8492ea8dec0d19a17eb6259cf60c5e638970907dbbedbd",
+      "member": "git-source/secret-agents/skills/update-skills-readme/scripts/render_html.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/update-skills-readme/SKILL.md",
+      "sha256": "8129ab6b0b99a137122ce4e855446a67d814f7b0cfcf6e4b9b790251e8f24d77",
+      "member": "git-source/secret-agents/skills/update-skills-readme/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/urbe/SKILL.md",
+      "sha256": "a40f36bd1e2f15c8e87887c1def47326dc982335f8031e92b5b6d11e082e83f4",
+      "member": "git-source/secret-agents/skills/urbe/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/uur/SKILL.md",
+      "sha256": "8241ed922a10af0b7528633315951a543a52a1a8ff940c63b96d7ce40bc409df",
+      "member": "git-source/secret-agents/skills/uur/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/skills/work-receipt-create/SKILL.md",
+      "sha256": "14f683ed2e2016e1171c17325317dbfdb1f7188f141fa311fe5dfc440925d0c2",
+      "member": "git-source/secret-agents/skills/work-receipt-create/SKILL.md"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/__init__.py",
+      "sha256": "fdfb8eb94867f76ace6cf800e162840e20c554a4c85bf0280a3a654f78ec2317",
+      "member": "git-source/secret-agents/src/secret_agents_setup/__init__.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/__main__.py",
+      "sha256": "9a74e633200d59b359b3d014279e511d1be381f21bfa3eb80cc4b7060cf7f537",
+      "member": "git-source/secret-agents/src/secret_agents_setup/__main__.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/catalog.py",
+      "sha256": "220293da6d86508b213c281fbf98fc9cf20ee7c4b49d423018c0f86b8e645dfd",
+      "member": "git-source/secret-agents/src/secret_agents_setup/catalog.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/catalog_errors.py",
+      "sha256": "3f10d3eb4c6cbe195a1f57a3700f8d82d4c479d3ca6bd09afb00165177befe31",
+      "member": "git-source/secret-agents/src/secret_agents_setup/catalog_errors.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/cli.py",
+      "sha256": "3aab52a03d96b18a1433662deb48d704a624818a89081238879695f881911cf4",
+      "member": "git-source/secret-agents/src/secret_agents_setup/cli.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/executor.py",
+      "sha256": "9de8f5c2519372b89db4178b1ebfb5a42d028bd5a170084a7a3b7cca3e6fd27a",
+      "member": "git-source/secret-agents/src/secret_agents_setup/executor.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/executor_errors.py",
+      "sha256": "3636eb9fec7703542358c5901946cf8f5ff2998dfaac4622fa23b887f99aec36",
+      "member": "git-source/secret-agents/src/secret_agents_setup/executor_errors.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/harness_profiles.py",
+      "sha256": "01b5f70c55a867284709d05b651ef4ebe72c86c19a923e8a809ef8441d474401",
+      "member": "git-source/secret-agents/src/secret_agents_setup/harness_profiles.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/link_errors.py",
+      "sha256": "ab9c5a9c90611682128d2cf0d13c55c34a90cccb9d6c3b7669c0c0497928ecf7",
+      "member": "git-source/secret-agents/src/secret_agents_setup/link_errors.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/links.py",
+      "sha256": "1d3ef39eef321578b7e4b141862e2e582e06a77fee97624bfc4e33aee6cd49bc",
+      "member": "git-source/secret-agents/src/secret_agents_setup/links.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/models.py",
+      "sha256": "c7df775ad415206c0c1f76a6cc5647c8b192ae295cbfbf1ed277b904f563e12f",
+      "member": "git-source/secret-agents/src/secret_agents_setup/models.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/planning.py",
+      "sha256": "cb2939ef76dd1f964b9d83ec2477950b86e616c7395b8dd104274a2277d51452",
+      "member": "git-source/secret-agents/src/secret_agents_setup/planning.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/receipt_errors.py",
+      "sha256": "c8168b8b4361652df8186040dbc0a7204d0690a46595e8079672150e57479595",
+      "member": "git-source/secret-agents/src/secret_agents_setup/receipt_errors.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/receipts.py",
+      "sha256": "87c4f3093c5b478308a28480528bc2170a78ad5e50d92c01e06549445934b047",
+      "member": "git-source/secret-agents/src/secret_agents_setup/receipts.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/root.py",
+      "sha256": "b3fb604896e0cbb6cac8b78da016e982137349e32f7053094d0d7ac8ebe7e5e9",
+      "member": "git-source/secret-agents/src/secret_agents_setup/root.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/src/secret_agents_setup/root_errors.py",
+      "sha256": "d56c645a15dd96326c57c5c5bdde896cb7b0149c0136686f279f46a839f850a5",
+      "member": "git-source/secret-agents/src/secret_agents_setup/root_errors.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_catalog.py",
+      "sha256": "f67d8749d05e931cbe6bc22f7fc6c10349f925f9b2a4fea564d5d905ec9dda46",
+      "member": "git-source/secret-agents/tests/test_catalog.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_catalog_updater.py",
+      "sha256": "ca1ec3977deff07af666ef9ab8059a26bdcca0ee56f7cd80a0bfb4cb0f42070f",
+      "member": "git-source/secret-agents/tests/test_catalog_updater.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_cli.py",
+      "sha256": "c84c5bf27d58e123fcd44d76bec250d038a2987ffd4aa1f7c889e65483fde214",
+      "member": "git-source/secret-agents/tests/test_cli.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_executor.py",
+      "sha256": "4cd1e41c46ec81e625d4fd5b1a7d9df299b4570f2e6f5bd84ea2163acf768cfb",
+      "member": "git-source/secret-agents/tests/test_executor.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_harness_profiles.py",
+      "sha256": "f9905ec59c042780907202fa1ccafeeca440f5dbc0a5e59518c8f51dc5e94179",
+      "member": "git-source/secret-agents/tests/test_harness_profiles.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_integration.py",
+      "sha256": "329e0209354b017b4e6c2026ca2673a432e5d71c8170192bc55ef86359e634e2",
+      "member": "git-source/secret-agents/tests/test_integration.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_links.py",
+      "sha256": "3b0a36d3266b16c6b312230ccdb4d2a707582bfc223ed522636ca949ac63895b",
+      "member": "git-source/secret-agents/tests/test_links.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_model_routing.py",
+      "sha256": "282579720eb8ea5d2ff1914d53ec22e9d3558f99bfc9e13e57d95a355b67ea57",
+      "member": "git-source/secret-agents/tests/test_model_routing.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_planning.py",
+      "sha256": "0079e65a05b7dfe08599eb9210edefe6b9662c13d8c1e00953334f1f5b151a1a",
+      "member": "git-source/secret-agents/tests/test_planning.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_receipts.py",
+      "sha256": "388119e7140d3ca0c20de372da276433afaeba2d9631e6e80292db33d81ccb94",
+      "member": "git-source/secret-agents/tests/test_receipts.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_root.py",
+      "sha256": "5451c4bc9e52c75bb83f2fe24874665cfa831707b57a54df17d49123b89f5043",
+      "member": "git-source/secret-agents/tests/test_root.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_skills_readme.py",
+      "sha256": "0f51c7518c1a44e123d51f598e010924c3024ce161fc39bc79cf2d1120be56eb",
+      "member": "git-source/secret-agents/tests/test_skills_readme.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/tests/test_uninstall.py",
+      "sha256": "fa0530314fd9a12c1431b1829fe653d7e6dc08a0fe433d07fc22dbdd41b7a36e",
+      "member": "git-source/secret-agents/tests/test_uninstall.py"
+    },
+    {
+      "tree": "git-source",
+      "path": "secret-agents/uv.lock",
+      "sha256": "3eb705840734e1ecc46ea390996fb32d16d3b7be6df2cc76254494d75d641d97",
+      "member": "git-source/secret-agents/uv.lock"
+    },
+    {
+      "tree": "vault-before",
+      "path": "README.md",
+      "sha256": "9c47d88232ec0aa86798b83cf6e5548d41ae4b8bc81bbedfa738d071cda326b1",
+      "member": "vault-before/README.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/.agent-root.json",
+      "sha256": "d6f4eac285442421cba3aee8b5e16a4227b7376132fe5f21cb23a95d83e1d8d5",
+      "member": "vault-before/secret-agents/.agent-root.json"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/AGENTS-v1.md",
+      "sha256": "89364bdb7c1d1aab2103f84b928c48a23b8b82677d84d1af8f58bdadf7e6fc7c",
+      "member": "vault-before/secret-agents/AGENTS-v1.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/AGENTS.md",
+      "sha256": "398540e2a538d05896c213ba4ec62f3602b8846ae7b6a35eab3bc428b69601fe",
+      "member": "vault-before/secret-agents/AGENTS.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/2026-08-29-symlink-installer-reset-handoff.md",
+      "sha256": "37b5b951755e1e177eea0e264265548eefae598ae913dc470ab6a03743b9e8e6",
+      "member": "vault-before/secret-agents/docs/2026-08-29-symlink-installer-reset-handoff.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/plans/2026-08-30-ready-player-one-rewrite.md",
+      "sha256": "8ff2cb22a3f26c25c0f4bfcc9c8b2569b5a6397443cb330ba6379c3bda969801",
+      "member": "vault-before/secret-agents/docs/plans/2026-08-30-ready-player-one-rewrite.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/plans/2026-10-13-reconcile-skill-migration.md",
+      "sha256": "bf77ae8b0bbf4f560ac2c895e32f3aa1b21608c1af202b3398b2e5c899c67af0",
+      "member": "vault-before/secret-agents/docs/plans/2026-10-13-reconcile-skill-migration.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/specs/2026-08-30-ready-player-one-design.md",
+      "sha256": "7d8dadf1b2529279d062b00677e964f036f18ddc0b9ba05ecee7ab9c71e1cada",
+      "member": "vault-before/secret-agents/docs/specs/2026-08-30-ready-player-one-design.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/specs/2026-10-10-skills-library-integration-design.md",
+      "sha256": "6acc9b4ab95cb7c009b38d9d195ac0eaf26dd627d70a6e0d80e961ee407c430e",
+      "member": "vault-before/secret-agents/docs/specs/2026-10-10-skills-library-integration-design.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md",
+      "sha256": "d01f88dce3b51401dc82a5f7b9a34f9723a868a75fd95028c7b4c07b81b90d90",
+      "member": "vault-before/secret-agents/docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/plans/2026-07-11-automated-reports.md",
+      "sha256": "5d1878bfa4c0b406305570526d16d4b0ed513bd7d424fbc47d4aa5ace31789b1",
+      "member": "vault-before/secret-agents/docs/superpowers/plans/2026-07-11-automated-reports.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/plans/2026-08-28-cross-platform-harness-setup.md",
+      "sha256": "fa69337ad494483cda255a22087b14db82a58f8d7f22bec7f1672c5507d409f8",
+      "member": "vault-before/secret-agents/docs/superpowers/plans/2026-08-28-cross-platform-harness-setup.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md",
+      "sha256": "d33daa86072e584d51127b3741b439f43f6c258dbf507f485c9267f949fc6d71",
+      "member": "vault-before/secret-agents/docs/superpowers/plans/2026-08-29-installer-domain-and-cli-redesign.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/plans/2026-10-10-skills-library-integration.md",
+      "sha256": "7f21623db52812b7d94c88e393279bc0e0eccfe7f8c68000e70cdcaaf6d0fe80",
+      "member": "vault-before/secret-agents/docs/superpowers/plans/2026-10-10-skills-library-integration.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/plans/2026-10-13-consolidate-worky-agent.md",
+      "sha256": "f7b31c998b2bf504cc869fbd36cab3e6b299be1fd8ae31668152ebff564cc42c",
+      "member": "vault-before/secret-agents/docs/superpowers/plans/2026-10-13-consolidate-worky-agent.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/specs/2026-07-03-ugs-pcb-runbook-skill-design.md",
+      "sha256": "b888da6f5f13880a4f9702c955b7b13271119ce40dcdc95bf8991a7908a1bf20",
+      "member": "vault-before/secret-agents/docs/superpowers/specs/2026-07-03-ugs-pcb-runbook-skill-design.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/specs/2026-07-11-automated-reports-design.md",
+      "sha256": "3ff9381c1f595a6750925c80e89618154e5594282e557e49dc1ec34125bce2a0",
+      "member": "vault-before/secret-agents/docs/superpowers/specs/2026-07-11-automated-reports-design.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/specs/2026-08-28-harness-setup-design.md",
+      "sha256": "be4fa1d3ae47cedbad624ca8ec631fcfb33d859596a066e63c8d6cbc3b4d1cca",
+      "member": "vault-before/secret-agents/docs/superpowers/specs/2026-08-28-harness-setup-design.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/specs/2026-08-29-installer-domain-and-cli-design.md",
+      "sha256": "9d4e45083c8f29cf296a78215de09ca3c88a9696c73143f26a47e8aaf24a233d",
+      "member": "vault-before/secret-agents/docs/superpowers/specs/2026-08-29-installer-domain-and-cli-design.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/superpowers/specs/2026-08-29-installer-vocabulary-and-cli-redesign-handoff.md",
+      "sha256": "84281307d9d4b6562094649cebb4b7a6c39f32ad2d659fe484928b8fac66a9e4",
+      "member": "vault-before/secret-agents/docs/superpowers/specs/2026-08-29-installer-vocabulary-and-cli-redesign-handoff.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/todo/harness-profiles-and-adapter-discussion.md",
+      "sha256": "bef2a2252b8162509881d78419d476f5a82a4ecaf2a6604a8d224550a64f9765",
+      "member": "vault-before/secret-agents/docs/todo/harness-profiles-and-adapter-discussion.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/todo/quality-gate-decontamination-followups.md",
+      "sha256": "acabd3a08969dfb572ccd664fe689fae0454c7d4d86de558015365e1706c21b1",
+      "member": "vault-before/secret-agents/docs/todo/quality-gate-decontamination-followups.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/docs/todo/ready-player-one-analysis-and-solutions.md",
+      "sha256": "12c59e16e965f9d3b43d792a0f79057345661e111fbd3a41e0e8a33d472b460b",
+      "member": "vault-before/secret-agents/docs/todo/ready-player-one-analysis-and-solutions.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/HUMANS.md",
+      "sha256": "fd9d3952b5f9a3f70d5a6e215026fbf81d67d8a8b524a866519cfb6ed66ec819",
+      "member": "vault-before/secret-agents/HUMANS.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/README.md",
+      "sha256": "7d338dd802c5ea15d07e535730886235d1f43d1be0a3e11aa48a126d9c184c8e",
+      "member": "vault-before/secret-agents/README.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/harness-setup/harness-setup.md",
+      "sha256": "7fd23db70ae1a6e793dc5ac19be37611ae8b362ed9614c59cc753d9d85714a54",
+      "member": "vault-before/secret-agents/runbooks/harness-setup/harness-setup.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/migration-gaps.md",
+      "sha256": "2018bbfece641344bf8fb06292d3b4006f0857d0e495f7403390618387c66c00",
+      "member": "vault-before/secret-agents/runbooks/migration-gaps.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/scout-project-guidance.md",
+      "sha256": "67179e150c201a6bb4e0610721850296086c94d214ae759497d11de53eaf1c60",
+      "member": "vault-before/secret-agents/runbooks/scout-project-guidance.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/ugs-p4-workspace-recovery.md",
+      "sha256": "f864d9ba20abb49c8f8774039e383c3d7704fb8a63cf2e9bbff81b00a4b81953",
+      "member": "vault-before/secret-agents/runbooks/ugs-p4-workspace-recovery.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.md",
+      "sha256": "2221a7373ef9ac0baa58a55f5aa51457ce9f0d6b9eb21e16c5c447ad71cdbbfe",
+      "member": "vault-before/secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md",
+      "sha256": "921ea98d63a224ad12186d493d12652652fe65b8a734141bc93cf470d3e9d18a",
+      "member": "vault-before/secret-agents/runbooks/ugs-pcb/UGS_PCB_Runbook.verbose-backup-20260707-195225.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/runbooks/worky-vault-paths.md",
+      "sha256": "4a11ba92482e66a834923358183f52fb810e00ca260d70ada08be61b36f9569b",
+      "member": "vault-before/secret-agents/runbooks/worky-vault-paths.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/agent-plan/SKILL.md",
+      "sha256": "0d594a0139c5dde4f82356384b6476ba13978d2f48793b2cbdb59ff139744f8f",
+      "member": "vault-before/secret-agents/skills/agent-plan/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/agent-preflight/SKILL.md",
+      "sha256": "3d7de7e9c471317d67cd50b2a82fcd0763d930788d5f13d4f79dcee6e87d67dd",
+      "member": "vault-before/secret-agents/skills/agent-preflight/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/architecture-guards/SKILL.md",
+      "sha256": "7ebad5e250df9bb5e534d4998fad1dba710db9aa57eba078416570b1d09ad24f",
+      "member": "vault-before/secret-agents/skills/architecture-guards/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/checkin-receipt-create/SKILL.md",
+      "sha256": "b084331f02e3116ebcd9fb7f3cbd7b16064d5226144beb3b03113108050d4864",
+      "member": "vault-before/secret-agents/skills/checkin-receipt-create/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/checkin-receipt-range/SKILL.md",
+      "sha256": "276debae16b2939ac890fc8961725bb7b4c810eac23affd4859b96c0e9282d9f",
+      "member": "vault-before/secret-agents/skills/checkin-receipt-range/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/checkin-rollup/SKILL.md",
+      "sha256": "cb4a93e5f8a2298a1af190d3a5f539027cf9de4fd8dbf49adb84ec0f8c5f61c7",
+      "member": "vault-before/secret-agents/skills/checkin-rollup/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/clean-code-architecture-guards/SKILL.md",
+      "sha256": "07c4ebf133c14a22118baf45cc11d10e5c51a6bc5ca781617112aae7468fb7eb",
+      "member": "vault-before/secret-agents/skills/clean-code-architecture-guards/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/install-skills/SKILL.md",
+      "sha256": "32bdcc00ac3fe0775b27d2e1c16cc3a7788c01480734fdec5af1b8a29c218940",
+      "member": "vault-before/secret-agents/skills/install-skills/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/jira-ht/SKILL.md",
+      "sha256": "555d7ff0c589ab8dda397ab77e9df7b4ebe1c545aee3048fb1d682b9e27ff169",
+      "member": "vault-before/secret-agents/skills/jira-ht/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/jira-human-ticket-create/SKILL.md",
+      "sha256": "86cf18218642aae47b8b9761069a4bb1fca52637e81a8cc836e923bbe1b4abd4",
+      "member": "vault-before/secret-agents/skills/jira-human-ticket-create/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/python-quality-gate/SKILL.md",
+      "sha256": "342ae757f447c8aa38b7c76727e598e3d1ec140725ee2689816b21a61f234f85",
+      "member": "vault-before/secret-agents/skills/python-quality-gate/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/python-tdd-cycle/SKILL.md",
+      "sha256": "2b6ce052e6a24cec5079fa9e02f4911f0b8e21f0203b131f75fdc4fd3d6d6da8",
+      "member": "vault-before/secret-agents/skills/python-tdd-cycle/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/qas/SKILL.md",
+      "sha256": "2540fafa2e39833a6dc0c3172149271c5418ce35ee5150d4bd7028eb73ca64a9",
+      "member": "vault-before/secret-agents/skills/qas/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/query-all-skills/SKILL.md",
+      "sha256": "c05d0aade1c60271ec125e84b46139107554163bf5cf012fcfc6d62bf6058929",
+      "member": "vault-before/secret-agents/skills/query-all-skills/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/README.html",
+      "sha256": "3349b03a9a9fa6866998670f95a45f198d6ebf36aa3b2d5cbda910347591252f",
+      "member": "vault-before/secret-agents/skills/README.html"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/README.md",
+      "sha256": "a911516a8aca943e16bf22b974c4634ae3674b652398b14d15c16883e1ab691d",
+      "member": "vault-before/secret-agents/skills/README.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/ready-player-one/SKILL.md",
+      "sha256": "6655ca8df4a7c555663104f1de76fca608dd547e895b9ad3939ab131556a1f31",
+      "member": "vault-before/secret-agents/skills/ready-player-one/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/report-receipt/SKILL.md",
+      "sha256": "5964001b6e085f59dbbf94698eac9cda428c0f600b40db01f54dfcf895b1b0e0",
+      "member": "vault-before/secret-agents/skills/report-receipt/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/report-rollup/SKILL.md",
+      "sha256": "737ba7d2bb02d252b27cad97f299af5f74d06324a4bee9618f7c0f28727f9696",
+      "member": "vault-before/secret-agents/skills/report-rollup/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/report-status/SKILL.md",
+      "sha256": "6963ee4b51114cfc223ae4b15232abccfeaa4253fbebee0da1ebde40ee83cff8",
+      "member": "vault-before/secret-agents/skills/report-status/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/reset-unreal-build-environment/SKILL.md",
+      "sha256": "fc740d316c842dc3c2b5809f6c94ed7a259de77b3c094a54231f85aa1dc555b9",
+      "member": "vault-before/secret-agents/skills/reset-unreal-build-environment/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/run-mac-coverage/SKILL.md",
+      "sha256": "b18bed2e061f96226e04550e0559967725cf6f5115e91d0aa467be52e213cef8",
+      "member": "vault-before/secret-agents/skills/run-mac-coverage/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/run-unit-tests/SKILL.md",
+      "sha256": "90ac8e406a4c469619806ef0ee000e702bb795cd1c3926bb31708b585a4773a0",
+      "member": "vault-before/secret-agents/skills/run-unit-tests/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/rut/SKILL.md",
+      "sha256": "0d0a041bef55ea2e4c7e1629077243865296f15087da9ef54ee19053e80c7982",
+      "member": "vault-before/secret-agents/skills/rut/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/status-report-create/SKILL.md",
+      "sha256": "f9b472696ff9e27080c3030d3d1c195205af75533f2c55ddbe4617e0e66101e7",
+      "member": "vault-before/secret-agents/skills/status-report-create/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/ugs-pcb-release/SKILL.md",
+      "sha256": "51bc9b605bef4bce382d56a711cc1cbb06a574c82950fb59b3c528469d9615e4",
+      "member": "vault-before/secret-agents/skills/ugs-pcb-release/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/unreal-reset-build-env/SKILL.md",
+      "sha256": "509429e32dcf935e2c9fdda6586c68266e4404e064416eca35d175bb94259967",
+      "member": "vault-before/secret-agents/skills/unreal-reset-build-env/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/unreal-ugs-release/SKILL.md",
+      "sha256": "3bdfe0aa89644428958adb72f3faa1224d821c32accbc9b26ce0e3225dde8bf3",
+      "member": "vault-before/secret-agents/skills/unreal-ugs-release/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/update-claude-pricing-doc/SKILL.md",
+      "sha256": "43dca0a6d3d84055f3822ae8282a9e6486df0dcf90f80afce9f2ab9f66069d76",
+      "member": "vault-before/secret-agents/skills/update-claude-pricing-doc/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/update-skills-readme/SKILL.md",
+      "sha256": "4f21f4af95eeca0d5f96e50e9c793d38715c21dc9694f43c275b9f60795f628a",
+      "member": "vault-before/secret-agents/skills/update-skills-readme/SKILL.md"
+    },
+    {
+      "tree": "vault-before",
+      "path": "secret-agents/skills/work-receipt-create/SKILL.md",
+      "sha256": "b4abb3f872ec344d0ab832c0a10907dcb452bf7f1016ac08254afa29da2fe33f",
+      "member": "vault-before/secret-agents/skills/work-receipt-create/SKILL.md"
+    }
+  ]
+}

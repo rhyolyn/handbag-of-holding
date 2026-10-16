@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "source_layout": "collections",
+  "collections": [
+    {
+      "name": "agent-workflow",
+      "display_name": "Agent Workflow",
+      "description": "Planning and execution workflows for agents."
+    },
+    {
+      "name": "code-quality",
+      "display_name": "Code Quality",
+      "description": "Architecture, error-handling, testing, and quality-gate workflows."
+    },
+    {
+      "name": "maintenance",
+      "display_name": "Maintenance",
+      "description": "Library and model-maintenance workflows."
+    },
+    {
+      "name": "skill-authoring",
+      "display_name": "Skill Authoring",
+      "description": "Creating, discovering, installing, and maintaining skills."
+    },
+    {
+      "name": "unreal",
+      "display_name": "Unreal",
+      "description": "Unreal Engine build, coverage, and release workflows."
+    },
+    {
+      "name": "work-tracking",
+      "display_name": "Work Tracking",
+      "description": "Check-in, Jira, reporting, and work-receipt workflows."
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "original_migration_archive_files": 61,
+  "recovery_archive_files": 181,
+  "unchanged_recovery_source_files": 118,
+  "canonical_skills": 22,
+  "generated_aliases": 30,
+  "worky_agent_absent": true,
+  "errors": [],
+  "python_quality_gate": {
+    "mypy": "passed (31 source files)",
+    "ruff_check": "passed",
+    "ruff_format": "passed (31 files)",
+    "pytest": "168 passed, no skips"
+  },
+  "readme_guard": "passed: 22 skills documented, anchors OK",
+  "independent_review": "No remaining repair blockers",
+  "archive_sha256": "e3f72b0e8f7572ccf43d67184385ce1cbcb9d4b5e80c73da70f40ab6c8a64135",
+  "query": {
+    "cold_ms": 680.703,
+    "warm_runs": 10,
+    "warm_median_ms": 78.589,
+    "warm_times_ms": [
+      121.012,
+      109.101,
+      72.814,
+      72.343,
+      84.588,
+      106.402,
+      78.157,
+      67.845,
+      65.435,
+      79.022
+    ],
+    "warm_skill_body_reads": 0,
+    "warm_recursive_walks": 0,
+    "warm_read_files": [
+      "local stat cache",
+      "skills/catalog.json",
+      "skills/TOC.md"
+    ],
+    "identical_cold_warm_output": true
+  }
+}
