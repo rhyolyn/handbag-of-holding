@@ -1,4 +1,5 @@
 .obsidian/
+*.egg-info/
 /secret-agents/docs/specs/
 /secret-agents/docs/plans/
 /secret-agents/docs/superpowers/
