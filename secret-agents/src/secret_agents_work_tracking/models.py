@@ -43,7 +43,7 @@ class Workspace:
     def location(self, name: LocationName, *, require_exists: bool) -> Path:
         """Return one named location and reject a missing required input."""
         path = self.locations[name]
-        if require_exists and not path.exists():
+        if require_exists and not path.is_dir():
             raise WorkspaceLocationError(name, path)
         return path
 

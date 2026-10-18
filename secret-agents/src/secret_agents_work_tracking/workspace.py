@@ -37,9 +37,9 @@ def resolve_workspace(
     agent_root: Path,
 ) -> Workspace:
     """Select, validate, and resolve the one workspace used by this invocation."""
-    config_path = _select_config_path(explicit_config, explicit_vault, environment, agent_root)
+    config_path, vault_root = _select_workspace_paths(explicit_config, explicit_vault, environment, agent_root)
     data = _load_configuration(config_path)
-    vault_root = config_path.parent.resolve()
+    _validate_configuration_keys(config_path, data)
     _validate_schema(config_path, data)
     tracking_root = _resolve_tracking_root(config_path, vault_root, data)
     timezone = _resolve_timezone(config_path, data)
@@ -47,21 +47,34 @@ def resolve_workspace(
     return Workspace(config_path, vault_root, tracking_root, timezone, locations)
 
 
-def _select_config_path(
+def _select_workspace_paths(
     explicit_config: Path | None,
     explicit_vault: Path | None,
     environment: Mapping[str, str],
     agent_root: Path,
-) -> Path:
+) -> tuple[Path, Path]:
     if explicit_config is not None:
-        return explicit_config.resolve()
+        return _paths_for_config(explicit_config)
     if explicit_vault is not None:
-        return (explicit_vault / _CONFIGURATION_NAME).resolve()
+        return _paths_for_vault(explicit_vault)
     if configured_path := environment.get("WORKY_WORKSPACE_CONFIG"):
-        return Path(configured_path).resolve()
+        return _paths_for_config(Path(configured_path))
     if vault_root := environment.get("WORKY_VAULT_ROOT"):
-        return (Path(vault_root) / _CONFIGURATION_NAME).resolve()
-    return (agent_root / ".." / ".." / "worky" / _CONFIGURATION_NAME).resolve()
+        return _paths_for_vault(Path(vault_root))
+    return _paths_for_vault(agent_root / ".." / ".." / "worky")
+
+
+def _paths_for_config(config_path: Path) -> tuple[Path, Path]:
+    resolved_config = config_path.resolve()
+    return resolved_config, resolved_config.parent
+
+
+def _paths_for_vault(vault_root: Path) -> tuple[Path, Path]:
+    resolved_vault = vault_root.resolve()
+    config_path = resolved_vault / _CONFIGURATION_NAME
+    if config_path.resolve().parent != resolved_vault:
+        raise WorkspaceConfigurationError(config_path, "configuration file must remain inside the selected vault")
+    return config_path, resolved_vault
 
 
 def _load_configuration(config_path: Path) -> Mapping[str, object]:
@@ -69,7 +82,7 @@ def _load_configuration(config_path: Path) -> Mapping[str, object]:
         raise WorkspaceConfigurationError(config_path, "configuration file is missing")
     try:
         data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+    except (OSError, UnicodeError, ValueError, yaml.YAMLError) as exc:
         raise WorkspaceConfigurationError(config_path, f"configuration is unreadable ({exc})") from exc
     if not isinstance(data, dict):
         raise WorkspaceConfigurationError(config_path, "configuration must contain a mapping")
@@ -87,6 +100,14 @@ def _validate_schema(config_path: Path, data: Mapping[str, object]) -> None:
     value = _required_string(config_path, data, "schema")
     if value != _SCHEMA:
         raise WorkspaceConfigurationError(config_path, f"schema must be {_SCHEMA!r}")
+
+
+def _validate_configuration_keys(config_path: Path, data: Mapping[str, object]) -> None:
+    allowed_keys = {"schema", "tracking_root", "timezone", "locations"}
+    unknown_keys = set(data) - allowed_keys
+    if unknown_keys:
+        names = ", ".join(sorted(str(key) for key in unknown_keys))
+        raise WorkspaceConfigurationError(config_path, f"configuration contains unknown keys: {names}")
 
 
 def _resolve_timezone(config_path: Path, data: Mapping[str, object]) -> ZoneInfo:

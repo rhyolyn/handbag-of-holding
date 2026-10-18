@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from pathlib import Path
@@ -24,18 +25,21 @@ _COMMON_FIELDS = (
     "sources",
 )
 CommonValues: TypeAlias = tuple[str, date, date, str, str, tuple[str, ...], tuple[str, ...], str, tuple[str, ...]]
+_PULL_REQUEST_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/[1-9][0-9]*$")
+_COMMIT_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/commit/[0-9a-fA-F]+$")
+_REVIEW_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/[1-9][0-9]*#pullrequestreview-[1-9][0-9]*$")
 
 
 def parse_evidence(path: Path) -> EvidenceRecord | EvidenceDiagnostic:
     """Parse one evidence file into a record or a diagnostic that preserves its path."""
     try:
         parsed = parse_opening_frontmatter(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+        if parsed is None:
+            return EvidenceDiagnostic(path, "frontmatter must open at the first line and contain a YAML mapping")
+        frontmatter, body = parsed
+        record_or_reason = _build_record(path, frontmatter, body)
+    except (OSError, UnicodeError, ValueError, TypeError, yaml.YAMLError) as exc:
         return EvidenceDiagnostic(path, f"invalid YAML frontmatter: {exc}")
-    if parsed is None:
-        return EvidenceDiagnostic(path, "frontmatter must open at the first line and contain a YAML mapping")
-    frontmatter, body = parsed
-    record_or_reason = _build_record(path, frontmatter, body)
     if isinstance(record_or_reason, str):
         return EvidenceDiagnostic(path, record_or_reason)
     return record_or_reason
@@ -147,17 +151,36 @@ def _validate_perforce(kind: str, source_id: str, frontmatter: Mapping[object, o
 
 
 def _validate_github(kind: str, source_id: str, frontmatter: Mapping[object, object]) -> frozenset[str] | str:
-    activity = frontmatter.get("github_activity")
-    if kind != "source-control-receipt" or not _github_url(source_id):
-        return "github evidence requires a source-control receipt and HTTPS source_id"
-    if activity not in {"merged_pull_request", "commit", "review"}:
+    if kind != "source-control-receipt":
+        return "github evidence requires a source-control receipt"
+    activity = _text_value(frontmatter.get("github_activity"))
+    if activity is None:
         return "github evidence requires github_activity of merged_pull_request, commit, or review"
-    commits = _string_sequence(frontmatter.get("pr_commit_urls", []))
-    if commits is None or not all(_github_url(commit) for commit in commits):
-        return "github pr_commit_urls must contain HTTPS URLs"
-    if activity != "merged_pull_request" and commits:
-        return "only merged pull requests may include pr_commit_urls"
+    if activity == "merged_pull_request":
+        return _validate_merged_pull_request(source_id, frontmatter)
+    if activity == "commit" and _is_commit_url(source_id):
+        return _validate_non_pr_membership(frontmatter)
+    if activity == "review" and _is_review_url(source_id):
+        return _validate_non_pr_membership(frontmatter)
+    return "github source_id does not match its github_activity"
+
+
+def _validate_merged_pull_request(source_id: str, frontmatter: Mapping[object, object]) -> frozenset[str] | str:
+    if not _is_pull_request_url(source_id):
+        return "github source_id does not match its github_activity"
+    if "pr_commit_urls" not in frontmatter:
+        return "merged pull requests require pr_commit_urls membership metadata"
+    commits = _string_sequence(frontmatter["pr_commit_urls"])
+    if commits is None or not all(_is_commit_url(commit) for commit in commits):
+        return "github pr_commit_urls must contain commit URLs"
     return frozenset(commits)
+
+
+def _validate_non_pr_membership(frontmatter: Mapping[object, object]) -> frozenset[str] | str:
+    commits = _string_sequence(frontmatter.get("pr_commit_urls", []))
+    if commits is None or commits:
+        return "only merged pull requests may include pr_commit_urls"
+    return frozenset()
 
 
 def _overlaps_window(record: EvidenceRecord, window: ReportingWindow) -> bool:
@@ -178,5 +201,13 @@ def _string_sequence(value: object) -> tuple[str, ...] | None:
     return tuple(value)
 
 
-def _github_url(value: object) -> bool:
-    return isinstance(value, str) and value.startswith("https://github.com/")
+def _is_pull_request_url(value: str) -> bool:
+    return _PULL_REQUEST_URL.fullmatch(value) is not None
+
+
+def _is_commit_url(value: str) -> bool:
+    return _COMMIT_URL.fullmatch(value) is not None
+
+
+def _is_review_url(value: str) -> bool:
+    return _REVIEW_URL.fullmatch(value) is not None

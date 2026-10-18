@@ -148,6 +148,14 @@ def test_unknown_schema_is_an_actionable_configuration_error(tmp_path: Path) -> 
         resolve_workspace(config_path, None, {}, tmp_path / "agent-root")
 
 
+def test_unknown_top_level_key_requires_a_new_schema_version(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    config_path = write_config(vault, f"unknown: true\n{DEFAULT_CONFIG}")
+
+    with pytest.raises(WorkspaceConfigurationError, match="unknown"):
+        resolve_workspace(config_path, None, {}, tmp_path / "agent-root")
+
+
 @pytest.mark.parametrize("receipt_location", ["/outside", "../outside"])
 def test_location_values_must_remain_relative_to_tracking_root(tmp_path: Path, receipt_location: str) -> None:
     vault = tmp_path / "vault"
@@ -168,6 +176,28 @@ def test_required_location_fails_without_creating_the_tracking_root(tmp_path: Pa
         workspace.location("receipts", require_exists=True)
 
     assert not workspace.tracking_root.exists()
+
+
+def test_explicit_vault_rejects_a_configuration_symlink_outside_that_vault(tmp_path: Path) -> None:
+    selected_vault = tmp_path / "selected"
+    selected_vault.mkdir()
+    outside_config = write_config(tmp_path / "outside")
+    (selected_vault / "work-tracking.yaml").symlink_to(outside_config)
+
+    with pytest.raises(WorkspaceConfigurationError, match="selected vault"):
+        resolve_workspace(None, selected_vault, {}, tmp_path / "agent-root")
+
+
+def test_required_location_must_be_a_directory(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    write_config(vault)
+    receipts_file = vault / "Work Tracking" / "Receipts"
+    receipts_file.parent.mkdir()
+    receipts_file.write_text("not a directory", encoding="utf-8")
+    workspace = resolve_workspace(None, vault, {}, tmp_path / "agent-root")
+
+    with pytest.raises(WorkspaceLocationError, match="directory"):
+        workspace.location("receipts", require_exists=True)
 
 
 def write_config(vault: Path, configuration: str = DEFAULT_CONFIG) -> Path:

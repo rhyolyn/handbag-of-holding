@@ -94,6 +94,34 @@ def test_malformed_yaml_returns_a_path_bearing_diagnostic() -> None:
     assert "YAML" in result.reason
 
 
+@pytest.mark.parametrize(
+    ("filename", "content", "reason"),
+    [
+        ("invalid-date.md", b"---\noccurred_start: 2026-13-17\n", "YAML"),
+        ("invalid-activity.md", None, "github_activity"),
+        ("invalid-utf8.md", b"\xff\xfe", "YAML"),
+    ],
+)
+def test_malformed_evidence_always_returns_a_path_bearing_diagnostic(
+    tmp_path: Path, filename: str, content: bytes | None, reason: str
+) -> None:
+    path = tmp_path / filename
+    if content is None:
+        content = (
+            (FIXTURES / "github-pr.md")
+            .read_text(encoding="utf-8")
+            .replace("github_activity: merged_pull_request", "github_activity: [merged_pull_request]")
+            .encode()
+        )
+    path.write_bytes(content)
+
+    result = parse_evidence(path)
+
+    assert isinstance(result, EvidenceDiagnostic)
+    assert result.path == path
+    assert reason in result.reason
+
+
 def test_perforce_source_id_must_match_a_numeric_changelist(tmp_path: Path) -> None:
     invalid_path = tmp_path / "invalid-perforce.md"
     invalid_path.write_text(
@@ -120,6 +148,54 @@ def test_evidence_end_date_cannot_precede_its_start_date(tmp_path: Path) -> None
 
     assert isinstance(result, EvidenceDiagnostic)
     assert "occurred_end" in result.reason
+
+
+def test_github_activity_requires_a_valid_activity_specific_identity(tmp_path: Path) -> None:
+    invalid_path = tmp_path / "invalid-github.md"
+    invalid_path.write_text(
+        (FIXTURES / "github-pr.md")
+        .read_text(encoding="utf-8")
+        .replace("https://github.com/acme/work-tracking/pull/42", "https://github.com/", 1),
+        encoding="utf-8",
+    )
+
+    result = parse_evidence(invalid_path)
+
+    assert isinstance(result, EvidenceDiagnostic)
+    assert "source_id" in result.reason
+
+
+def test_merged_pull_request_requires_commit_membership_metadata(tmp_path: Path) -> None:
+    invalid_path = tmp_path / "missing-membership.md"
+    invalid_path.write_text(
+        (FIXTURES / "github-pr.md")
+        .read_text(encoding="utf-8")
+        .replace("pr_commit_urls:\n  - https://github.com/acme/work-tracking/commit/abc123\n", ""),
+        encoding="utf-8",
+    )
+
+    result = parse_evidence(invalid_path)
+
+    assert isinstance(result, EvidenceDiagnostic)
+    assert "pr_commit_urls" in result.reason
+
+
+def test_pull_request_membership_accepts_only_commit_urls(tmp_path: Path) -> None:
+    invalid_path = tmp_path / "review-membership.md"
+    invalid_path.write_text(
+        (FIXTURES / "github-pr.md")
+        .read_text(encoding="utf-8")
+        .replace(
+            "https://github.com/acme/work-tracking/commit/abc123",
+            "https://github.com/acme/work-tracking/pull/42#pullrequestreview-9",
+        ),
+        encoding="utf-8",
+    )
+
+    result = parse_evidence(invalid_path)
+
+    assert isinstance(result, EvidenceDiagnostic)
+    assert "commit URLs" in result.reason
 
 
 def evidence(filename: str) -> EvidenceRecord:

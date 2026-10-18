@@ -20,4 +20,4 @@ class WorkspaceLocationError(WorkspaceError):
     """Report a required named input location that is unavailable."""
 
     def __init__(self, name: str, path: Path) -> None:
-        super().__init__(f"{path}: required {name} location is missing. Create the input directory, then run again.")
+        super().__init__(f"{path}: required {name} location must be an existing directory. Create it, then run again.")
