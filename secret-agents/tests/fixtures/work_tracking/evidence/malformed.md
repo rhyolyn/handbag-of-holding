@@ -1,0 +1,4 @@
+---
+kind: [broken
+---
+# Invalid receipt

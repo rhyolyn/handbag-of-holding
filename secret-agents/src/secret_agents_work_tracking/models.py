@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date
+from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
 from typing import Literal
@@ -44,3 +46,62 @@ class Workspace:
         if require_exists and not path.exists():
             raise WorkspaceLocationError(name, path)
         return path
+
+
+class OutputDecision(StrEnum):
+    """Describe whether an evidence-derived output can be written safely."""
+
+    CREATE = "create"
+    SKIP_IDENTICAL = "skip-identical"
+    CONFLICT = "conflict"
+
+
+@dataclass(frozen=True)
+class EvidenceRecord:
+    """One validated evidence artifact with its durable provenance."""
+
+    kind: str
+    occurred_start: date
+    occurred_end: date
+    source_system: str
+    source_id: str
+    initiatives: tuple[str, ...]
+    tags: tuple[str, ...]
+    status: str
+    sources: tuple[str, ...]
+    source_path: Path
+    body: str
+    normalized_content: str
+    pr_commit_urls: frozenset[str]
+
+
+@dataclass(frozen=True)
+class EvidenceDiagnostic:
+    """Explain why one evidence file was excluded without hiding its path."""
+
+    path: Path
+    reason: str
+
+
+@dataclass(frozen=True)
+class EvidenceSelection:
+    """Retain the evidence records and diagnostics selected for a window."""
+
+    records: tuple[EvidenceRecord, ...]
+    diagnostics: tuple[EvidenceDiagnostic, ...]
+
+
+@dataclass(frozen=True)
+class ReportingWindow:
+    """Represent a Pacific reporting period with an exclusive end date."""
+
+    start: date
+    end_exclusive: date
+
+
+@dataclass(frozen=True)
+class YearMonth:
+    """Identify one calendar month for report routing."""
+
+    year: int
+    month: int
