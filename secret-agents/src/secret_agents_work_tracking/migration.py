@@ -169,7 +169,10 @@ def _rewritten_document(
 
 def _rewrite_markdown_link(source: Path, vault_root: Path, target_map: dict[Path, Path], match: re.Match[str]) -> str:
     target = _migration_target(vault_root, source, match.group(1), target_map)
-    return match.group(0) if target is None else f"[]({target})"
+    if target is None:
+        return match.group(0)
+    label = match.group(0)[1 : match.group(0).index("](")]
+    return f"[{label}]({target})"
 
 
 def _rewrite_wikilink(vault_root: Path, target_map: dict[Path, Path], match: re.Match[str]) -> str:
