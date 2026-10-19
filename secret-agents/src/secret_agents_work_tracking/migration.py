@@ -396,7 +396,7 @@ def _resolved_target(vault_root: Path, source: Path, target: str) -> str:
 @cache
 def _markdown_paths_by_stem(vault_root: Path) -> Mapping[str, Path]:
     paths_by_stem: dict[str, Path] = {}
-    for path in vault_root.rglob("*.md"):
+    for path in sorted(vault_root.rglob("*.md")):
         paths_by_stem.setdefault(path.stem, path.resolve())
     return MappingProxyType(paths_by_stem)
 

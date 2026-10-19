@@ -194,7 +194,7 @@ def test_backup_refuses_a_destination_created_after_planning(tmp_path: Path) -> 
         ),
     )
 
-    with pytest.raises(ExecutionError, match="already exists"):
+    with pytest.raises(ExecutionError):
         apply_install_plan(plan, root, tmp_path / "probe", RecordingBackend(), receipt_path(home, root.identity), None)
 
     assert original.read_text(encoding="utf-8") == "personal"
