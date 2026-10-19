@@ -201,9 +201,11 @@ def test_update_generates_canonical_projection_with_matching_catalog_paths(tmp_p
     assert catalog.SkillCatalog(tmp_path, tmp_path / "cache.json").update(io.StringIO()) == 0
 
     adapter = tmp_path / "_generated" / "test-skill" / "SKILL.md"
+    canonical = tmp_path / "testing" / "test-skill" / "SKILL.md"
     catalog_data = json.loads((tmp_path / "catalog.json").read_text(encoding="utf-8"))
     assert catalog.parse_frontmatter(adapter.read_text(encoding="utf-8"))["name"] == "test-skill"
-    assert "testing/test-skill/SKILL.md" in adapter.read_text(encoding="utf-8")
+    assert "../../testing/test-skill/SKILL.md" in adapter.read_text(encoding="utf-8")
+    assert (adapter.parent / "../../testing/test-skill/SKILL.md").resolve() == canonical.resolve()
     assert catalog_data["entries"][0]["source_path"] == "testing/test-skill"
     assert catalog_data["generated_projection"] == {"test-skill": "_generated/test-skill"}
 

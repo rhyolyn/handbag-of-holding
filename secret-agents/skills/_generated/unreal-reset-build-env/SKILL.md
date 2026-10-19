@@ -6,4 +6,4 @@ description: "Use when Unreal Engine builds, UGS builds, UBT/UAT/Build.bat/RunUA
 <!-- generated-projection:unreal-reset-build-env:2026-10-16 -->
 # unreal-reset-build-env
 
-Read and follow the canonical source: `unreal/unreal-reset-build-env/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../unreal/unreal-reset-build-env/SKILL.md`.

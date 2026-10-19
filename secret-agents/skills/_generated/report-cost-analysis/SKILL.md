@@ -6,4 +6,4 @@ description: "Use when a work receipt needs optional AI token and cost analysis 
 <!-- generated-projection:report-cost-analysis:2026-10-16 -->
 # report-cost-analysis
 
-Read and follow the canonical source: `work-tracking/report-cost-analysis/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/report-cost-analysis/SKILL.md`.

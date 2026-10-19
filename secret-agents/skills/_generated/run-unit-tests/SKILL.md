@@ -6,4 +6,4 @@ description: "Run a Python project's unit tests in a managed .venv. Creates the 
 <!-- generated-projection:run-unit-tests:2026-10-16 -->
 # run-unit-tests
 
-Read and follow the canonical source: `code-quality/run-unit-tests/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../code-quality/run-unit-tests/SKILL.md`.

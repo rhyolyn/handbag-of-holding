@@ -6,4 +6,4 @@ description: "Use when the user asks to backfill or generate checkin receipts fo
 <!-- generated-projection:checkin-receipt-range:2026-10-16 -->
 # checkin-receipt-range
 
-Read and follow the canonical source: `work-tracking/checkin-receipt-range/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/checkin-receipt-range/SKILL.md`.

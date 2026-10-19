@@ -6,4 +6,4 @@ description: "Use when designing or changing error handling, or when a repositor
 <!-- generated-projection:clean-code-error-handling:2026-10-16 -->
 # clean-code-error-handling
 
-Read and follow the canonical source: `code-quality/clean-code-error-handling/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../code-quality/clean-code-error-handling/SKILL.md`.

@@ -6,4 +6,4 @@ description: "Use when establishing an architectural rule that must survive futu
 <!-- generated-projection:clean-code-architecture-guards:2026-10-16 -->
 # clean-code-architecture-guards
 
-Read and follow the canonical source: `code-quality/clean-code-architecture-guards/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../code-quality/clean-code-architecture-guards/SKILL.md`.

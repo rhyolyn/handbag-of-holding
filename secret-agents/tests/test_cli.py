@@ -230,7 +230,9 @@ def test_check_all_correct_is_success(tmp_path: Path) -> None:
     codex_dir.mkdir(parents=True)
     agents_dir.mkdir(parents=True)
     try:
-        (agents_dir / "skills").symlink_to(root / "skills", target_is_directory=True)
+        skills_dir = agents_dir / "skills"
+        skills_dir.mkdir()
+        (skills_dir / "alpha").symlink_to(root / "skills" / "_generated" / "alpha", target_is_directory=True)
         (codex_dir / "AGENTS.md").symlink_to(root / "AGENTS.md")
     except OSError as exc:  # pragma: no cover - unprivileged Windows
         pytest.skip(f"host cannot create the real links this check needs: {exc}")
@@ -317,7 +319,7 @@ def test_shared_skill_destination_appears_once(tmp_path: Path, capsys: pytest.Ca
     _run(["check", "--harness", "all"], home=home, root=root)
 
     out = capsys.readouterr().out
-    assert out.count(str(home / ".agents" / "skills")) == 1
+    assert out.count(f"finding compatible-skill-directory {home / '.agents' / 'skills'}") == 1
 
 
 def _load_receipt_projections(receipt_file: Path) -> set[Path]:

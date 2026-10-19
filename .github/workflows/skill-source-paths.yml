@@ -10,6 +10,22 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: secret-agents
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev --locked
+      - run: uv run python -m mypy
+      - run: uv run python -m ruff check src tests scripts/run_report.py skills/maintenance/update-model-routing/scripts skills/skill-authoring/query-all-skills/scripts
+      - run: uv run python -m ruff format --check src tests scripts/run_report.py skills/maintenance/update-model-routing/scripts skills/skill-authoring/query-all-skills/scripts
+
   source-paths:
     strategy:
       fail-fast: false
@@ -24,8 +40,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - run: python -m pip install -e ".[dev]"
-      - name: Verify source selection and standalone tools
-        run: python -m pytest tests/test_root.py tests/test_cli.py tests/test_skill_source_paths.py tests/test_catalog_updater.py tests/test_skills_readme.py tests/test_model_routing.py -q
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev --locked
+      - name: Verify the complete lifecycle and migration suite
+        run: uv run python -m pytest -q
       - name: Check this checkout's catalog explicitly
-        run: python skills/skill-authoring/query-all-skills/scripts/catalog.py check --skills-root skills
+        run: uv run python skills/skill-authoring/query-all-skills/scripts/catalog.py check --skills-root skills

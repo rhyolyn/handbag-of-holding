@@ -6,4 +6,4 @@ description: "Use when creating Jira tickets intended for human developers, espe
 <!-- generated-projection:jira-human-ticket-create:2026-10-16 -->
 # jira-human-ticket-create
 
-Read and follow the canonical source: `work-tracking/jira-human-ticket-create/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/jira-human-ticket-create/SKILL.md`.

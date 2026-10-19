@@ -6,4 +6,4 @@ description: "Use when building, validating, submitting, troubleshooting, or upd
 <!-- generated-projection:unreal-ugs-release:2026-10-16 -->
 # unreal-ugs-release
 
-Read and follow the canonical source: `unreal/unreal-ugs-release/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../unreal/unreal-ugs-release/SKILL.md`.

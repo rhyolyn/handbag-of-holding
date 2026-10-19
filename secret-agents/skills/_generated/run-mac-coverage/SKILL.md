@@ -6,4 +6,4 @@ description: "Use when running, validating, or debugging Scout Mac LLVM code cov
 <!-- generated-projection:run-mac-coverage:2026-10-16 -->
 # run-mac-coverage
 
-Read and follow the canonical source: `unreal/run-mac-coverage/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../unreal/run-mac-coverage/SKILL.md`.

@@ -6,4 +6,4 @@ description: "Use when the user asks to refresh or update Claude API pricing, or
 <!-- generated-projection:update-claude-pricing-doc:2026-10-16 -->
 # update-claude-pricing-doc
 
-Read and follow the canonical source: `maintenance/update-claude-pricing-doc/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../maintenance/update-claude-pricing-doc/SKILL.md`.

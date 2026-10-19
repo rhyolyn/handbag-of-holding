@@ -165,5 +165,7 @@ def test_backend_for_current_host_completes_or_refuses(tmp_path: Path) -> None:
         return
 
     assert install() == ExitCode.SUCCESS
-    assert (home / ".agents" / "skills").resolve() == (root / "skills").resolve()
+    skills = home / ".agents" / "skills"
+    assert not skills.is_symlink()
+    assert (skills / "alpha").resolve() == (root / "skills" / "_generated" / "alpha").resolve()
     assert receipt_path(home, IDENTITY).exists()

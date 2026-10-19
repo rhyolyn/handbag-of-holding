@@ -177,6 +177,30 @@ def test_backup_action_captures_sha256_before_link(tmp_path: Path) -> None:
     assert ExecutionEventKind.BACKED_UP in _event_kinds(report)
 
 
+def test_backup_refuses_a_destination_created_after_planning(tmp_path: Path) -> None:
+    root = _make_root(tmp_path)
+    home = tmp_path / "home"
+    (home / ".codex").mkdir(parents=True)
+    original = home / ".codex" / "AGENTS.md"
+    original.write_text("personal", encoding="utf-8")
+    backup = original.with_name("AGENTS.md.backup-20260829-120000")
+    backup.write_text("pre-existing backup", encoding="utf-8")
+    projection = _guidance_projection(root, home, (Harness.CODEX,))
+    plan = InstallPlan(
+        findings=(Finding(FindingState.UNRELATED, original, projection, blocking=False),),
+        actions=(
+            PlannedAction(ActionKind.BACKUP, original, backup, False),
+            PlannedAction(ActionKind.CREATE_LINK, projection.source, original, False),
+        ),
+    )
+
+    with pytest.raises(ExecutionError, match="already exists"):
+        apply_install_plan(plan, root, tmp_path / "probe", RecordingBackend(), receipt_path(home, root.identity), None)
+
+    assert original.read_text(encoding="utf-8") == "personal"
+    assert backup.read_text(encoding="utf-8") == "pre-existing backup"
+
+
 def test_correct_links_without_receipt_stay_unowned(tmp_path: Path) -> None:
     root = _make_root(tmp_path)
     home = tmp_path / "home"

@@ -6,4 +6,4 @@ description: "Use when the user asks to summarize Perforce checkin receipts over
 <!-- generated-projection:checkin-rollup:2026-10-16 -->
 # checkin-rollup
 
-Read and follow the canonical source: `work-tracking/checkin-rollup/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/checkin-rollup/SKILL.md`.

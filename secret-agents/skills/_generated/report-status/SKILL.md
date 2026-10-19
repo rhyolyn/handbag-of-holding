@@ -6,4 +6,4 @@ description: "Use when generating a Tue/Thu status report from work receipts, wh
 <!-- generated-projection:report-status:2026-10-16 -->
 # report-status
 
-Read and follow the canonical source: `work-tracking/report-status/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/report-status/SKILL.md`.

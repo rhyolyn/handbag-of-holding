@@ -196,6 +196,8 @@ class _InstallRun(_Transaction):
             self._create(action)
         elif action.kind is ActionKind.REPLACE_LINK:
             self._replace(action)
+        elif action.kind is ActionKind.REMOVE_LINK:
+            self._remove(action)
         else:  # pragma: no cover - defensive
             raise ValueError(f"unsupported action kind: {action.kind}")
 
@@ -212,7 +214,8 @@ class _InstallRun(_Transaction):
     def _backup(self, action: PlannedAction) -> None:
         original, backup = action.source, action.destination
         digest = file_sha256(original)
-        os.replace(original, backup)
+        os.link(original, backup)
+        original.unlink()
         self.journal.append(_Compensation(_CompensationKind.MOVE_PATH, backup, other=original))
         self.backups.append(ReceiptBackup(original=original, backup=backup, sha256=digest))
         self.events.append(ExecutionEvent(ExecutionEventKind.BACKED_UP, original))
@@ -238,6 +241,20 @@ class _InstallRun(_Transaction):
             )
         )
         self._link(action.source, destination, action.is_directory)
+
+    def _remove(self, action: PlannedAction) -> None:
+        destination = action.destination
+        old_target = self.backend.resolved_target(destination)
+        self.backend.remove_link(destination)
+        self.events.append(ExecutionEvent(ExecutionEventKind.REMOVED_STALE_LINK, destination))
+        self.journal.append(
+            _Compensation(
+                _CompensationKind.RECREATE_LINK,
+                destination,
+                other=old_target,
+                is_directory=action.is_directory,
+            )
+        )
 
     def _link(self, source: Path, destination: Path, is_directory: bool) -> None:
         if is_directory:
@@ -339,6 +356,9 @@ def _build_receipt(
             )
 
     for action in plan.actions:
+        if action.kind is ActionKind.REMOVE_LINK:
+            owned.pop(action.destination, None)
+            continue
         if action.kind not in _LINK_ACTIONS:
             continue
         plan_projection = projection_by_destination[action.destination]

@@ -32,6 +32,7 @@ class FindingState(StrEnum):
 class ActionKind(StrEnum):
     CREATE_LINK = "create-link"
     REPLACE_LINK = "replace-link"
+    REMOVE_LINK = "remove-link"
     BACKUP = "backup"
 
 

@@ -24,9 +24,6 @@ def audit_script(tmp_path: Path) -> Path:
             "__pycache__", ".venv", ".mypy_cache", ".ruff_cache", ".pytest_cache", "*.egg-info"
         ),
     )
-    worky = tmp_path / "worky"
-    worky.mkdir()
-    (worky / "AGENTS.md").write_text("../handbag-of-holding/secret-agents/AGENTS.md\n")
     return destination / "docs/migrations/2026-10-13-spec-recovery/verify_recovery.py"
 
 

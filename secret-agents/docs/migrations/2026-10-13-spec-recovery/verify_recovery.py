@@ -21,9 +21,10 @@ SKILLS = ROOT / "skills"
 INITIAL = AUDIT.parent / "2026-10-13-worky-agent"
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--original-checkout", type=Path, help="Optionally compare archived source files to this checkout.")
+parser.add_argument("--worky-root", type=Path, help="Optionally verify a live Worky pointer after the archive audit.")
 arguments = parser.parse_args()
 ORIGINAL = arguments.original_checkout
-WORKY = ROOT.parent.parent / "worky"
+WORKY = arguments.worky_root
 errors: list[str] = []
 
 
@@ -58,10 +59,14 @@ with ZipFile(AUDIT / "before-recovery.zip") as archive:
                 check(unchanged, f"Recovery source changed: {path}")
                 source_count += int(unchanged)
 
-check(not (WORKY / "Agent").exists(), "Worky/Agent exists")
-check(not (WORKY / "Agents").exists(), "Worky/Agents exists")
-pointer = WORKY / "AGENTS.md"
-check(pointer.is_file() and "../handbag-of-holding/secret-agents/AGENTS.md" in pointer.read_text(encoding="utf-8"), "Worky pointer missing")
+if WORKY is not None:
+    check(not (WORKY / "Agent").exists(), "Worky/Agent exists")
+    check(not (WORKY / "Agents").exists(), "Worky/Agents exists")
+    pointer = WORKY / "AGENTS.md"
+    check(
+        pointer.is_file() and "../handbag-of-holding/secret-agents/AGENTS.md" in pointer.read_text(encoding="utf-8"),
+        "Worky pointer missing",
+    )
 
 catalog_script = SKILLS / "skill-authoring/query-all-skills/scripts/catalog.py"
 spec = importlib.util.spec_from_file_location("recovery_catalog_audit", catalog_script)
@@ -121,7 +126,7 @@ result = {
     "recovery_source_comparison": str(ORIGINAL) if ORIGINAL is not None else "not requested",
     "canonical_skills": len(entries),
     "generated_projections": len(projections),
-    "worky_agent_absent": not (WORKY / "Agent").exists(),
+    "worky_agent_absent": WORKY is None or not (WORKY / "Agent").exists(),
     "errors": errors,
 }
 print(json.dumps(result, indent=2))

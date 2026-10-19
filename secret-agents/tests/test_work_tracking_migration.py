@@ -347,12 +347,31 @@ def test_apply_moves_classified_files_rewrites_links_and_preserves_hashes(tmp_pa
     assert not daily_path.exists()
     assert moved_receipt.is_file()
     assert moved_daily.is_file()
-    assert "../../Daily/2026/day.md" not in moved_receipt.read_text(encoding="utf-8")
-    assert "Work Tracking/Daily/2026/day.md" in moved_receipt.read_text(encoding="utf-8")
+    assert "[daily](../../Daily/2026/day.md)" in moved_receipt.read_text(encoding="utf-8")
     assert "Work Tracking/Receipts/2026/receipt.md" in moved_daily.read_text(encoding="utf-8")
     assert audit.unresolved == ()
     assert all(item.output_hash for item in audit.moved)
     assert (vault / "Projects/idea.md").is_file()
+
+
+def test_apply_preserves_markdown_fragments_and_wikilink_display_labels(tmp_path: Path) -> None:
+    vault = create_legacy_vault(tmp_path)
+    receipt_path = vault / "Receipts/2026/receipt.md"
+    daily_path = vault / "Daily/2026/day.md"
+    receipt_path.write_text(
+        receipt(
+            "manual:receipt",
+            "See [daily](../../Daily/2026/day.md#Heading) and [[day#Heading|daily view]].",
+        ),
+        encoding="utf-8",
+    )
+    daily_path.write_text(receipt("manual:daily", "Daily body.", kind="daily-note"), encoding="utf-8")
+
+    apply_migration(preflight_migration(build_inventory(workspace_for(vault))))
+
+    migrated = (vault / "Work Tracking/Receipts/2026/receipt.md").read_text(encoding="utf-8")
+    assert "[daily](../../Daily/2026/day.md#Heading)" in migrated
+    assert "[[Work Tracking/Daily/2026/day.md#Heading|daily view]]" in migrated
 
 
 def test_apply_rolls_back_every_completed_move_when_a_move_fails(

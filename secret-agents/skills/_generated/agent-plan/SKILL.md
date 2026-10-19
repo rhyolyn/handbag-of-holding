@@ -6,4 +6,4 @@ description: "Use when creating or revising an implementation plan that may span
 <!-- generated-projection:agent-plan:2026-10-16 -->
 # agent-plan
 
-Read and follow the canonical source: `agent-workflow/agent-plan/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../agent-workflow/agent-plan/SKILL.md`.

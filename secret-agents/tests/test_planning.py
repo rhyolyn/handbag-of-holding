@@ -149,6 +149,27 @@ def test_backup_conflict_names_timestamped_sibling_before_link(tmp_path: Path) -
     )
 
 
+def test_backup_conflict_allocates_a_unique_sibling_name(tmp_path: Path) -> None:
+    source = tmp_path / "canonical" / "AGENTS.md"
+    source.parent.mkdir()
+    source.write_text("canonical", encoding="utf-8")
+    destination = tmp_path / "home" / ".codex" / "AGENTS.md"
+    destination.parent.mkdir(parents=True)
+    destination.write_text("personal", encoding="utf-8")
+    occupied = destination.with_name("AGENTS.md.backup-20260829-123456")
+    occupied.write_text("older backup", encoding="utf-8")
+
+    plan = build_install_plan((_guidance_projection(source, destination),), (), True, TIMESTAMP)
+
+    assert plan.actions[0] == PlannedAction(
+        ActionKind.BACKUP,
+        destination,
+        destination.with_name("AGENTS.md.backup-20260829-123456-1"),
+        False,
+    )
+    assert occupied.read_text(encoding="utf-8") == "older backup"
+
+
 def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(
     tmp_path: Path,
 ) -> None:
@@ -171,6 +192,40 @@ def test_real_skill_directory_is_compatible_and_plans_each_missing_skill(
     )
     assert tuple(action.destination.name for action in plan.actions) == ("alpha", "beta")
     assert all(action.kind is ActionKind.CREATE_LINK for action in plan.actions)
+
+
+def test_missing_skill_directory_is_created_as_a_mixing_directory(tmp_path: Path) -> None:
+    source = tmp_path / "canonical" / "skills"
+    source.mkdir(parents=True)
+    alpha = _skill(source, "alpha")
+    alpha.directory.mkdir()
+    destination = tmp_path / "home" / ".claude" / "skills"
+
+    plan = build_install_plan((_skills_projection(source, destination),), (alpha,), False, TIMESTAMP)
+
+    assert tuple(finding.state for finding in plan.findings) == (
+        FindingState.COMPATIBLE_SKILL_DIRECTORY,
+        FindingState.MISSING,
+    )
+    assert plan.actions == (PlannedAction(ActionKind.CREATE_LINK, alpha.directory, destination / "alpha", True),)
+
+
+def test_catalog_skills_replace_a_legacy_whole_directory_link(tmp_path: Path) -> None:
+    source = tmp_path / "canonical" / "skills"
+    source.mkdir(parents=True)
+    alpha = _skill(source, "alpha")
+    alpha.directory.mkdir()
+    destination = tmp_path / "home" / ".claude" / "skills"
+    destination.parent.mkdir(parents=True)
+    destination.symlink_to(source, target_is_directory=True)
+
+    plan = build_install_plan((_skills_projection(source, destination),), (alpha,), False, TIMESTAMP)
+
+    assert tuple(finding.state for finding in plan.findings) == (FindingState.STALE_LINK, FindingState.MISSING)
+    assert plan.actions == (
+        PlannedAction(ActionKind.REMOVE_LINK, destination, destination, True),
+        PlannedAction(ActionKind.CREATE_LINK, alpha.directory, destination / "alpha", True),
+    )
 
 
 def test_correct_per_skill_link_is_preserved(tmp_path: Path) -> None:

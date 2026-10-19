@@ -65,6 +65,9 @@ def _classify_projection(
     timestamp: datetime,
 ) -> tuple[list[Finding], list[PlannedAction]]:
     destination = projection.destination
+    if projection.kind is ProjectionKind.SKILLS and catalog:
+        return _classify_catalog_skill_directory(projection, catalog)
+
     if not os.path.lexists(destination):
         return [
             Finding(FindingState.MISSING, destination, projection),
@@ -83,7 +86,7 @@ def _classify_projection(
     if not can_backup:
         return [finding], []
 
-    backup = destination.with_name(f"{destination.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
+    backup = _available_backup_path(destination, timestamp)
     return [finding], [
         PlannedAction(ActionKind.BACKUP, destination, backup, False),
         _link_action(ActionKind.CREATE_LINK, projection.source, destination, projection),
@@ -123,6 +126,37 @@ def _classify_skill_directory(
             findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, projection, blocking=True))
 
     return findings, actions
+
+
+def _classify_catalog_skill_directory(
+    projection: Projection, catalog: tuple[SkillDescriptor, ...]
+) -> tuple[list[Finding], list[PlannedAction]]:
+    """Plan a real harness directory that mixes third-party and generated skills."""
+    destination = projection.destination
+    if _is_link(destination):
+        state = FindingState.BROKEN_LINK if not destination.exists() else FindingState.STALE_LINK
+        findings = [Finding(state, destination, projection)]
+        actions = [PlannedAction(ActionKind.REMOVE_LINK, destination, destination, True)]
+        for skill in catalog:
+            skill_destination = destination / skill.name
+            findings.append(Finding(FindingState.MISSING, skill_destination, projection))
+            actions.append(PlannedAction(ActionKind.CREATE_LINK, skill.directory, skill_destination, True))
+        return findings, actions
+
+    if not os.path.lexists(destination) or destination.is_dir():
+        return _classify_skill_directory(projection, catalog)
+
+    return [Finding(FindingState.UNRELATED, destination, projection, blocking=True)], []
+
+
+def _available_backup_path(destination: Path, timestamp: datetime) -> Path:
+    base = destination.with_name(f"{destination.name}.backup-{timestamp.strftime('%Y%m%d-%H%M%S')}")
+    candidate = base
+    index = 1
+    while os.path.lexists(candidate):
+        candidate = base.with_name(f"{base.name}-{index}")
+        index += 1
+    return candidate
 
 
 def _link_action(kind: ActionKind, source: Path, destination: Path, projection: Projection) -> PlannedAction:

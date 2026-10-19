@@ -6,4 +6,4 @@ description: "Use when rolling up status reports into a monthly report or an ann
 <!-- generated-projection:report-rollup:2026-10-16 -->
 # report-rollup
 
-Read and follow the canonical source: `work-tracking/report-rollup/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/report-rollup/SKILL.md`.

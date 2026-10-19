@@ -500,7 +500,8 @@ class SkillCatalog:
         return (
             f"---\nname: {entry.name}\ndescription: {json.dumps(entry.description, ensure_ascii=False)}\n---\n\n"
             f"<!-- generated-projection:{entry.name}:{generated} -->\n# {entry.name}\n\n"
-            f"Read and follow the canonical source: `{entry.source_path}/SKILL.md`.\n"
+            "Resolve this adapter's actual filesystem path; then, from its directory, read and follow "
+            f"the canonical source: `../../{entry.source_path}/SKILL.md`.\n"
         )
 
     def _preflight_projection(self, catalog: Catalog) -> tuple[Path, ...]:

@@ -6,4 +6,4 @@ description: "Use when the user asks to write a checkin receipt for a single Per
 <!-- generated-projection:checkin-receipt-create:2026-10-16 -->
 # checkin-receipt-create
 
-Read and follow the canonical source: `work-tracking/checkin-receipt-create/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/checkin-receipt-create/SKILL.md`.

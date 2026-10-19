@@ -6,4 +6,4 @@ description: "Use when the user asks to create or update a work receipt, WR, han
 <!-- generated-projection:report-receipt:2026-10-16 -->
 # report-receipt
 
-Read and follow the canonical source: `work-tracking/report-receipt/SKILL.md`.
+Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/report-receipt/SKILL.md`.

@@ -29,7 +29,7 @@ from .models import (
 )
 
 _MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-_WIKILINK = re.compile(r"\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]")
+_WIKILINK = re.compile(r"\[\[([^\]|#]+)((?:[|#][^\]]*)?)\]\]")
 _CODE_LITERAL = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 _DATE_IN_FILENAME = re.compile(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)")
 _DATE_IN_DAILY_HEADING = re.compile(r"^#\s+(\d{4}-\d{2}-\d{2})(?:\s|$)", re.MULTILINE)
@@ -159,7 +159,7 @@ def _rewritten_document(
     source = entry.source
     text = _normalized_migration_document(entry)
     markdown = _replace_links_outside_code(
-        text, _MARKDOWN_LINK, lambda match: _rewrite_markdown_link(source, vault_root, target_map, match)
+        text, _MARKDOWN_LINK, lambda match: _rewrite_markdown_link(entry, vault_root, target_map, match)
     )
     rewritten = _replace_links_outside_code(
         markdown, _WIKILINK, lambda match: _rewrite_wikilink(vault_root, target_map, match)
@@ -167,25 +167,33 @@ def _rewritten_document(
     return rewritten, tuple(sorted(set(_link_targets(source))))
 
 
-def _rewrite_markdown_link(source: Path, vault_root: Path, target_map: dict[Path, Path], match: re.Match[str]) -> str:
-    target = _migration_target(vault_root, source, match.group(1), target_map)
+def _rewrite_markdown_link(
+    entry: MigrationEntry, vault_root: Path, target_map: dict[Path, Path], match: re.Match[str]
+) -> str:
+    raw_target = match.group(1)
+    target = _migration_destination(vault_root, entry.source, raw_target, target_map)
     if target is None:
         return match.group(0)
     label = match.group(0)[1 : match.group(0).index("](")]
-    return f"[{label}]({target})"
+    relative = os.path.relpath(target, entry.destination.parent).replace(os.sep, "/")
+    return f"[{label}]({relative}{_link_suffix(raw_target)})"
 
 
 def _rewrite_wikilink(vault_root: Path, target_map: dict[Path, Path], match: re.Match[str]) -> str:
-    target = _migration_target(vault_root, vault_root, match.group(1), target_map)
-    return match.group(0) if target is None else f"[[{target}]]"
+    target = _migration_destination(vault_root, vault_root, match.group(1), target_map)
+    return match.group(0) if target is None else f"[[{target.relative_to(vault_root).as_posix()}{match.group(2)}]]"
 
 
-def _migration_target(vault_root: Path, source: Path, raw_target: str, target_map: dict[Path, Path]) -> str | None:
+def _migration_destination(
+    vault_root: Path, source: Path, raw_target: str, target_map: dict[Path, Path]
+) -> Path | None:
     resolved = _planned_link_target(vault_root, source, raw_target, target_map)
-    destination = target_map.get(resolved)
-    if destination is None:
-        return None
-    return destination.relative_to(vault_root).as_posix()
+    return target_map.get(resolved)
+
+
+def _link_suffix(raw_target: str) -> str:
+    _, separator, suffix = raw_target.partition("#")
+    return f"{separator}{suffix}"
 
 
 def _planned_link_target(vault_root: Path, source: Path, raw_target: str, target_map: dict[Path, Path]) -> Path:
@@ -600,9 +608,9 @@ def _markdown_link_targets(text: str) -> tuple[str, ...]:
 
 def _wikilink_targets(text: str) -> tuple[str, ...]:
     return tuple(
-        target
-        for match in _WIKILINK.findall(_text_outside_code_literals(text))
-        if not _is_iso_date_wikilink_placeholder(target := match.strip())
+        raw_target.strip()
+        for raw_target, _suffix in _WIKILINK.findall(_text_outside_code_literals(text))
+        if not _is_iso_date_wikilink_placeholder(raw_target.strip())
     )
 
 
