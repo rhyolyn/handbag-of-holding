@@ -10,7 +10,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from .errors import WorkspaceError
-from .migration import audit_payload, build_inventory, preflight_migration
+from .migration import (
+    applied_audit_payload,
+    apply_migration,
+    audit_payload,
+    build_inventory,
+    preflight_migration,
+    write_applied_audit,
+)
 from .models import Workspace
 from .workspace import resolve_workspace
 
@@ -23,15 +30,21 @@ def main(argv: Sequence[str] | None = None, *, environment: Mapping[str, str] | 
         workspace = resolve_workspace(
             arguments.config, arguments.vault, selected_environment, _agent_root(selected_environment)
         )
+        if arguments.command == "workspace":
+            print(json.dumps(_workspace_payload(workspace), sort_keys=True))
+            return 0
+        plan = preflight_migration(build_inventory(workspace))
+        if arguments.migration_command == "inventory":
+            print(json.dumps(audit_payload(plan), sort_keys=True))
+            return 0
+        audit = apply_migration(plan)
+        if arguments.audit is not None:
+            write_applied_audit(audit, arguments.audit)
     except WorkspaceError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    if arguments.command == "workspace":
-        print(json.dumps(_workspace_payload(workspace), sort_keys=True))
-        return 0
-    plan = preflight_migration(build_inventory(workspace))
-    print(json.dumps(audit_payload(plan), sort_keys=True))
-    return 0
+    print(json.dumps(applied_audit_payload(audit), sort_keys=True))
+    return 1 if audit.unresolved else 0
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -43,11 +56,17 @@ def _build_parser() -> argparse.ArgumentParser:
     source.add_argument("--config", type=Path)
     source.add_argument("--vault", type=Path)
     migration = commands.add_parser("migration")
-    inventory = migration.add_subparsers(dest="migration_command", required=True).add_parser("inventory")
+    migration_commands = migration.add_subparsers(dest="migration_command", required=True)
+    inventory = migration_commands.add_parser("inventory")
     inventory.add_argument("--dry-run", action="store_true", required=True)
     migration_source = inventory.add_mutually_exclusive_group()
     migration_source.add_argument("--config", type=Path)
     migration_source.add_argument("--vault", type=Path)
+    apply = migration_commands.add_parser("apply")
+    apply_source = apply.add_mutually_exclusive_group()
+    apply_source.add_argument("--config", type=Path)
+    apply_source.add_argument("--vault", type=Path)
+    apply.add_argument("--audit", type=Path)
     return parser
 
 

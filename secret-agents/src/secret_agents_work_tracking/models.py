@@ -133,3 +133,23 @@ class MigrationPlan:
     """Represent a preflight-approved, still-unapplied migration."""
 
     inventory: MigrationInventory
+
+
+@dataclass(frozen=True)
+class MigrationMove:
+    """Record one completed migration output and its preserved hashes."""
+
+    source: Path
+    destination: Path
+    content_hash: str
+    output_hash: str
+    rewritten_links: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class MigrationAudit:
+    """Report completed, unresolved, and intentionally untouched migration work."""
+
+    moved: tuple[MigrationMove, ...]
+    unresolved: tuple[str, ...]
+    untouched: tuple[Path, ...]
