@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
-from .links import LinkBackend
+from .links import LinkBackend, is_junction
 from .models import (
     ActionKind,
     Finding,
@@ -134,10 +134,7 @@ def _same_target(destination: Path, source: Path) -> bool:
 
 
 def _is_link(path: Path) -> bool:
-    if path.is_symlink():
-        return True
-    is_junction = getattr(path, "is_junction", None)
-    return bool(is_junction is not None and is_junction())
+    return path.is_symlink() or is_junction(path)
 
 
 def build_uninstall_plan(

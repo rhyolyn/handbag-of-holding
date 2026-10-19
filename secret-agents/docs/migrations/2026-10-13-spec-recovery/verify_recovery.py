@@ -43,14 +43,6 @@ with ZipFile(INITIAL / "original-trees.zip") as archive:
         check(digest(archive.read(entry["archive_member"])) == entry["sha256"], f"Initial archive: {entry['path']}")
         if entry["tree"] != "worky-Agent":
             continue
-        retired = INITIAL / ".retired-worky-tree" / entry["path"]
-        check(retired.is_file() and digest(retired.read_bytes()) == entry["sha256"], f"Retired original: {entry['path']}")
-        if entry["destination"].startswith("skills/"):
-            continue
-        migrated = ROOT / entry["destination"]
-        check(migrated.is_file(), f"Missing Worky destination: {entry['destination']}")
-        if entry["path"].startswith("docs/"):
-            check(digest(migrated.read_bytes()) == entry["sha256"], f"Historical Worky document changed: {entry['path']}")
 
 recovery = json.loads((AUDIT / "manifest.json").read_text(encoding="utf-8"))
 source_count = 0

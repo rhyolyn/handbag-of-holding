@@ -137,7 +137,7 @@ def _remove_link(path: Path) -> None:
     if path.is_symlink():
         path.unlink()
         return
-    if _is_junction(path):
+    if is_junction(path):
         path.rmdir()
         return
     raise NotALink(path)
@@ -146,13 +146,13 @@ def _remove_link(path: Path) -> None:
 def _remove_probe_artifacts(src: Path, dst: Path, probe_directory: Path) -> None:
     if dst.is_symlink() or dst.is_file():
         dst.unlink()
-    elif _is_junction(dst) or dst.is_dir():
+    elif is_junction(dst) or dst.is_dir():
         dst.rmdir()
     src.unlink(missing_ok=True)
     probe_directory.rmdir()
 
 
-def _is_junction(path: Path) -> bool:
+def is_junction(path: Path) -> bool:
     if os.name != "nt":
         return False
     try:
