@@ -21,3 +21,10 @@ class WorkspaceLocationError(WorkspaceError):
 
     def __init__(self, name: str, path: Path) -> None:
         super().__init__(f"{path}: required {name} location must be an existing directory. Create it, then run again.")
+
+
+class MigrationPreflightError(WorkspaceError):
+    """Report a migration hazard before it can cause a partial write."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Migration preflight failed: {reason}. Resolve the source data, then run the dry-run again.")

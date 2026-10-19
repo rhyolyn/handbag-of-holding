@@ -105,3 +105,31 @@ class YearMonth:
 
     year: int
     month: int
+
+
+@dataclass(frozen=True)
+class MigrationEntry:
+    """Describe one classified legacy artifact without moving it."""
+
+    source: Path
+    destination: Path
+    classification: str
+    rationale: str
+    content_hash: str
+    semantic_hash: str
+
+
+@dataclass(frozen=True)
+class MigrationInventory:
+    """Own the read-only classification result for one legacy vault."""
+
+    workspace: Workspace
+    classified: tuple[MigrationEntry, ...]
+    untouched: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class MigrationPlan:
+    """Represent a preflight-approved, still-unapplied migration."""
+
+    inventory: MigrationInventory
