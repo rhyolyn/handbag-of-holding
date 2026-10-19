@@ -159,32 +159,40 @@ def test_post_move_baseline_matches_canonical_collection_instruction_bodies_and_
 
     actual_by_name = {skill["name"]: skill["instruction_body_hash"] for skill in actual}
     baseline_by_name = {skill["name"]: skill["instruction_body_hash"] for skill in baseline["skills"]}
-    intentionally_rewritten_contracts = {
-        # The five authoring contracts were deliberately rewritten for the
-        # collection/projection model. The remaining names retain their
-        # workflow behavior but have necessary canonical-source path repairs.
+    authoring_contract_rewrites = {
+        # These five authoring contracts deliberately describe the new
+        # collection/projection model rather than retired flat-source paths.
+        "install-skills",
+        "query-all-skills",
+        "update-skill",
+        "update-skills-readme",
+        "write-skill",
+    }
+    canonical_source_path_repairs = {
+        # These thirteen workflows retain their behavior; only their canonical
+        # source paths changed when the library moved into collections.
         "agent-plan",
         "checkin-receipt-create",
         "checkin-receipt-range",
         "checkin-rollup",
-        "install-skills",
         "jira-human-ticket-create",
-        "query-all-skills",
         "ready-player-one",
         "report-cost-analysis",
         "report-receipt",
         "report-rollup",
         "report-status",
-        "run-unit-tests",
         "unreal-reset-build-env",
         "update-claude-pricing-doc",
         "update-model-routing",
-        "update-skill",
-        "update-skills-readme",
-        "write-skill",
     }
+    invocation_cleanup = {"run-unit-tests"}
+    intentionally_rewritten_contracts = authoring_contract_rewrites | canonical_source_path_repairs | invocation_cleanup
 
     assert set(baseline_by_name) == set(actual_by_name)
+    assert len(authoring_contract_rewrites) == 5
+    assert len(canonical_source_path_repairs) == 13
+    assert len(invocation_cleanup) == 1
+    assert len(intentionally_rewritten_contracts) == 19
     assert {
         name for name, instruction_hash in baseline_by_name.items() if actual_by_name[name] != instruction_hash
     } == intentionally_rewritten_contracts
