@@ -6,10 +6,20 @@ build-backend = "setuptools.build_meta"
 name = "secret-agents-setup"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "PyYAML==6.0.3",
+    "tzdata==2026.5",
+]
 
 [project.optional-dependencies]
-dev = ["markdown>=3.5", "mypy>=1.11", "pytest>=8.3", "ruff>=0.6"]
+dev = [
+    "markdown==3.10.3",
+    "mypy==2.3.0",
+    "pytest==9.0.3",
+    "PyYAML==6.0.3",
+    "ruff==0.16.1",
+    "types-pyyaml==6.0.12.20260906",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -21,7 +31,13 @@ pythonpath = ["src"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src", "tests", "skills/update-model-routing/scripts"]
+files = [
+    "src",
+    "tests",
+    "scripts/run_report.py",
+    "skills/maintenance/update-model-routing/scripts",
+    "skills/skill-authoring/query-all-skills/scripts",
+]
 
 [tool.ruff]
 target-version = "py311"

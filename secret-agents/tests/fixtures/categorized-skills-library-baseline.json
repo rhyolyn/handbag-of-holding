@@ -1,0 +1,29 @@
+{
+  "skills": [
+    {"name": "agent-plan", "instruction_body_hash": "3d7f9b1b7cecd77afc5b88218593654938468bcab6fd78b98e9c631ae5f6d801"},
+    {"name": "checkin-receipt-create", "instruction_body_hash": "b77f2842ccd886d647e650766779552e52d018aad916bdef4d1b2aba1c45e6cd"},
+    {"name": "checkin-receipt-range", "instruction_body_hash": "e464ada6b4e9d655d89b43e3f887792d458900787c76ffc173ab2efa9207c631"},
+    {"name": "checkin-rollup", "instruction_body_hash": "392f1679e232e245d089f8d8bba1a14f111fa12d0ea9a8e3fda54cca443cbb24"},
+    {"name": "clean-code-architecture-guards", "instruction_body_hash": "89eaca2075f8c65945574812732bd3707413f3f0c4e11fd5ec31101574c9822e"},
+    {"name": "clean-code-error-handling", "instruction_body_hash": "e9256157c0a7dc0e91eb186537b7c6b1d5252f128b213fc5c7a53b6392f888c7"},
+    {"name": "install-skills", "instruction_body_hash": "189c4e2bc56f969c9b84506d7bd2dee29c1dc6b5ab889a401c4f0c5ed69759b6"},
+    {"name": "jira-human-ticket-create", "instruction_body_hash": "d84efb15cf275e2516bd8033458d86dd696b4096a615f4c758be21ef03688290"},
+    {"name": "python-quality-gate", "instruction_body_hash": "960d7ed68436c3c918aba64f0aa5be8f1d01a66fe16ce343b732f41f92af5526"},
+    {"name": "python-tdd-cycle", "instruction_body_hash": "4f98ce4c2baa17c58641a3cf6af9072c0d2eb481a6c613de0bc3197c6bfdce14"},
+    {"name": "query-all-skills", "instruction_body_hash": "bf51cad15282aa74201e833caaa3eb40705f8fcd55738bfeacb408804217954f"},
+    {"name": "ready-player-one", "instruction_body_hash": "c7b4beec923af5e40235db02e7a933f7d0415a31a64119dcce60a05a3b3dbeac"},
+    {"name": "report-cost-analysis", "instruction_body_hash": "1eb88a50e98e01e168d7aef9b84009eac9c1c9da4edcd5e4940dbc5ec53e4d1f"},
+    {"name": "report-receipt", "instruction_body_hash": "b4e23a167f8c4d42ae601901c5944d3246e880e4c9c9650bce8d1a083d9cfae0"},
+    {"name": "report-rollup", "instruction_body_hash": "f0c25f974a385569c5693fb6730f80b74a8bccbc74f0649e5d5c87084f0379c0"},
+    {"name": "report-status", "instruction_body_hash": "fb6bd78209fe158258c9e613ef07b4ae70227e35f478982c428816b7ecdd78a4"},
+    {"name": "run-mac-coverage", "instruction_body_hash": "61236dee96c60f754230392550d7be771d69245c625507f76b7d4659224e7415"},
+    {"name": "run-unit-tests", "instruction_body_hash": "7796dd7ddc25caf0491ad0a8e673c068c37de07c8c00b9d52491a82d19a3d11f"},
+    {"name": "unreal-reset-build-env", "instruction_body_hash": "3ed6c8a04c6568c3680b0e55adc033d6ad676d30f40a86d28da7818a73ee77b7"},
+    {"name": "unreal-ugs-release", "instruction_body_hash": "302c737b2b5abceda4770a1e716b665091e8d4bf62986f80d717449d4e517988"},
+    {"name": "update-claude-pricing-doc", "instruction_body_hash": "2e6a11631bab36feccee01fe2d31249fb6f846974baa98852625da84c41ab36e"},
+    {"name": "update-model-routing", "instruction_body_hash": "860ff42095986f45192d897e2348df5c113790f917bd22d87695ec2f6cb524e1"},
+    {"name": "update-skill", "instruction_body_hash": "57ec5ed2c6421d96954a02e2acc02f7547995c86ffe5187d13b14960a35aa89e"},
+    {"name": "update-skills-readme", "instruction_body_hash": "3e3d64fbba73c0840d53a495ef04656a0d6ec7b24493b72fe5760812fe13f22b"},
+    {"name": "write-skill", "instruction_body_hash": "8aba7bfdd404f537808a8110aaaa7d3db042cc67cd0b00214ed4bebf11e42723"}
+  ]
+}

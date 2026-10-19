@@ -7,6 +7,13 @@ class SkillCatalogError(Exception):
     """Raised when the skills directory or a SKILL.md fails validation."""
 
 
+class InvalidSkillCatalog(SkillCatalogError):
+    """Raised when the generated catalog cannot safely drive installation."""
+
+    def __init__(self, catalog_path: Path, detail: str, remediation: str) -> None:
+        super().__init__(f"{catalog_path}: {detail}; {remediation}")
+
+
 class SkillsDirectoryNotFound(SkillCatalogError):
     def __init__(self, skills_root: Path) -> None:
         super().__init__(f"{skills_root}: skills directory not found")

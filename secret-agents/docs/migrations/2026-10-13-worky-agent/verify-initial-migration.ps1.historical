@@ -1,0 +1,118 @@
+# Run from C:\Users\rhyol\obsidian. Requires Python, PyYAML and Markdown.
+# Checks preservation and structure; it does not execute migrated workflows.
+@'
+from pathlib import Path
+from zipfile import ZipFile
+from hashlib import sha256
+from urllib.parse import unquote
+import json,re,sys,yaml,markdown
+sys.stdout.reconfigure(encoding='utf-8')
+root=Path('handbag-of-holding/secret-agents').resolve()
+source=Path('worky/Agent').resolve()
+audit=root/'docs/migrations/2026-10-13-worky-agent'
+manifest=json.loads((audit/'manifest.json').read_text(encoding='utf-8'))
+errors=[]
+def check(ok,message):
+    if not ok: errors.append(message)
+archive=audit/'original-trees.zip'
+check(sha256(archive.read_bytes()).hexdigest()==manifest['archive_sha256'],'Archive checksum mismatch')
+source_entries=[e for e in manifest['entries'] if e['tree']=='worky-Agent']
+with ZipFile(archive) as z:
+    check(z.testzip() is None,'Corrupt ZIP member')
+    for e in manifest['entries']:
+        check(sha256(z.read(e['archive_member'])).hexdigest()==e['sha256'],'Archived bytes differ: '+e['archive_member'])
+retired=audit/'.retired-worky-tree'
+retired_verified=0
+if retired.exists():
+    for e in source_entries:
+        p=retired/e['path']
+        check(p.is_file() and sha256(p.read_bytes()).hexdigest()==e['sha256'],'Retired snapshot changed: '+e['path'])
+        retired_verified+=1
+for e in source_entries:
+    p=root/e['destination']
+    check(p.is_file(),'Missing migrated file: '+e['destination'])
+    if e['path'].startswith('docs/'):
+        check(sha256(p.read_bytes()).hexdigest()==e['sha256'],'Historical document changed: '+e['path'])
+if source.exists():
+    current={p.relative_to(source).as_posix() for p in source.rglob('*') if p.is_file()}
+    check(current=={e['path'] for e in source_entries},'Source file set changed since snapshot')
+    for e in source_entries:
+        p=source/e['path']
+        check(p.is_file() and sha256(p.read_bytes()).hexdigest()==e['sha256'],'Source changed since snapshot: '+e['path'])
+skill_files=sorted((root/'skills').glob('*/SKILL.md'))
+check(bool(skill_files),'No skills scanned')
+skills={}
+for p in skill_files:
+    t=p.read_text(encoding='utf-8')
+    try: fm=yaml.safe_load(t.split('---',2)[1])
+    except Exception as exc: errors.append(f'Invalid YAML {p}: {exc}');continue
+    name=p.parent.name; skills[name]=fm
+    check(fm.get('name')==name,'Folder/name mismatch: '+name)
+    check(isinstance(fm.get('description'),str) and bool(fm['description']),'Missing description: '+name)
+    meta=fm.get('metadata',{})
+    check(meta.get('category') in {'agent','clean-code','jira','python','report','unreal'},'Invalid category: '+name)
+    check(isinstance(meta.get('kind'),str) and bool(meta['kind']),'Missing kind: '+name)
+for name,fm in skills.items():
+    meta=fm['metadata']
+    if meta['kind']=='alias':
+        target=meta.get('alias_of')
+        check(target in skills,'Missing alias target: '+name)
+        if target in skills: check(skills[target]['metadata']['kind']!='alias','Alias chain: '+name)
+        t=(root/'skills'/name/'SKILL.md').read_text(encoding='utf-8')
+        check(f'../{target}/SKILL.md' in t,'Alias body does not link to metadata target: '+name)
+catalog=(root/'skills/README.md').read_text(encoding='utf-8')
+html=(root/'skills/README.html').read_text(encoding='utf-8')
+for name in skills:
+    check(len(re.findall(r'^### '+re.escape(name)+r'$',catalog,re.M))==1,'Missing/duplicate usage section: '+name)
+    check(f'- [{name}](#{name})' in catalog,'Missing TOC entry: '+name)
+    check(f'| [{name}](#{name}) |' in catalog,'Missing inventory row: '+name)
+    check(f'id="{name}"' in html,'Missing HTML anchor: '+name)
+check(markdown.markdown(catalog,extensions=['tables','toc','fenced_code']) in html,'HTML stale relative to Markdown')
+with ZipFile(archive) as z:
+    originals=[z.read('handbag-secret-agents/skills/README.md').decode('utf-8-sig'),z.read('worky-Agent/skills/README.md').decode('utf-8-sig')]
+old_sections={}
+for t in reversed(originals):
+    for m in re.finditer(r'^### ([\w-]+)\n(.*?)(?=^### |^## |\Z)',t,re.M|re.S):
+        old_sections[m.group(1)]=m.group(2)
+preserved_reviews=0
+for name,old in old_sections.items():
+    if name not in skills or "**Architect's review.**" not in old: continue
+    review=old.split("**Architect's review.**",1)[1].strip()
+    review=re.sub(r'\n---\s*$','',review)
+    check(review in catalog,'Historical review changed/lost: '+name)
+    preserved_reviews+=1
+for name in ['report-receipt','report-status','report-rollup','checkin-receipt-create','checkin-receipt-range','checkin-rollup','jira-human-ticket-create']:
+    t=(root/'skills'/name/'SKILL.md').read_text(encoding='utf-8')
+    check('../../runbooks/worky-vault-paths.md' in t,'Missing data-vault routing: '+name)
+    check('<skill base dir>\\..\\..\\..' not in t,'Relocation-broken data path: '+name)
+current_docs=skill_files+[root/'AGENTS.md',root/'README.md',root/'skills/README.md',root.parent/'README.md',source.parent/'AGENTS.md',audit/'README.md']
+current_docs += [p for p in (root/'runbooks').rglob('*.md') if 'verbose-backup' not in p.name]
+(audit/'verification.json').write_text('{"status":"running"}\n',encoding='utf-8')
+links_checked=0
+rendered_cache={}
+for p in current_docs:
+    text=p.read_text(encoding='utf-8')
+    fence=chr(96)*3
+    text=re.sub('^'+fence+r'.*?^'+fence+r'\s*','',text,flags=re.M|re.S)
+    for m in re.finditer(r'\[[^\]\n]+\]\(([^)\n]+)\)',text):
+        value=m.group(1).strip().strip('<>')
+        if value.startswith(('http:','https:','mailto:','obsidian:')): continue
+        if '<' in value: continue
+        path,_,fragment=value.partition('#')
+        target=(p.parent/unquote(path)).resolve() if path else p
+        check(target.exists(),f'Broken local link: {p.relative_to(root) if p.is_relative_to(root) else p} -> {value}')
+        if target.exists() and fragment and target.suffix=='.md':
+            if target not in rendered_cache: rendered_cache[target]=markdown.markdown(target.read_text(encoding='utf-8'),extensions=['tables','toc','fenced_code'])
+            rendered=rendered_cache[target]
+            check(f'id="{unquote(fragment)}"' in rendered,f'Broken fragment: {p.name} -> {value}')
+        links_checked+=1
+    if p in skill_files:
+        check(not re.search(r'(?i)[cd]:\\git\\worky\\Agent|<worky root>\\Agent',text),'Obsolete operational agent root: '+str(p))
+check((root/'.agent-root.json').is_file(),'Missing root marker')
+check(len(skill_files)==29,'Unexpected skill count')
+result={'date':'2026-10-13','status':'passed' if not errors else 'failed','original_files_verified':len(manifest['entries']),'worky_files_accounted_for':len(source_entries),'retired_snapshot_files_verified':retired_verified,'skills_validated':len(skill_files),'canonical_skills':sum(fm['metadata']['kind']!='alias' for fm in skills.values()),'aliases':sum(fm['metadata']['kind']=='alias' for fm in skills.values()),'historical_reviews_preserved':preserved_reviews,'local_links_checked':links_checked,'source_removed':not source.exists(),'source_unchanged_since_snapshot':True if source.exists() and not any('Source' in e for e in errors) else None,'errors':errors,'limitations':'Structural migration checks only; operational payloads and external harness integrations were not run.'}
+(audit/'verification.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
+print(json.dumps(result,indent=2))
+sys.exit(bool(errors))
+'@ | python -
+if ($LASTEXITCODE -ne 0) { throw 'Migration verification failed.' }

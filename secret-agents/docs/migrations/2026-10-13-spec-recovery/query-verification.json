@@ -1,0 +1,25 @@
+{
+  "cold_ms": 680.703,
+  "warm_runs": 10,
+  "warm_median_ms": 78.589,
+  "warm_times_ms": [
+    121.012,
+    109.101,
+    72.814,
+    72.343,
+    84.588,
+    106.402,
+    78.157,
+    67.845,
+    65.435,
+    79.022
+  ],
+  "warm_skill_body_reads": 0,
+  "warm_recursive_walks": 0,
+  "warm_read_files": [
+    "local stat cache",
+    "skills/catalog.json",
+    "skills/TOC.md"
+  ],
+  "identical_cold_warm_output": true
+}

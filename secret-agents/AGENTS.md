@@ -2,7 +2,7 @@
 
 Shared working agreement for AI coding agents — all harnesses, all repos — readable by humans too. Canonical copy: `<agent-root>\AGENTS.md` (see Environment, bottom).
 
-**Revision: 2026-08-29b** — bump this revision on every edit.
+**Revision: 2026-10-16b** — bump this revision on every edit.
 
 - Asked whether this guidance is loaded: answer with the revision above from memory — never re-read just to answer. A wrong or missing answer means the harness adapter is broken; fix via `runbooks\harness-setup\`, then re-read.
 - Re-read the full file only when it was edited mid-session, post-compaction behavior drifts from these rules, or on a fresh machine/harness. For a single violation, cite the specific rule — targeted correction beats reloading.
@@ -56,6 +56,8 @@ Classify the failure first; no blanket rule:
 
 - Names: explicit, descriptive, grammatically sensible — correct part of speech for the construct.
 - Short functions that read like prose, named so the call site reads as intent. Short is the outcome of a single clear purpose, not a target: never split a coherent function to hit a length; never scatter one behavior across helpers that mean nothing alone.
+- Pick unit shape deliberately, never by defaulting to free functions: a class when it owns state or an invariant, or when one dependency threads through several related functions (hold it on the instance instead of re-passing it); a free function for a genuinely stateless step. A class with constructor-injected dependencies is as testable as a free function — testability is never a reason to avoid one.
+- Place each helper with its consumer: one consumer → it belongs to that unit (static when it needs no instance state); two or more consumers → module-level, owned by none of them.
 - Low parameter counts for ordinary functions. Constructors are exempt — a constructor declares the unit's full coupling. Never hide a dependency behind a getter, callback, service locator, or context object to shrink a signature; a wide constructor is the god-object early-warning system working as intended.
 - Prefer established project guard and logging helpers when they preserve the repository's error semantics and single-log ownership. Do not introduce helpers merely to shorten control flow.
 - Organize every file so the first screen tells the story: public API and core flow on top, helpers below; documents lead with a summary. Length is fine when organization keeps it scannable.
@@ -110,8 +112,13 @@ Correctness, regressions, and behavioral risk → architecture and maintainabili
 
 ## Shared Repository Layout
 
-- `<agent-root>` is the canonical shared-agent directory identified by `.agent-root.json`; resolve it from the marker or configured root rather than assuming a drive or checkout path.
-- `AGENTS.md` is the shared instruction source, `skills\<name>\SKILL.md` contains one portable skill per direct child directory, and `runbooks\<workflow>\` contains reusable operational workflows.
+- This vault is the single editable source; its `secret-agents` directory is the agent root. Worky data paths resolve through `runbooks/worky-vault-paths.md`.
+- Canonical skills live at `skills/<declared-collection>/<canonical-name>/SKILL.md`; `skills/collections.json` owns collection identity and ordering. The post-H1 header contains `Category / Updated` only.
+- The catalog updater owns `skills/catalog.json`, `skills/TOC.md`, `skills/_generated/`, canonical `Updated` dates, and its stat cache. Edit a canonical source only after reading the root README, its collection README, and the canonical skill; use the updater for every derived artifact.
+- `<agent-root>` defaults to `~/obsidian/handbag-of-holding/secret-agents` on every OS; skills live in `<agent-root>/skills`. Expand the current user's home and join native path components; validate `.agent-root.json` there.
+- Explicit source arguments or `SECRET_AGENTS_ROOT` may override that default. Never infer the source from cwd, an installed skill link's parent, a legacy checkout, or `~/.agents/root`; a missing source is an error.
+- In authored skills, `<skill base dir>` means `<agent-root>/skills/<collection>/<canonical-name>`. Harness skill directories are discovery adapters linked to `<agent-root>/skills/_generated/<canonical-name>`; create and edit authored skills in the canonical source.
+- `AGENTS.md` is the shared instruction source, `skills\<collection>\<name>\SKILL.md` contains one portable canonical skill, `skills\_generated\<name>` is catalog-owned, and `runbooks\<workflow>\` contains reusable operational workflows.
 - Keep shared content project-agnostic. Project commands, paths, build policy, and local exceptions belong in that project's own guidance or in a runbook explicitly labeled for that project.
 - Keep harness-specific configuration out of shared skills and guidance. Add or change adapter paths and discovery rules in `runbooks\harness-setup\harness-setup.md`.
 
@@ -119,6 +126,6 @@ Correctness, regressions, and behavioral risk → architecture and maintainabili
 
 - Harness integrations point back to `<agent-root>` with symlinks or junctions; never maintain copied guidance, skills, or runbooks when a link will work.
 - Prefer open-standard names and layouts (`AGENTS.md`, top-level `SKILL.md`) so content stays portable across harnesses.
-- An explicitly requested `@skill <name>` missing from the active skill list: check `<agent-root>\skills\<name>\SKILL.md` before reporting it unavailable — if present, read it fully and follow it. Likewise check `<agent-root>\runbooks\<workflow-name>\` before assuming a named workflow is project-local.
+- An explicitly requested `@skill <name>` missing from the active skill list: read `<agent-root>\skills\catalog.json`, resolve the canonical `source_path`, then read that `SKILL.md` before reporting it unavailable. Likewise check `<agent-root>\runbooks\<workflow-name>\` before assuming a named workflow is project-local.
 - When adding a harness or changing discovery behavior, update the harness-setup runbook rather than forking shared content.
 - When a skill and a runbook describe the same workflow, update both in the same change.

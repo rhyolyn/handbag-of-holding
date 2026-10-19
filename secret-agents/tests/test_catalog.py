@@ -1,64 +1,37 @@
-"""Tests for skill discovery and minimal frontmatter validation."""
+"""Tests for catalog-backed generated skill discovery."""
 
 from __future__ import annotations
 
 import dataclasses
+import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from catalog_fixture import write_catalog
 from secret_agents_setup.catalog import load_skill_catalog
-from secret_agents_setup.catalog_errors import (
-    DuplicateSkillNames,
-    InvalidSkillName,
-    MissingFrontmatter,
-    MissingSkillDescription,
-    MissingSkillFile,
-    MissingSkillName,
-    SkillDirectoryNameMismatch,
-    SkillsDirectoryNotFound,
-    UnterminatedFrontmatter,
-)
+from secret_agents_setup.catalog_errors import SkillCatalogError, SkillsDirectoryNotFound
 
 
-def write_skill(
-    skills_root: Path,
-    dir_name: str,
-    *,
-    name: str | None = None,
-    description: str = "Use when testing this skill.",
-    frontmatter: str | None = None,
-) -> Path:
-    directory = skills_root / dir_name
-    directory.mkdir(parents=True, exist_ok=True)
-    if frontmatter is None:
-        declared = dir_name if name is None else name
-        frontmatter = f"---\nname: {declared}\ndescription: {description}\n---\n"
-    (directory / "SKILL.md").write_text(frontmatter + "\n# Body\n", encoding="utf-8")
-    return directory
+def test_catalog_descriptors_are_canonical_name_sorted_and_target_generated_projection(tmp_path: Path) -> None:
+    write_catalog(tmp_path, "gamma", "alpha", "beta")
 
-
-def test_discovery_is_sorted(tmp_path: Path) -> None:
-    for dir_name in ("gamma", "alpha", "beta"):
-        write_skill(tmp_path, dir_name)
     catalog = load_skill_catalog(tmp_path)
+
     assert [descriptor.name for descriptor in catalog] == ["alpha", "beta", "gamma"]
-    assert catalog[0].directory == tmp_path / "alpha"
+    assert catalog[0].directory == tmp_path / "_generated" / "alpha"
+    assert not catalog[0].directory.is_relative_to(tmp_path / "work-tracking")
 
 
 def test_output_is_immutable_tuple(tmp_path: Path) -> None:
-    write_skill(tmp_path, "alpha")
+    write_catalog(tmp_path, "alpha")
+
     catalog = load_skill_catalog(tmp_path)
+
     assert isinstance(catalog, tuple)
-    frozen_attribute = "name"
     with pytest.raises(dataclasses.FrozenInstanceError):
-        setattr(catalog[0], frozen_attribute, "changed")
-
-
-def test_missing_skill_md_is_rejected(tmp_path: Path) -> None:
-    (tmp_path / "alpha").mkdir()
-    with pytest.raises(MissingSkillFile):
-        load_skill_catalog(tmp_path)
+        catalog[0].name = "changed"  # type: ignore[misc]
 
 
 def test_missing_skills_directory_is_rejected(tmp_path: Path) -> None:
@@ -66,66 +39,37 @@ def test_missing_skills_directory_is_rejected(tmp_path: Path) -> None:
         load_skill_catalog(tmp_path / "missing")
 
 
-def test_missing_frontmatter_delimiters_is_rejected(tmp_path: Path) -> None:
-    directory = tmp_path / "alpha"
-    directory.mkdir()
-    (directory / "SKILL.md").write_text("# no frontmatter here\n", encoding="utf-8")
-    with pytest.raises(MissingFrontmatter):
+Mutation = Callable[[dict[str, object]], None]
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected"),
+    [
+        (lambda catalog: catalog.pop("generated_projection"), "generated_projection"),
+        (lambda catalog: catalog["generated_projection"].pop("alpha"), "alpha"),
+        (lambda catalog: catalog["generated_projection"].update({"alpha": "work-tracking/alpha"}), "_generated/alpha"),
+    ],
+)
+def test_malformed_or_missing_projection_mapping_is_rejected_before_link_planning(
+    tmp_path: Path, mutate: Mutation, expected: str
+) -> None:
+    write_catalog(tmp_path, "alpha")
+    catalog_path = tmp_path / "catalog.json"
+    raw = json.loads(catalog_path.read_text(encoding="utf-8"))
+    mutate(raw)
+    catalog_path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(SkillCatalogError, match=expected) as error:
         load_skill_catalog(tmp_path)
 
-
-def test_missing_name_is_rejected(tmp_path: Path) -> None:
-    write_skill(tmp_path, "alpha", frontmatter="---\ndescription: Use when testing.\n---\n")
-    with pytest.raises(MissingSkillName):
-        load_skill_catalog(tmp_path)
+    assert str(catalog_path) in str(error.value)
+    assert "catalog.py update" in str(error.value)
 
 
-def test_missing_description_is_rejected(tmp_path: Path) -> None:
-    write_skill(tmp_path, "alpha", frontmatter="---\nname: alpha\n---\n")
-    with pytest.raises(MissingSkillDescription):
-        load_skill_catalog(tmp_path)
+def test_missing_canonical_name_has_no_descriptor_or_link_source(tmp_path: Path) -> None:
+    write_catalog(tmp_path, "report-receipt")
 
-
-def test_invalid_name_is_rejected(tmp_path: Path) -> None:
-    write_skill(tmp_path, "invalid_name")
-    with pytest.raises(InvalidSkillName):
-        load_skill_catalog(tmp_path)
-
-
-def test_directory_name_mismatch_is_rejected(tmp_path: Path) -> None:
-    write_skill(tmp_path, "alpha", name="beta")
-    with pytest.raises(SkillDirectoryNameMismatch):
-        load_skill_catalog(tmp_path)
-
-
-def test_duplicate_declared_names_are_rejected(tmp_path: Path) -> None:
-    write_skill(tmp_path, "one", name="dup")
-    write_skill(tmp_path, "two", name="dup")
-    with pytest.raises(DuplicateSkillNames):
-        load_skill_catalog(tmp_path)
-
-
-def test_unterminated_frontmatter_is_rejected(tmp_path: Path) -> None:
-    write_skill(tmp_path, "alpha", frontmatter="---\nname: alpha\ndescription: open forever\n")
-    with pytest.raises(UnterminatedFrontmatter):
-        load_skill_catalog(tmp_path)
-
-
-def test_description_value_may_contain_colons(tmp_path: Path) -> None:
-    write_skill(
-        tmp_path,
-        "gate",
-        frontmatter="---\nname: gate\ndescription: Runs a gate: first lint, then tests\n---\n",
-    )
     catalog = load_skill_catalog(tmp_path)
-    assert catalog[0].description == "Runs a gate: first lint, then tests"
 
-
-def test_quoted_description_preserves_inner_colon(tmp_path: Path) -> None:
-    write_skill(
-        tmp_path,
-        "gate",
-        frontmatter='---\nname: gate\ndescription: "Runs a gate: first lint"\n---\n',
-    )
-    catalog = load_skill_catalog(tmp_path)
-    assert catalog[0].description == "Runs a gate: first lint"
+    assert [descriptor.name for descriptor in catalog] == ["report-receipt"]
+    assert all(descriptor.name != "missing-canonical" for descriptor in catalog)

@@ -1,96 +1,136 @@
-"""Skill discovery and minimal standard-library frontmatter validation."""
+"""Load installable skill descriptors from the catalog-owned projection."""
 
 from __future__ import annotations
 
+import json
+import os
 import re
-from collections import Counter
-from pathlib import Path
+from collections.abc import Mapping
+from pathlib import Path, PurePosixPath
+from typing import Any, NoReturn
 
-from .catalog_errors import (
-    DuplicateSkillNames,
-    InvalidSkillName,
-    MissingFrontmatter,
-    MissingSkillDescription,
-    MissingSkillFile,
-    MissingSkillName,
-    SkillDirectoryNameMismatch,
-    SkillsDirectoryNotFound,
-    UnterminatedFrontmatter,
-)
+from .catalog_errors import InvalidSkillCatalog, SkillsDirectoryNotFound
 from .catalog_errors import SkillCatalogError as SkillCatalogError
 from .models import SkillDescriptor
 
-NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-_RECOGNIZED_FIELDS = ("name", "description")
+CATALOG_SCHEMA_VERSION = 2
+CATALOG_FILENAME = "catalog.json"
+GENERATED_DIRECTORY = "_generated"
+NAME_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 
 
-def load_skill_catalog(skills_root: Path) -> tuple[SkillDescriptor, ...]:
+def load_skill_catalog(skills_root: Path, vault_root: Path | None = None) -> tuple[SkillDescriptor, ...]:
+    """Return canonical descriptors whose directories are generated adapters."""
     if not skills_root.is_dir():
         raise SkillsDirectoryNotFound(skills_root)
 
-    parsed: list[tuple[Path, str, str]] = []
-    for directory in sorted(child for child in skills_root.iterdir() if child.is_dir()):
-        name, description = _parse_skill(directory)
-        parsed.append((directory, name, description))
+    catalog_path = skills_root / CATALOG_FILENAME
+    raw = _load_catalog_json(catalog_path, skills_root, vault_root)
+    entries = _catalog_entries(raw, catalog_path, skills_root, vault_root)
+    projection = _projection_mapping(raw, catalog_path, skills_root, vault_root)
+    return _descriptors(entries, projection, catalog_path, skills_root, vault_root)
 
-    _reject_duplicate_names(parsed)
 
+def resolve_vault_root(
+    vault_root: Path | None = None, *, environment: Mapping[str, str] | None = None, home: Path | None = None
+) -> Path:
+    """Select an explicit vault, then the configured vault, then the user default."""
+    if vault_root is not None:
+        return vault_root.expanduser().resolve()
+    environment = os.environ if environment is None else environment
+    configured = environment.get("SECRET_AGENTS_VAULT_ROOT")
+    if configured:
+        return Path(configured).expanduser().resolve()
+    home = Path.home() if home is None else home
+    return (home / "obsidian").resolve()
+
+
+def _load_catalog_json(catalog_path: Path, skills_root: Path, vault_root: Path | None) -> Mapping[str, Any]:
+    if not catalog_path.is_file():
+        _invalid(catalog_path, skills_root, vault_root, "missing generated catalog.json")
+    try:
+        raw = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        _invalid(catalog_path, skills_root, vault_root, f"invalid catalog JSON ({exc})")
+    if not isinstance(raw, dict):
+        _invalid(catalog_path, skills_root, vault_root, "catalog must be a JSON object")
+    if raw.get("schema_version") != CATALOG_SCHEMA_VERSION:
+        _invalid(catalog_path, skills_root, vault_root, "catalog schema_version must be 2")
+    return raw
+
+
+def _catalog_entries(
+    raw: Mapping[str, Any], catalog_path: Path, skills_root: Path, vault_root: Path | None
+) -> tuple[Mapping[str, Any], ...]:
+    entries = raw.get("entries")
+    if not isinstance(entries, list) or not entries:
+        _invalid(catalog_path, skills_root, vault_root, "catalog entries must be a non-empty array")
+    result: list[Mapping[str, Any]] = []
+    names: set[str] = set()
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            _invalid(catalog_path, skills_root, vault_root, f"entries[{index}] must be an object")
+        name, description, source_path = (entry.get(field) for field in ("name", "description", "source_path"))
+        if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
+            _invalid(
+                catalog_path,
+                skills_root,
+                vault_root,
+                f"entries[{index}].name must be canonical lowercase hyphenated text",
+            )
+        if name in names:
+            _invalid(catalog_path, skills_root, vault_root, f"duplicate canonical name {name!r}")
+        if not isinstance(description, str) or not description:
+            _invalid(catalog_path, skills_root, vault_root, f"entries[{index}].description must be non-empty text")
+        if not isinstance(source_path, str) or not _is_relative_path(source_path):
+            _invalid(catalog_path, skills_root, vault_root, f"entries[{index}].source_path must be a relative path")
+        names.add(name)
+        result.append(entry)
+    return tuple(result)
+
+
+def _projection_mapping(
+    raw: Mapping[str, Any], catalog_path: Path, skills_root: Path, vault_root: Path | None
+) -> Mapping[str, str]:
+    projection = raw.get("generated_projection")
+    if not isinstance(projection, dict):
+        _invalid(catalog_path, skills_root, vault_root, "generated_projection must be an object")
+    if not all(isinstance(name, str) and isinstance(path, str) for name, path in projection.items()):
+        _invalid(catalog_path, skills_root, vault_root, "generated_projection keys and paths must be text")
+    return projection
+
+
+def _descriptors(
+    entries: tuple[Mapping[str, Any], ...],
+    projection: Mapping[str, str],
+    catalog_path: Path,
+    skills_root: Path,
+    vault_root: Path | None,
+) -> tuple[SkillDescriptor, ...]:
     descriptors: list[SkillDescriptor] = []
-    for directory, name, description in parsed:
-        if name != directory.name:
-            raise SkillDirectoryNameMismatch(directory, name)
+    for entry in entries:
+        name = entry["name"]
+        description = entry["description"]
+        assert isinstance(name, str) and isinstance(description, str)
+        projection_path = projection.get(name)
+        expected_path = f"{GENERATED_DIRECTORY}/{name}"
+        if projection_path != expected_path:
+            _invalid(catalog_path, skills_root, vault_root, f"{name!r} must map to {expected_path}")
+        directory = skills_root.joinpath(*PurePosixPath(projection_path).parts)
+        if not (directory / "SKILL.md").is_file():
+            _invalid(catalog_path, skills_root, vault_root, f"{projection_path}/SKILL.md is missing")
         descriptors.append(SkillDescriptor(name, description, directory))
-    return tuple(descriptors)
+    return tuple(sorted(descriptors, key=lambda descriptor: descriptor.name))
 
 
-def _parse_skill(directory: Path) -> tuple[str, str]:
-    skill_md = directory / "SKILL.md"
-    if not skill_md.is_file():
-        raise MissingSkillFile(directory)
-
-    fields = _parse_frontmatter(skill_md)
-    name = fields.get("name")
-    if name is None:
-        raise MissingSkillName(skill_md)
-    description = fields.get("description")
-    if description is None:
-        raise MissingSkillDescription(skill_md)
-    if not NAME_PATTERN.fullmatch(name):
-        raise InvalidSkillName(skill_md, name)
-    return name, description
+def _is_relative_path(value: str) -> bool:
+    path = PurePosixPath(value)
+    return (
+        bool(value) and "\\" not in value and not path.is_absolute() and ".." not in path.parts and path.parts != (".",)
+    )
 
 
-def _parse_frontmatter(skill_md: Path) -> dict[str, str]:
-    lines = skill_md.read_text(encoding="utf-8").splitlines()
-    if not lines or lines[0].strip() != "---":
-        raise MissingFrontmatter(skill_md)
-
-    fields: dict[str, str] = {}
-    closed = False
-    for line in lines[1:]:
-        if line.strip() == "---":
-            closed = True
-            break
-        if ":" not in line:
-            continue
-        key, raw_value = line.split(":", 1)
-        key = key.strip()
-        if key in _RECOGNIZED_FIELDS:
-            fields[key] = _strip_matching_quotes(raw_value.strip())
-
-    if not closed:
-        raise UnterminatedFrontmatter(skill_md)
-    return fields
-
-
-def _strip_matching_quotes(value: str) -> str:
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-        return value[1:-1]
-    return value
-
-
-def _reject_duplicate_names(parsed: list[tuple[Path, str, str]]) -> None:
-    counts = Counter(name for _, name, _ in parsed)
-    duplicates = sorted(name for name, count in counts.items() if count > 1)
-    if duplicates:
-        raise DuplicateSkillNames(duplicates)
+def _invalid(catalog_path: Path, skills_root: Path, vault_root: Path | None, detail: str) -> NoReturn:
+    vault = resolve_vault_root(vault_root)
+    remediation = f"run catalog.py update --vault-root {vault}"
+    raise InvalidSkillCatalog(catalog_path, detail, remediation)

@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-13",
+  "status": "passed",
+  "canonical_agent_root": "C:\\Users\\rhyol\\obsidian\\handbag-of-holding\\secret-agents",
+  "adapters": {
+    "skill_links": 208,
+    "guidance_links": 6,
+    "mixing_directories": 4,
+    "canonical_skills": 22,
+    "aliases": 30,
+    "worky_agent_absent": true,
+    "errors": []
+  },
+  "quality_gate": {
+    "mypy": "passed: 34 files",
+    "ruff_check": "passed",
+    "ruff_format": "passed: 34 files",
+    "pytest": "178 passed",
+    "clean_environment_audit_tests": "3 passed; Python 3.11.15, locked dev dependencies",
+    "git_diff_check": "passed"
+  },
+  "catalog": "current: 22 canonical skills and 30 generated aliases",
+  "readme_guard": "passed: 22 documented skills and valid anchors; HTML regenerated",
+  "harness_cli_check": "all harnesses: result ok",
+  "preservation": {
+    "default_self_contained_audit": "passed",
+    "initial_archive_files": 61,
+    "recovery_archive_files": 181,
+    "optional_original_source_comparison": "118 matched at C:/git/old-obsidian/handbag-of-holding",
+    "authored_worky_skill_source_files_checked": 17,
+    "missing_canonical_resources": [],
+    "runner_original_sha256": "29edc43088effd459600b61e7dcad757ab4dd715b6455cc28f68354013354a0b"
+  },
+  "scheduled_reports": {
+    "tasks": [
+      "worky-status-report",
+      "worky-monthly-rollup"
+    ],
+    "runner": "C:\\Users\\rhyol\\obsidian\\handbag-of-holding\\secret-agents\\scripts\\run_report.py",
+    "data_vault": "C:\\Users\\rhyol\\obsidian\\worky",
+    "status_check": "passed without writes or Claude invocation",
+    "monthly_check": "passed without writes or Claude invocation",
+    "triggers_principals_settings": "identical before and after; independently reviewed",
+    "manually_started": false
+  },
+  "independent_review": "no remaining blocking defects; dependency gap fixed and obsolete migration steps explicitly superseded",
+  "limits": [
+    "No live model-generated reports were invoked; task history still includes prior failures.",
+    "Existing sessions may retain their startup skill snapshot; restart to refresh discovery.",
+    "Other machines need local adapter reconciliation against their own synced vault path.",
+    "Existing dirty migration work was preserved; no combined commit or publication was made."
+  ]
+}

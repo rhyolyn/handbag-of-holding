@@ -15,7 +15,6 @@ from secret_agents_setup.root_errors import (
     MissingRootMarker,
     RootIdentityMismatch,
     RootMarkerNotObject,
-    RootNotResolved,
     RootSchemaVersionMismatch,
 )
 
@@ -45,44 +44,64 @@ def test_explicit_root_wins_over_environment(tmp_path: Path) -> None:
     result = resolve_agent_root(
         explicit=explicit,
         environment={"SECRET_AGENTS_ROOT": str(env_root)},
-        script_path=tmp_path / "elsewhere" / "script.py",
+        home=tmp_path / "home",
     )
     assert result.path == explicit.resolve()
 
 
-def test_environment_root_wins_over_self_location(tmp_path: Path) -> None:
+def test_environment_root_wins_over_home_default(tmp_path: Path) -> None:
     env_root = make_root(tmp_path / "env")
-    ancestor_root = make_root(tmp_path / "ancestor")
+    home = tmp_path / "home"
+    make_root(home / "obsidian" / "handbag-of-holding" / "secret-agents")
     result = resolve_agent_root(
         explicit=None,
         environment={"SECRET_AGENTS_ROOT": str(env_root)},
-        script_path=ancestor_root / "sub" / "script.py",
+        home=home,
     )
     assert result.path == env_root.resolve()
 
 
-def test_nearest_marker_ancestor_is_used(tmp_path: Path) -> None:
-    outer = make_root(tmp_path / "outer")
-    inner = make_root(outer / "inner")
-    result = resolve_agent_root(
-        explicit=None,
-        environment={},
-        script_path=inner / "scripts" / "harness_setup.py",
-    )
-    assert result.path == inner.resolve()
+@pytest.mark.parametrize("home_name", ["alice", "User With Spaces", "Zoë"])
+def test_home_default_ignores_checkout_and_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, home_name: str
+) -> None:
+    home = tmp_path / home_name
+    expected = make_root(home / "obsidian" / "handbag-of-holding" / "secret-agents")
+    old_checkout = make_root(tmp_path / "old-checkout")
+    monkeypatch.chdir(old_checkout)
+    assert resolve_agent_root(None, {}, home).path == expected.resolve()
 
 
-def test_missing_root_reports_all_supported_resolution_methods(tmp_path: Path) -> None:
-    with pytest.raises(RootNotResolved) as excinfo:
-        resolve_agent_root(
-            explicit=None,
-            environment={},
-            script_path=tmp_path / "no_marker" / "deep" / "script.py",
-        )
+def test_missing_home_source_reports_path_and_remediation_without_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old_checkout = make_root(tmp_path / "old-checkout")
+    monkeypatch.chdir(old_checkout)
+    home = tmp_path / "home"
+    with pytest.raises(MissingRootMarker) as excinfo:
+        resolve_agent_root(None, {}, home)
     message = str(excinfo.value)
+    assert str(home / "obsidian" / "handbag-of-holding" / "secret-agents") in message
     assert "--agent-root" in message
     assert "SECRET_AGENTS_ROOT" in message
     assert "marker" in message.lower()
+
+
+def test_invalid_home_source_does_not_fall_back(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    make_root(home / "obsidian" / "handbag-of-holding" / "secret-agents", identity="wrong")
+    with pytest.raises(RootIdentityMismatch):
+        resolve_agent_root(None, {}, home)
+
+
+@pytest.mark.parametrize("override", ["explicit", "environment"])
+def test_tilde_override_expands_user_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, override: str) -> None:
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    expected = make_root(tmp_path / "custom source")
+    explicit = Path("~/custom source") if override == "explicit" else None
+    environment = {"SECRET_AGENTS_ROOT": "~/custom source"} if override == "environment" else {}
+    assert resolve_agent_root(explicit, environment, tmp_path).path == expected.resolve()
 
 
 @pytest.mark.parametrize(
@@ -104,7 +123,7 @@ def test_invalid_marker_is_rejected(
         resolve_agent_root(
             explicit=root,
             environment={},
-            script_path=tmp_path / "script.py",
+            home=tmp_path,
         )
     message = str(excinfo.value)
     assert str(root.resolve()) in message

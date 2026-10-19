@@ -1,0 +1,48 @@
+name: Skill source paths
+
+on:
+  push:
+    paths: ["secret-agents/**", ".github/workflows/skill-source-paths.yml"]
+  pull_request:
+    paths: ["secret-agents/**", ".github/workflows/skill-source-paths.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: secret-agents
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev --locked
+      - run: uv run python -m mypy
+      - run: uv run python -m ruff check src tests scripts/run_report.py skills/maintenance/update-model-routing/scripts skills/skill-authoring/query-all-skills/scripts
+      - run: uv run python -m ruff format --check src tests scripts/run_report.py skills/maintenance/update-model-routing/scripts skills/skill-authoring/query-all-skills/scripts
+
+  source-paths:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: secret-agents
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev --locked
+      - name: Verify the complete lifecycle and migration suite
+        run: uv run python -m pytest -q
+      - name: Check this checkout's catalog explicitly
+        run: uv run python skills/skill-authoring/query-all-skills/scripts/catalog.py check --skills-root skills

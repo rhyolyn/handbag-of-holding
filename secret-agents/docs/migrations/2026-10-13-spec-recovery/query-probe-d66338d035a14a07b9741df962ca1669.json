@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "agent_root": "C:\\Users\\rhyol\\obsidian\\handbag-of-holding\\secret-agents\\skills",
+  "catalog_hash": "dae3bfcfeda66e28f991c2d84d8ceec12aa0e21e3d7f0db9ba2c50fdbeb034b6",
+  "entries": {
+    "agent-plan/SKILL.md": {
+      "size": 5838,
+      "mtime_ns": 1791921967363356100
+    },
+    "clean-code-architecture-guards/SKILL.md": {
+      "size": 7153,
+      "mtime_ns": 1791921967367356700
+    },
+    "clean-code-error-handling/SKILL.md": {
+      "size": 5188,
+      "mtime_ns": 1791921967371361800
+    },
+    "python-quality-gate/SKILL.md": {
+      "size": 2232,
+      "mtime_ns": 1791921967375939900
+    },
+    "jira-human-ticket-create/SKILL.md": {
+      "size": 6186,
+      "mtime_ns": 1791922698318108600
+    },
+    "update-claude-pricing-doc/SKILL.md": {
+      "size": 2378,
+      "mtime_ns": 1791921967381585400
+    },
+    "update-model-routing/SKILL.md": {
+      "size": 2623,
+      "mtime_ns": 1791921967384968800
+    },
+    "ready-player-one/SKILL.md": {
+      "size": 17461,
+      "mtime_ns": 1791921967388893900
+    },
+    "query-all-skills/SKILL.md": {
+      "size": 1633,
+      "mtime_ns": 1791922666931544500
+    },
+    "checkin-receipt-create/SKILL.md": {
+      "size": 5622,
+      "mtime_ns": 1791921967425140600
+    },
+    "checkin-receipt-range/SKILL.md": {
+      "size": 3619,
+      "mtime_ns": 1791921967427702600
+    },
+    "checkin-rollup/SKILL.md": {
+      "size": 3702,
+      "mtime_ns": 1791921967428700200
+    },
+    "report-rollup/SKILL.md": {
+      "size": 6805,
+      "mtime_ns": 1791922279650770100
+    },
+    "report-status/SKILL.md": {
+      "size": 8211,
+      "mtime_ns": 1791922698329630300
+    },
+    "report-receipt/SKILL.md": {
+      "size": 12197,
+      "mtime_ns": 1791922698338199300
+    },
+    "install-skills/SKILL.md": {
+      "size": 6201,
+      "mtime_ns": 1791922666929544900
+    },
+    "update-skills-readme/SKILL.md": {
+      "size": 3742,
+      "mtime_ns": 1791922279669804100
+    },
+    "python-tdd-cycle/SKILL.md": {
+      "size": 1828,
+      "mtime_ns": 1791922698343196800
+    },
+    "run-mac-coverage/SKILL.md": {
+      "size": 10984,
+      "mtime_ns": 1791921967414622700
+    },
+    "run-unit-tests/SKILL.md": {
+      "size": 6476,
+      "mtime_ns": 1791921967417622100
+    },
+    "unreal-reset-build-env/SKILL.md": {
+      "size": 2964,
+      "mtime_ns": 1791922698349201200
+    },
+    "unreal-ugs-release/SKILL.md": {
+      "size": 8230,
+      "mtime_ns": 1791922698354764200
+    },
+    "ap/SKILL.md": {
+      "size": 596,
+      "mtime_ns": 1791922798771851400
+    },
+    "rcrc/SKILL.md": {
+      "size": 770,
+      "mtime_ns": 1791922798784884000
+    },
+    "rcrr/SKILL.md": {
+      "size": 737,
+      "mtime_ns": 1791922798798452900
+    },
+    "rcr/SKILL.md": {
+      "size": 692,
+      "mtime_ns": 1791922798812005000
+    },
+    "ccag/SKILL.md": {
+      "size": 779,
+      "mtime_ns": 1791922798822022800
+    },
+    "architecture-guards/SKILL.md": {
+      "size": 824,
+      "mtime_ns": 1791922798831025500
+    },
+    "cceh/SKILL.md": {
+      "size": 695,
+      "mtime_ns": 1791922798839467400
+    },
+    "sis/SKILL.md": {
+      "size": 658,
+      "mtime_ns": 1791922798849865800
+    },
+    "jhtc/SKILL.md": {
+      "size": 681,
+      "mtime_ns": 1791922798858201500
+    },
+    "jira-ht/SKILL.md": {
+      "size": 690,
+      "mtime_ns": 1791922798865808800
+    },
+    "cpqg/SKILL.md": {
+      "size": 605,
+      "mtime_ns": 1791922798877358500
+    },
+    "tptc/SKILL.md": {
+      "size": 664,
+      "mtime_ns": 1791922798884366500
+    },
+    "qas/SKILL.md": {
+      "size": 577,
+      "mtime_ns": 1791922798892940500
+    },
+    "prpo/SKILL.md": {
+      "size": 741,
+      "mtime_ns": 1791922798902711100
+    },
+    "agent-preflight/SKILL.md": {
+      "size": 774,
+      "mtime_ns": 1791922798912553400
+    },
+    "rrec/SKILL.md": {
+      "size": 704,
+      "mtime_ns": 1791922798921342600
+    },
+    "work-receipt-create/SKILL.md": {
+      "size": 749,
+      "mtime_ns": 1791922798930342400
+    },
+    "rrol/SKILL.md": {
+      "size": 640,
+      "mtime_ns": 1791922798938432300
+    },
+    "rs/SKILL.md": {
+      "size": 643,
+      "mtime_ns": 1791922798945458200
+    },
+    "status-report-create/SKILL.md": {
+      "size": 697,
+      "mtime_ns": 1791922798953277400
+    },
+    "trmc/SKILL.md": {
+      "size": 709,
+      "mtime_ns": 1791922798960746500
+    },
+    "trut/SKILL.md": {
+      "size": 805,
+      "mtime_ns": 1791922798972714800
+    },
+    "rut/SKILL.md": {
+      "size": 802,
+      "mtime_ns": 1791922798979730700
+    },
+    "urbe/SKILL.md": {
+      "size": 681,
+      "mtime_ns": 1791922798987518600
+    },
+    "reset-unreal-build-environment/SKILL.md": {
+      "size": 759,
+      "mtime_ns": 1791922798997127100
+    },
+    "uur/SKILL.md": {
+      "size": 693,
+      "mtime_ns": 1791922799007776800
+    },
+    "ugs-pcb-release/SKILL.md": {
+      "size": 729,
+      "mtime_ns": 1791922799017393000
+    },
+    "mucpd/SKILL.md": {
+      "size": 808,
+      "mtime_ns": 1791922799025414000
+    },
+    "mumr/SKILL.md": {
+      "size": 594,
+      "mtime_ns": 1791922799032759800
+    },
+    "susr/SKILL.md": {
+      "size": 662,
+      "mtime_ns": 1791922799039165500
+    }
+  }
+}
