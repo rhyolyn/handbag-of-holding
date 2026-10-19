@@ -33,7 +33,16 @@ _REVIEW_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/[1-9][0-9]*#pul
 def parse_evidence(path: Path) -> EvidenceRecord | EvidenceDiagnostic:
     """Parse one evidence file into a record or a diagnostic that preserves its path."""
     try:
-        parsed = parse_opening_frontmatter(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError, TypeError, yaml.YAMLError) as exc:
+        return EvidenceDiagnostic(path, f"invalid YAML frontmatter: {exc}")
+    return parse_evidence_text(path, text)
+
+
+def parse_evidence_text(path: Path, text: str) -> EvidenceRecord | EvidenceDiagnostic:
+    """Parse supplied evidence text while retaining the artifact path in diagnostics."""
+    try:
+        parsed = parse_opening_frontmatter(text)
         if parsed is None:
             return EvidenceDiagnostic(path, "frontmatter must open at the first line and contain a YAML mapping")
         frontmatter, body = parsed
