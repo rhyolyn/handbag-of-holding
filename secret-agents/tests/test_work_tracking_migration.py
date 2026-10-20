@@ -101,6 +101,18 @@ def test_preflight_refuses_an_unresolved_markdown_or_wikilink(tmp_path: Path) ->
     assert not (vault / "Work Tracking").exists()
 
 
+def test_preflight_refuses_an_ambiguous_bare_wikilink(tmp_path: Path) -> None:
+    vault = create_legacy_vault(tmp_path)
+    daily_path = vault / "Daily/2026/day.md"
+    daily_path.write_text(receipt("manual:daily", "See [[receipt]].", kind="daily-note"), encoding="utf-8")
+
+    with pytest.raises(MigrationPreflightError, match="ambiguous wikilink"):
+        preflight_migration(build_inventory(workspace_for(vault)))
+
+    assert daily_path.is_file()
+    assert not (vault / "Work Tracking").exists()
+
+
 def test_preflight_ignores_iso_date_wikilink_template_placeholders(tmp_path: Path) -> None:
     vault = create_legacy_vault(tmp_path)
     template = vault / "Templates/receipt.md"
@@ -336,7 +348,9 @@ def test_apply_moves_classified_files_rewrites_links_and_preserves_hashes(tmp_pa
     receipt_path = vault / "Receipts/2026/receipt.md"
     daily_path = vault / "Daily/2026/day.md"
     receipt_path.write_text(receipt("manual:receipt", "See [daily](../../Daily/2026/day.md)."), encoding="utf-8")
-    daily_path.write_text(receipt("manual:daily", "See [[receipt]].", kind="daily-note"), encoding="utf-8")
+    daily_path.write_text(
+        receipt("manual:daily", "See [[Receipts/2026/receipt]].", kind="daily-note"), encoding="utf-8"
+    )
 
     audit = apply_migration(preflight_migration(build_inventory(workspace_for(vault))))
 
