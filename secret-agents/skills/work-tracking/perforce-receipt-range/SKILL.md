@@ -1,21 +1,21 @@
 ---
-name: checkin-receipt-range
-description: "Use when the user asks to backfill or generate checkin receipts for every Perforce changelist in a date range, or explicitly invokes @skill checkin-receipt-range with start and end dates. Drives checkin-receipt-create across all submitted CLs in the window, idempotently."
+name: perforce-receipt-range
+description: "Use when the user asks to backfill Perforce source-control receipts for a date range, or explicitly invokes @skill perforce-receipt-range with start and end dates."
 ---
 
-# Checkin Receipt Range
+# Perforce Receipt Range
 
 **Category:** Reporting · **Updated:** 2026-10-16
 
-Generate checkin receipts for every submitted changelist the logged-in user made within a date range, by driving `checkin-receipt-create` for each CL. This is the mass-populate engine for backfilling `Checkins/perforce/`.
+Generate source-control receipts for every submitted changelist the logged-in user made within a date range by driving `perforce-receipt-create` for each CL.
 
 ## Input
 
-Two required date arguments: `start YYYY/MM/DD` and `end YYYY/MM/DD` (inclusive). Example: `@skill checkin-receipt-range start 2026/01/01 end 2026/10/12`. If either is missing or malformed, print usage and stop; do not guess.
+Two required date arguments: `start YYYY/MM/DD` and `end YYYY/MM/DD` (inclusive). Example: `@skill perforce-receipt-range start 2026/01/01 end 2026/10/12`. If either is missing or malformed, print usage and stop; do not guess.
 
-## Vault Layout
+## Workspace contract
 
-Resolve `<vault>` using [Worky data vault paths](../../../runbooks/worky-vault-paths.md) before reading inputs or creating outputs. Pass the same resolved vault to each `checkin-receipt-create` invocation.
+Before accessing data, validate the selected vault with `python -m secret_agents_work_tracking workspace check --vault <path>` (or `--config <path>`). Follow [Worky data vault paths](../../../runbooks/worky-vault-paths.md), then pass the same resolved `perforce_checkins` location to each `perforce-receipt-create` invocation.
 
 ## Perforce Access
 
@@ -34,8 +34,8 @@ The `p4 changes` spec-form date filter is unreliable on this server. Use the rel
 
 ## Execution
 
-- For each CL in order, invoke `checkin-receipt-create` for that CL number. Follow that skill fully (it handles noise classification, diffs, stats, idempotency, and the cost-ledger row).
-- **Idempotency is the resume mechanism.** `checkin-receipt-create` skips any CL that already has a receipt, so an interrupted run can be re-invoked over the same range and will only do the remaining CLs. Do not pre-check for existence here; let the single-CL skill own that.
+- For each CL in order, invoke `perforce-receipt-create` for that CL number. Follow that skill fully (it handles noise classification, diffs, stats, and idempotence).
+- **Idempotency is the resume mechanism.** `perforce-receipt-create` skips identical evidence and stops on a material stable-ID conflict. Do not pre-check for existence here; let the single-CL skill own that.
 - **Chunking:** if the range spans more than ~40 CLs, process in monthly sub-batches and report progress after each batch (e.g. `2026/03: 34 done, 2 noise, 0 skipped-existing`). This keeps long backfills resumable and gives the user visibility.
 - **Error handling:** if `p4 describe` fails for a CL (e.g. it was deleted), log `CL <cl>: describe failed (<reason>) - skipping`, continue with the next CL, and list all failures in the final summary. Never abort the whole run on one bad CL.
 
@@ -49,6 +49,6 @@ After the run, print a summary:
 - the date range processed,
 - total submitted CLs in range,
 - receipts written (new), receipts skipped (already existed), noise stubs written, and failures,
-- the output folder(s) under `Checkins/perforce/`.
+- the named `perforce_checkins` output folders.
 
 Do not echo individual receipt bodies.

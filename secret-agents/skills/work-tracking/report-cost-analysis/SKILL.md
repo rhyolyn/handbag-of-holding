@@ -9,12 +9,14 @@ description: Use when a work receipt needs optional AI token and cost analysis o
 
 Add the optional `### Efficiency Analysis` block to a work receipt. `report-receipt --show-cost` invokes this workflow after its standard receipt is drafted; it is the only path that includes cost analysis in a new receipt.
 
-## Inputs and Output
+## Workspace contract
 
+- Before accessing data, validate the selected vault with `python -m secret_agents_work_tracking workspace check --vault <path>` (or `--config <path>`). Follow [Worky data vault paths](../../../runbooks/worky-vault-paths.md).
 - From `report-receipt --show-cost`, use the drafted receipt, its resolved output path, and its topic slug.
-- When invoked directly, resolve `<vault>` with [Worky data vault paths](../../../runbooks/worky-vault-paths.md), then require the target receipt path and enough current-session context to identify the transcript. If either is unavailable, refuse clearly rather than guessing.
+- When invoked directly, require the target receipt path and enough current-session context to identify the transcript. If either is unavailable, refuse clearly rather than guessing.
 - Add one `### Efficiency Analysis` section after `### Suggested Status Bullet`. If the target already has that section, replace that section rather than duplicating it.
 - Do not modify any other receipt section. Return the completed section to `report-receipt`; direct invocation returns the receipt path and the completed section.
+- Append the operational usage row through the resolver-owned `ledgers` location. It is not work evidence and must never be selected for reports.
 
 ## Sequence
 
@@ -40,7 +42,7 @@ Apply this only to Claude sessions.
 - Price uncached input at the base rate, reads at 0.1×, writes at 1.25×, and output at the output rate. Report tokens, rates, costs, total API-equivalent value, and `$0` marginal subscription cost when applicable.
 - If the transcript is unavailable, label a session-evidence estimate as an estimate. Never invent exact figures.
 - Name top cost drivers and avoidable spend. If cache writes dominate, identify idle gaps past the five-minute cache TTL as the usual cause; otherwise do not speculate about cache rewrites.
-- Append exactly one row for this receipt to `Receipts/cost-ledger.csv`, creating the header when absent: `date,topic_slug,model,input_tokens,cache_read_tokens,cache_write_tokens,output_tokens,total_usd`.
+- Append exactly one row for this receipt to the named `ledgers` location, creating the header when absent: `date,topic_slug,model,input_tokens,cache_read_tokens,cache_write_tokens,output_tokens,total_usd`.
 
 ## AI Cost Analysis — Codex
 
@@ -51,7 +53,7 @@ Apply this only to Codex sessions.
 - Calculate uncached input as `input_tokens - cached_input_tokens`. Read the model from `turn_context.payload.model`; if model-specific usage is unavailable after a model change, disclose that exact allocation is unavailable.
 - Separate tokens, rate-limit consumption, and dollar cost. Rate-limit percentages are not API charges. Report `$0` marginal subscription cost. Calculate API-equivalent value only when the exact model maps unambiguously to a publicly priced API model: use current official OpenAI prices for uncached input, cached input, and output, and name the source and retrieval date. Otherwise use `N/A (no authoritative public rate)`.
 - Report a category table for uncached input, cached input, and output; include rates and costs when authoritative rates exist. Label estimates and their assumptions. Identify evidence-based cost drivers and concrete improvements tied to observed events, quantified in turns, tool calls, tokens, or an explicit estimated share. Do not apply Claude cache-TTL claims to Codex without evidence.
-- Append exactly one row for this receipt to `Receipts/cost-ledger.csv` using the Claude-compatible header. Store `cached_input_tokens` in `cache_read_tokens`, `0` in `cache_write_tokens`, and blank `total_usd` when no authoritative API-equivalent rate exists; explain this mapping in the receipt when needed.
+- Append exactly one row for this receipt to the named `ledgers` location using the Claude-compatible header. Store `cached_input_tokens` in `cache_read_tokens`, `0` in `cache_write_tokens`, and blank `total_usd` when no authoritative API-equivalent rate exists; explain this mapping in the receipt when needed.
 
 ## Human Improvement Plan
 

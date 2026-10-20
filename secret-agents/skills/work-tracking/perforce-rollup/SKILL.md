@@ -1,13 +1,13 @@
 ---
-name: checkin-rollup
-description: "Use when the user asks to summarize Perforce checkin receipts over a bi-weekly, monthly, or custom window, or explicitly invokes @skill checkin-rollup with a cadence argument. Groups checkin receipts by initiative arc and produces a summary with status-bullet candidates."
+name: perforce-rollup
+description: "Use when the user asks to summarize Perforce source-control receipts over a bi-weekly, monthly, or custom window, or explicitly invokes @skill perforce-rollup with a cadence argument."
 ---
 
-# Checkin Rollup
+# Perforce Rollup
 
 **Category:** Reporting · **Updated:** 2026-10-16
 
-Summarize the checkin receipts under `Checkins/perforce/` over a reporting window, grouped by initiative arc. Produces a rollup with themes, per-arc completed work, impact, and ready-to-paste status bullets. Feeds the annual performance review (via `report-rollup`).
+Summarize Perforce receipts over a reporting window, grouped by initiative. Produce themes, completed work, impact, and status-bullet candidates. This is an intermediate source-specific view, not the annual evidence base.
 
 ## Input
 
@@ -19,23 +19,22 @@ Exactly one window argument, required:
 
 If the argument is missing or malformed, print usage and stop; do not guess.
 
-## Vault Layout
+## Workspace contract
 
-Resolve `<vault>` using [Worky data vault paths](../../../runbooks/worky-vault-paths.md) before reading inputs or creating outputs.
+Before accessing data, validate the selected vault with `python -m secret_agents_work_tracking workspace check --vault <path>` (or `--config <path>`). Follow [Worky data vault paths](../../../runbooks/worky-vault-paths.md).
 
-- Inputs: `<vault>\Checkins\perforce\YYYY\YYYY-MM\CK-*.md` (only files with YAML frontmatter containing `date`).
-- Output: `<vault>\Checkins\perforce\YYYY\YYYY-MM\rollups\<label>.md`, where `YYYY\YYYY-MM` is the month folder of the window's end date (create `rollups\` inside it if needed).
-- Cost ledger: `<vault>\Receipts\cost-ledger.csv`.
+- Read and write only through the named `perforce_checkins` location; use its `YYYY/YYYY-MM` partition and a `rollups/` child for the output.
+- Operational usage, if requested, belongs in the named `ledgers` location and never becomes evidence.
 
 Label by cadence: `ck-biweekly-<end YYYY-MM-DD>`, `ck-monthly-<YYYY-MM>`, or `ck-window-<start>-<end>`.
 
 ## Input Selection
 
-A checkin receipt belongs to the window if its frontmatter `date` is `>= window_start` and `< window_end`. Scan only the month folders that overlap the window.
+A Perforce receipt belongs to the window if its `occurred_start` is `>= window_start` and `< window_end`. Scan only the month folders that overlap the window.
 
 - **Idempotency:** if the output file already exists, print `Rollup for <window> already exists: <path> - skipping.` and stop. Do not overwrite.
 - **Noise:** receipts with `noise: true` are excluded from the substantive sections but counted in one line.
-- If zero substantive receipts fall in the window, still write the output with "No substantive checkins in window." in the Summary.
+- If zero substantive receipts fall in the window, still write the output with "No substantive Perforce receipts in window." in the Summary.
 
 ## Output Format
 
@@ -57,10 +56,10 @@ generated: 2026-10-12T11:55-07:00
 Body:
 
 ```markdown
-# Checkin Rollup — <label>
+# Perforce Rollup — <label>
 
 ## Summary
-- 2-4 bullets of high-level themes across the window's checkins (what the period was about, at the arc level).
+- 2-4 bullets of high-level themes across the window's Perforce work.
 
 ## By Initiative
 ### <arc name>
@@ -74,15 +73,11 @@ Body:
 ## Excluded
 - N noise CLs (stream/binary) in window.
 
-## Source Checkins
+## Source Receipts
 - Wikilink list mirroring `sources`.
 ```
 
 Keep bullets factual. Do not invent work that is not in a receipt.
-
-## Cost Ledger
-
-Append one row to the cost ledger with `topic_slug` = the rollup label, using this session's model and token usage. Never invent figures.
 
 ## Output
 
