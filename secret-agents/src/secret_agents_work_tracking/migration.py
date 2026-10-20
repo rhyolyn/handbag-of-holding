@@ -385,20 +385,23 @@ def _canonical_wikilink(vault_root: Path, match: re.Match[str]) -> str:
 
 def _resolved_target(vault_root: Path, source: Path, target: str) -> str:
     relative_target = target.split("#", maxsplit=1)[0]
-    direct = (source.parent / relative_target).resolve()
-    if direct.is_file() and direct.is_relative_to(vault_root.resolve()):
-        return str(direct)
+    source_directory = source if source.is_dir() else source.parent
+    direct = (source_directory / relative_target).resolve()
+    direct_candidates = (direct, direct.with_suffix(".md")) if direct.suffix == "" else (direct,)
+    for candidate in direct_candidates:
+        if candidate.is_file() and candidate.is_relative_to(vault_root.resolve()):
+            return str(candidate)
     stem = Path(relative_target).stem
-    matched = _markdown_paths_by_stem(vault_root).get(stem)
-    return str(matched) if matched is not None else relative_target
+    matches = _markdown_paths_by_stem(vault_root).get(stem, ())
+    return str(matches[0]) if len(matches) == 1 else relative_target
 
 
 @cache
-def _markdown_paths_by_stem(vault_root: Path) -> Mapping[str, Path]:
-    paths_by_stem: dict[str, Path] = {}
+def _markdown_paths_by_stem(vault_root: Path) -> Mapping[str, tuple[Path, ...]]:
+    paths_by_stem: dict[str, list[Path]] = {}
     for path in sorted(vault_root.rglob("*.md")):
-        paths_by_stem.setdefault(path.stem, path.resolve())
-    return MappingProxyType(paths_by_stem)
+        paths_by_stem.setdefault(path.stem, []).append(path.resolve())
+    return MappingProxyType({stem: tuple(paths) for stem, paths in paths_by_stem.items()})
 
 
 def _reject_destination_collisions(entries: Iterable[MigrationEntry]) -> None:
@@ -593,8 +596,19 @@ def _reject_unresolved_links(vault_root: Path, entries: Iterable[MigrationEntry]
             if not _resolves_link(vault_root, entry.source, target):
                 raise MigrationPreflightError(f"unresolved link in {entry.source}: {target}")
         for target in _wikilink_targets(text):
-            if not _resolves_link(vault_root, entry.source, target):
+            _reject_ambiguous_bare_wikilink(vault_root, entry.source, target)
+            if not _resolves_link(vault_root, vault_root, target):
                 raise MigrationPreflightError(f"unresolved link in {entry.source}: {target}")
+
+
+def _reject_ambiguous_bare_wikilink(vault_root: Path, source: Path, target: str) -> None:
+    if "/" in target or "\\" in target:
+        return
+    matches = _markdown_paths_by_stem(vault_root).get(Path(target).stem, ())
+    if len(matches) < 2:
+        return
+    candidates = ", ".join(str(path.relative_to(vault_root)) for path in matches)
+    raise MigrationPreflightError(f"ambiguous wikilink in {source}: {target} matches {candidates}")
 
 
 def _link_targets(path: Path) -> tuple[str, ...]:
