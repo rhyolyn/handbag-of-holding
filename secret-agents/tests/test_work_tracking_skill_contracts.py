@@ -20,6 +20,10 @@ TASK_SIX_SKILLS = {
     "git-receipt-range": "git_checkins",
     "git-rollup": "git_checkins",
 }
+REPORT_SKILLS = {
+    "report-status": "status_reports",
+    "report-rollup": "monthly_reports",
+}
 COMMON_FRONTMATTER_FIELDS = (
     "kind:",
     "occurred_start:",
@@ -63,6 +67,19 @@ def test_git_workflows_use_the_shared_resolver_named_location_and_receipt_output
     assert "source receipts" in skills["git-rollup"].lower()
 
 
+def test_report_workflows_use_combined_evidence_and_named_report_locations() -> None:
+    skills = canonical_skills()
+
+    for name, location in REPORT_SKILLS.items():
+        assert "python -m secret_agents_work_tracking workspace check" in skills[name]
+        assert f"`{location}`" in skills[name]
+    assert "manual" in skills["report-status"].lower()
+    assert "daily" in skills["report-status"].lower()
+    assert "perforce" in skills["report-status"].lower()
+    assert "github" in skills["report-status"].lower()
+    assert "monthly reports" in skills["report-rollup"].lower()
+
+
 def test_manual_and_daily_workflows_describe_the_common_evidence_frontmatter() -> None:
     skills = canonical_skills()
 
@@ -78,7 +95,7 @@ def test_hardcoded_legacy_output_path_guard_rejects_a_planted_violation(tmp_path
 
 
 def test_hardcoded_legacy_output_path_guard_scans_live_work_tracking_skills() -> None:
-    paths = tuple(WORK_TRACKING_ROOT / name / "SKILL.md" for name in TASK_FIVE_SKILLS)
+    paths = tuple(WORK_TRACKING_ROOT.glob("*/SKILL.md"))
 
     assert paths
     assert hardcoded_legacy_output_paths(paths) == ()
