@@ -15,6 +15,11 @@ TASK_FIVE_SKILLS = {
     "report-cost-analysis": "ledgers",
     "report-receipt": "receipts",
 }
+TASK_SIX_SKILLS = {
+    "git-receipt-create": "git_checkins",
+    "git-receipt-range": "git_checkins",
+    "git-rollup": "git_checkins",
+}
 COMMON_FRONTMATTER_FIELDS = (
     "kind:",
     "occurred_start:",
@@ -43,6 +48,19 @@ def test_task_five_workflows_use_the_shared_resolver_and_named_locations() -> No
         text = skills[name]
         assert "python -m secret_agents_work_tracking workspace check" in text
         assert f"`{location}`" in text
+
+
+def test_git_workflows_use_the_shared_resolver_named_location_and_receipt_outputs() -> None:
+    skills = canonical_skills()
+
+    for name, location in TASK_SIX_SKILLS.items():
+        text = skills[name]
+        assert "python -m secret_agents_work_tracking workspace check" in text
+        assert f"`{location}`" in text
+    assert "merged pull request" in skills["git-receipt-create"].lower()
+    assert "standalone commit" in skills["git-receipt-create"].lower()
+    assert "review" in skills["git-receipt-create"].lower()
+    assert "source receipts" in skills["git-rollup"].lower()
 
 
 def test_manual_and_daily_workflows_describe_the_common_evidence_frontmatter() -> None:

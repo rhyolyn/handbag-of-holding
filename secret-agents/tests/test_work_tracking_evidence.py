@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
+from typing import cast
 
 import pytest
 
-from secret_agents_work_tracking.evidence import decide_output, deduplicate_github, parse_evidence, select_evidence
+from secret_agents_work_tracking.evidence import (
+    GitHubReceiptParser,
+    GitHubSourceQueryError,
+    decide_output,
+    deduplicate_github,
+    parse_evidence,
+    select_evidence,
+)
 from secret_agents_work_tracking.models import EvidenceDiagnostic, EvidenceRecord, OutputDecision, ReportingWindow
 
 FIXTURES = Path(__file__).parent / "fixtures" / "work_tracking" / "evidence"
+GITHUB_FIXTURES = Path(__file__).parent / "fixtures" / "work_tracking" / "github"
 
 
 @pytest.mark.parametrize(
@@ -198,6 +208,63 @@ def test_pull_request_membership_accepts_only_commit_urls(tmp_path: Path) -> Non
     assert "commit URLs" in result.reason
 
 
+def test_github_parser_normalizes_urls_and_partitions_receipts_by_repository(tmp_path: Path) -> None:
+    parser = GitHubReceiptParser(tmp_path / "git_checkins")
+
+    pull_request = parser.parse_pull_request(github_fixture("merged-pr.json"))
+    commit = parser.parse_commit(github_fixture("standalone-commit.json"))
+    review = parser.parse_review(github_fixture("review.json"))
+
+    assert pull_request.source_id == "https://github.com/acme/work-tracking/pull/42"
+    assert pull_request.pr_commit_urls == frozenset(
+        {
+            "https://github.com/acme/work-tracking/commit/abc123",
+            "https://github.com/acme/work-tracking/commit/def456",
+        }
+    )
+    assert (
+        pull_request.source_path.parent
+        == tmp_path / "git_checkins" / "github.com" / "acme" / "work-tracking" / "2026" / "2026-10"
+    )
+    assert commit.source_id == "https://github.com/acme/work-tracking/commit/789abc"
+    assert review.source_id == "https://github.com/acme/work-tracking/pull/99#pullrequestreview-7"
+
+
+def test_github_parser_keeps_reviews_and_drops_commits_in_a_merged_pull_request(tmp_path: Path) -> None:
+    parser = GitHubReceiptParser(tmp_path / "git_checkins")
+
+    pull_request = parser.parse_pull_request(github_fixture("merged-pr.json"))
+    included_commit = parser.parse_commit(github_fixture("included-commit.json"))
+    standalone_commit = parser.parse_commit(github_fixture("standalone-commit.json"))
+    review = parser.parse_review(github_fixture("review.json"))
+
+    assert [
+        record.source_id for record in deduplicate_github((pull_request, included_commit, standalone_commit, review))
+    ] == [
+        pull_request.source_id,
+        standalone_commit.source_id,
+        review.source_id,
+    ]
+
+
+def test_github_parser_reports_saved_query_failures_explicitly(tmp_path: Path) -> None:
+    parser = GitHubReceiptParser(tmp_path / "git_checkins")
+
+    with pytest.raises(GitHubSourceQueryError, match="GitHub query failed: access denied"):
+        parser.parse_pull_request({"message": "access denied"})
+
+
+def test_github_parser_routes_utc_timestamps_by_the_pacific_evidence_date(tmp_path: Path) -> None:
+    parser = GitHubReceiptParser(tmp_path / "git_checkins")
+    payload = github_fixture("standalone-commit.json")
+    payload["committedDate"] = "2026-10-18T01:00:00Z"
+
+    record = parser.parse_commit(payload)
+
+    assert record.occurred_start == date(2026, 10, 17)
+    assert record.source_path.parent.name == "2026-10"
+
+
 def evidence(filename: str) -> EvidenceRecord:
     return evidence_path(FIXTURES / filename)
 
@@ -206,3 +273,7 @@ def evidence_path(path: Path) -> EvidenceRecord:
     result = parse_evidence(path)
     assert isinstance(result, EvidenceRecord), result
     return result
+
+
+def github_fixture(filename: str) -> dict[str, object]:
+    return cast(dict[str, object], json.loads((GITHUB_FIXTURES / filename).read_text(encoding="utf-8")))

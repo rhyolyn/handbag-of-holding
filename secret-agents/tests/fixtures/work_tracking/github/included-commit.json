@@ -1,0 +1,6 @@
+{
+  "url": "https://github.com/acme/work-tracking/commit/abc123/",
+  "committedDate": "2026-10-18T19:00:00Z",
+  "messageHeadline": "Add GitHub receipt parser",
+  "repository": {"url": "https://github.com/acme/work-tracking"}
+}
