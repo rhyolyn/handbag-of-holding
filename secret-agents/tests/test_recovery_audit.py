@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -61,6 +62,14 @@ def test_missing_required_worky_destination_returns_structured_json(audit_script
     assert result.returncode == 1
     assert data["ok"] is False
     assert any("Missing Worky destination" in error for error in data["errors"])
+
+
+def test_required_worky_destination_matches_the_preserved_archive(audit_script: Path) -> None:
+    destination = audit_script.parents[3] / "docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md"
+
+    assert hashlib.sha256(destination.read_bytes()).hexdigest() == (
+        "d01f88dce3b51401dc82a5f7b9a34f9723a868a75fd95028c7b4c07b81b90d90"
+    )
 
 
 def test_modified_archive_still_fails_without_original_checkout(audit_script: Path) -> None:

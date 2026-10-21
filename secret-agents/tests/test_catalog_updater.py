@@ -214,6 +214,29 @@ def test_post_move_baseline_matches_canonical_collection_instruction_bodies_and_
     assert all(path == f"_generated/{name}" for name, path in catalog_data["generated_projection"].items())
 
 
+def test_work_tracking_publication_exposes_replacements_and_retires_checkin_projections() -> None:
+    skills_root = ROOT / "skills"
+    published_names = {
+        entry["name"] for entry in json.loads((skills_root / "catalog.json").read_text(encoding="utf-8"))["entries"]
+    }
+    expected = {
+        "daily-note-create",
+        "perforce-receipt-create",
+        "perforce-receipt-range",
+        "perforce-rollup",
+        "git-receipt-create",
+        "git-receipt-range",
+        "git-rollup",
+        "report-receipt",
+        "report-status",
+        "report-rollup",
+    }
+
+    assert expected <= published_names
+    assert not {"checkin-receipt-create", "checkin-receipt-range", "checkin-rollup"} & published_names
+    assert all((skills_root / "_generated" / name / "SKILL.md").is_file() for name in expected)
+
+
 def test_update_generates_canonical_projection_with_matching_catalog_paths(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
