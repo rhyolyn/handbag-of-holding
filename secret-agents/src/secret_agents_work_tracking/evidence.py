@@ -7,6 +7,8 @@ from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from pathlib import Path
 from typing import TypeAlias
+from urllib.parse import urlsplit, urlunsplit
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -28,6 +30,57 @@ CommonValues: TypeAlias = tuple[str, date, date, str, str, tuple[str, ...], tupl
 _PULL_REQUEST_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/[1-9][0-9]*$")
 _COMMIT_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/commit/[0-9a-fA-F]+$")
 _REVIEW_URL = re.compile(r"^https://github\.com/[^/]+/[^/]+/pull/[1-9][0-9]*#pullrequestreview-[1-9][0-9]*$")
+
+
+class GitHubSourceQueryError(ValueError):
+    """Describe saved GitHub query data that cannot produce trustworthy evidence."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"GitHub query failed: {reason}. Refresh the saved gh JSON and run again.")
+
+
+class GitHubReceiptParser:
+    """Normalize saved GitHub CLI JSON into validated evidence records."""
+
+    def __init__(self, git_checkins: Path) -> None:
+        self._git_checkins = git_checkins
+
+    def parse_pull_request(self, payload: Mapping[str, object]) -> EvidenceRecord:
+        """Normalize one merged authored pull request and its commit membership."""
+        return self._parse_receipt(payload, "merged_pull_request", "mergedAt")
+
+    def parse_commit(self, payload: Mapping[str, object]) -> EvidenceRecord:
+        """Normalize one authored commit that may later be deduplicated by a pull request."""
+        return self._parse_receipt(payload, "commit", "committedDate")
+
+    def parse_review(self, payload: Mapping[str, object]) -> EvidenceRecord:
+        """Normalize one submitted review as distinct GitHub evidence."""
+        return self._parse_receipt(payload, "review", "submittedAt")
+
+    def _parse_receipt(self, payload: Mapping[str, object], activity: str, timestamp_key: str) -> EvidenceRecord:
+        _raise_query_failure(payload)
+        source_id = _canonical_github_url(_required_text(payload, "url"), activity)
+        occurred = _occurred_date(_required_text(payload, timestamp_key))
+        commits = _pull_request_commits(payload) if activity == "merged_pull_request" else frozenset()
+        frontmatter = _github_frontmatter(source_id, occurred, activity, commits)
+        record_or_reason = _build_record(
+            self._receipt_path(source_id, occurred, activity), frontmatter, _github_body(payload)
+        )
+        if isinstance(record_or_reason, str):
+            raise GitHubSourceQueryError(record_or_reason)
+        return record_or_reason
+
+    def _receipt_path(self, source_id: str, occurred: date, activity: str) -> Path:
+        host, owner, repository = _repository_parts(source_id)
+        return (
+            self._git_checkins
+            / host
+            / owner
+            / repository
+            / f"{occurred:%Y}"
+            / f"{occurred:%Y-%m}"
+            / _receipt_name(source_id, activity)
+        )
 
 
 def parse_evidence(path: Path) -> EvidenceRecord | EvidenceDiagnostic:
@@ -82,6 +135,104 @@ def deduplicate_github(records: Iterable[EvidenceRecord]) -> tuple[EvidenceRecor
         for record in materialized_records
         if record.source_system != "github" or record.source_id not in pr_commit_urls
     )
+
+
+def _raise_query_failure(payload: Mapping[str, object]) -> None:
+    message = payload.get("message")
+    if isinstance(message, str) and message:
+        raise GitHubSourceQueryError(message)
+
+
+def _required_text(payload: Mapping[str, object], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value:
+        raise GitHubSourceQueryError(f"saved result is missing {key}")
+    return value
+
+
+def _occurred_date(value: str) -> date:
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(ZoneInfo("America/Los_Angeles")).date()
+    except ValueError as exc:
+        raise GitHubSourceQueryError(f"saved result has invalid timestamp {value!r}") from exc
+
+
+def _canonical_github_url(value: str, activity: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme != "https" or parsed.netloc.lower() != "github.com" or parsed.query:
+        raise GitHubSourceQueryError(f"saved result has invalid GitHub URL {value!r}")
+    path = parsed.path.rstrip("/")
+    canonical = urlunsplit(("https", "github.com", path, "", parsed.fragment))
+    if not _matches_activity_url(canonical, activity):
+        raise GitHubSourceQueryError(f"saved result URL does not match {activity}: {value!r}")
+    return canonical
+
+
+def _matches_activity_url(value: str, activity: str) -> bool:
+    if activity == "merged_pull_request":
+        return _is_pull_request_url(value)
+    if activity == "commit":
+        return _is_commit_url(value)
+    if activity == "review":
+        return _is_review_url(value)
+    return False
+
+
+def _pull_request_commits(payload: Mapping[str, object]) -> frozenset[str]:
+    commits = payload.get("commits")
+    if not isinstance(commits, list):
+        raise GitHubSourceQueryError("saved pull request result is missing commits")
+    return frozenset(_commit_url(commit) for commit in commits)
+
+
+def _commit_url(value: object) -> str:
+    if not isinstance(value, Mapping):
+        raise GitHubSourceQueryError("saved pull request commit has an invalid shape")
+    return _canonical_github_url(_required_text(value, "url"), "commit")
+
+
+def _github_frontmatter(source_id: str, occurred: date, activity: str, commits: frozenset[str]) -> dict[object, object]:
+    frontmatter: dict[object, object] = {
+        "kind": "source-control-receipt",
+        "occurred_start": occurred,
+        "occurred_end": occurred,
+        "source_system": "github",
+        "source_id": source_id,
+        "initiatives": [_repository_identifier(source_id)],
+        "tags": [],
+        "status": "draft",
+        "sources": [],
+        "github_activity": activity,
+    }
+    if activity == "merged_pull_request":
+        frontmatter["pr_commit_urls"] = sorted(commits)
+    return frontmatter
+
+
+def _github_body(payload: Mapping[str, object]) -> str:
+    title = payload.get("title", payload.get("messageHeadline", payload.get("body", "GitHub activity")))
+    if not isinstance(title, str) or not title:
+        title = "GitHub activity"
+    return f"# {title}\n"
+
+
+def _repository_parts(source_id: str) -> tuple[str, str, str]:
+    parsed = urlsplit(source_id)
+    owner, repository = parsed.path.split("/")[1:3]
+    return parsed.netloc, owner, repository
+
+
+def _repository_identifier(source_id: str) -> str:
+    _, owner, repository = _repository_parts(source_id)
+    return f"{owner}/{repository}"
+
+
+def _receipt_name(source_id: str, activity: str) -> str:
+    parsed = urlsplit(source_id)
+    segments = parsed.path.split("/")
+    if activity == "review":
+        return f"review-{segments[-1]}-{parsed.fragment.rsplit('-', maxsplit=1)[-1]}.md"
+    return f"{activity}-{segments[-1]}.md"
 
 
 def _build_record(path: Path, frontmatter: Mapping[object, object], body: str) -> EvidenceRecord | str:

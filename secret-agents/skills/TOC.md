@@ -1,6 +1,6 @@
 # Skills
 
-Generated 2026-10-16. Run `/<canonical-name>`.
+Generated 2026-10-20. Run `/<canonical-name>`.
 
 ## Agent Workflow
 
@@ -76,10 +76,14 @@ Check-in, Jira, reporting, and work-receipt workflows.
 
 ### Reporting (r)
 
-- /checkin-receipt-create: Use when the user asks to write a checkin receipt for a single Perforce changelist, or explicitly invokes @skill checkin-receipt-create with a CL number. Examines the changelist's description, file list, and diffs (not just the submit comment) and writes a structured receipt to Checkins/perforce/.
-- /checkin-receipt-range: Use when the user asks to backfill or generate checkin receipts for every Perforce changelist in a date range, or explicitly invokes @skill checkin-receipt-range with start and end dates. Drives checkin-receipt-create across all submitted CLs in the window, idempotently.
-- /checkin-rollup: Use when the user asks to summarize Perforce checkin receipts over a bi-weekly, monthly, or custom window, or explicitly invokes @skill checkin-rollup with a cadence argument. Groups checkin receipts by initiative arc and produces a summary with status-bullet candidates.
+- /daily-note-create: Use when the user asks to create or normalize a daily work-context note for a local Pacific date.
+- /git-receipt-create: Use when the user asks to record one merged GitHub pull request, standalone commit, or submitted review as work evidence.
+- /git-receipt-range: Use when the user asks to backfill GitHub work evidence for a date range.
+- /git-rollup: Use when the user asks to summarize GitHub source-control receipts by initiative for a reporting window.
+- /perforce-receipt-create: Use when the user asks to record one Perforce changelist, or explicitly invokes @skill perforce-receipt-create with a CL number. Examines the changelist's description, file list, and diffs and writes a source-control receipt.
+- /perforce-receipt-range: Use when the user asks to backfill Perforce source-control receipts for a date range, or explicitly invokes @skill perforce-receipt-range with start and end dates.
+- /perforce-rollup: Use when the user asks to summarize Perforce source-control receipts over a bi-weekly, monthly, or custom window, or explicitly invokes @skill perforce-rollup with a cadence argument.
 - /report-cost-analysis: Use when a work receipt needs optional AI token and cost analysis or an efficiency improvement plan, including after report-receipt --show-cost.
-- /report-rollup: Use when rolling up status reports into a monthly report or an annual performance-review document, when a scheduled monthly-rollup run fires, or when the user invokes /report-rollup with "month YYYY-MM" or "year YYYY".
-- /report-status: Use when generating a Tue/Thu status report from work receipts, when a scheduled status-report run fires, or when the user invokes /report-status (optionally with an explicit window override like "window 2026-07-07..2026-07-09").
+- /report-rollup: Use when the user asks to create a monthly or living annual report from combined work evidence.
+- /report-status: Use when the user asks for a biweekly or custom status report synthesized from configured work evidence.
 - /report-receipt: Use when the user asks to create or update a work receipt, WR, handoff note, status receipt, completion receipt, progress receipt, or explicitly invokes @skill report-receipt; especially when saving analysis, summarizing engineering work, or preserving text verbatim in a receipt.

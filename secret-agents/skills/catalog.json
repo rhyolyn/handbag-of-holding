@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated": "2026-10-16",
+  "generated": "2026-10-20",
   "entries": [
     {
       "name": "agent-plan",
@@ -201,37 +201,81 @@
       "content_hash": "546f0ca924f579338134ab8ee8ac0e92b703836efe3ea534d4ddd8b5e9a8b5d1"
     },
     {
-      "name": "checkin-receipt-create",
+      "name": "daily-note-create",
       "collection": "work-tracking",
-      "source_path": "work-tracking/checkin-receipt-create",
-      "display_name": "Checkin Receipt Create",
-      "description": "Use when the user asks to write a checkin receipt for a single Perforce changelist, or explicitly invokes @skill checkin-receipt-create with a CL number. Examines the changelist's description, file list, and diffs (not just the submit comment) and writes a structured receipt to Checkins/perforce/.",
+      "source_path": "work-tracking/daily-note-create",
+      "display_name": "Daily Note Create",
+      "description": "Use when the user asks to create or normalize a daily work-context note for a local Pacific date.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "64bfa6b711402779ad466c918ec8cb022a408e37e7b2b9782c124fadad3f5701",
-      "content_hash": "742c389a63d15daad6af7d555760ebf06b8b2d38d4749a6f446a9a62565f614f"
+      "updated": "2026-10-20",
+      "semantic_hash": "5c4776e61d104181ed76f211798a51769ea321e6011a532da4348c00f27aa27e",
+      "content_hash": "c2942b9d08f948b3e4179cded7ab065c0c9644d13f8dfc5974bbcb15f34528d9"
     },
     {
-      "name": "checkin-receipt-range",
+      "name": "git-receipt-create",
       "collection": "work-tracking",
-      "source_path": "work-tracking/checkin-receipt-range",
-      "display_name": "Checkin Receipt Range",
-      "description": "Use when the user asks to backfill or generate checkin receipts for every Perforce changelist in a date range, or explicitly invokes @skill checkin-receipt-range with start and end dates. Drives checkin-receipt-create across all submitted CLs in the window, idempotently.",
+      "source_path": "work-tracking/git-receipt-create",
+      "display_name": "Git Receipt Create",
+      "description": "Use when the user asks to record one merged GitHub pull request, standalone commit, or submitted review as work evidence.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "f4bc77285cfa3e35c93683318fa38d5e5383a224e0e55f4b9556cf12abbbe68b",
-      "content_hash": "5dc4c4b092f1aa4f64b4a2e9c451321ebb0d1880fa97269a23238507bad72098"
+      "updated": "2026-10-20",
+      "semantic_hash": "4cb589d6bc895f2b171658a3f235d69acb9845ac9b7450eb9e07491f4566c01c",
+      "content_hash": "b94fd9e345439fdaf8852c0714bfb2325622f0c53bfedb9e7debf86b889f9454"
     },
     {
-      "name": "checkin-rollup",
+      "name": "git-receipt-range",
       "collection": "work-tracking",
-      "source_path": "work-tracking/checkin-rollup",
-      "display_name": "Checkin Rollup",
-      "description": "Use when the user asks to summarize Perforce checkin receipts over a bi-weekly, monthly, or custom window, or explicitly invokes @skill checkin-rollup with a cadence argument. Groups checkin receipts by initiative arc and produces a summary with status-bullet candidates.",
+      "source_path": "work-tracking/git-receipt-range",
+      "display_name": "Git Receipt Range",
+      "description": "Use when the user asks to backfill GitHub work evidence for a date range.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "e18b6f8bca1d2d3a39ab73cb10d520acd4f4a455b276971b70215c2d15aea17f",
-      "content_hash": "95021c44290379ba7bd5ebeaf7e6ef5e23b0dc84ea6556201a7363fe07e225ea"
+      "updated": "2026-10-20",
+      "semantic_hash": "441b4008836ade7f2533915c31277018e4532bb72eeb4f8c35844afaa1b6c830",
+      "content_hash": "80f018f991f11d6d3f7ba9d756c1a08a9468cc37d534c94fac7dfb7f3c0eda18"
+    },
+    {
+      "name": "git-rollup",
+      "collection": "work-tracking",
+      "source_path": "work-tracking/git-rollup",
+      "display_name": "Git Rollup",
+      "description": "Use when the user asks to summarize GitHub source-control receipts by initiative for a reporting window.",
+      "category": "Reporting",
+      "updated": "2026-10-20",
+      "semantic_hash": "1d429e9b94a988f39fea5d740c65b596b9d87e250f65d1b3cb79527ab496fdc1",
+      "content_hash": "6a1a7c0813b272359c65056c791d0027b4cb9bb0262816682cecd2969eb3eacf"
+    },
+    {
+      "name": "perforce-receipt-create",
+      "collection": "work-tracking",
+      "source_path": "work-tracking/perforce-receipt-create",
+      "display_name": "Perforce Receipt Create",
+      "description": "Use when the user asks to record one Perforce changelist, or explicitly invokes @skill perforce-receipt-create with a CL number. Examines the changelist's description, file list, and diffs and writes a source-control receipt.",
+      "category": "Reporting",
+      "updated": "2026-10-20",
+      "semantic_hash": "9fd553acc95776b28be17b31cdc21168aeb60871d1b5f85f4da730651ab3ea81",
+      "content_hash": "611c16ba1fff831a138ca746b17e8d352a2b23ce1266af9700df48e62f7f508c"
+    },
+    {
+      "name": "perforce-receipt-range",
+      "collection": "work-tracking",
+      "source_path": "work-tracking/perforce-receipt-range",
+      "display_name": "Perforce Receipt Range",
+      "description": "Use when the user asks to backfill Perforce source-control receipts for a date range, or explicitly invokes @skill perforce-receipt-range with start and end dates.",
+      "category": "Reporting",
+      "updated": "2026-10-20",
+      "semantic_hash": "4d784c6a655c238fac8d90519e33b8e0c24ded9e4f18ba0795c96c6d5a9117c0",
+      "content_hash": "aeebec4cc8c5d454567da0c109faab7d8d1dc7c632965dc5c3d9672d66aa4887"
+    },
+    {
+      "name": "perforce-rollup",
+      "collection": "work-tracking",
+      "source_path": "work-tracking/perforce-rollup",
+      "display_name": "Perforce Rollup",
+      "description": "Use when the user asks to summarize Perforce source-control receipts over a bi-weekly, monthly, or custom window, or explicitly invokes @skill perforce-rollup with a cadence argument.",
+      "category": "Reporting",
+      "updated": "2026-10-20",
+      "semantic_hash": "b311013717a1bfabe0195943be394c66a8c269396614bafe014a116282822e0c",
+      "content_hash": "328da9cc69bacb8a63ed9d79965d3c679482f31d7719054b74dd7d5d2dc3bc4b"
     },
     {
       "name": "report-cost-analysis",
@@ -240,31 +284,31 @@
       "display_name": "Report Cost Analysis",
       "description": "Use when a work receipt needs optional AI token and cost analysis or an efficiency improvement plan, including after report-receipt --show-cost.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "53c0c40df2f65a422746cebde1609fc207a14eb7a269f6e51c89f6654577d716",
-      "content_hash": "60b852dbff083383efe5c490e40880718373c6970e08b7a6257ed5eab67f1a87"
+      "updated": "2026-10-20",
+      "semantic_hash": "24c87a2ccb44bd572dc254f8d692a809f1fa48bee73993b3c2efb5bb28909ac0",
+      "content_hash": "0a448fe6b6fb766767f7e14895e0af3f2209f2fd0539c44e5f4fca192c46e2ed"
     },
     {
       "name": "report-rollup",
       "collection": "work-tracking",
       "source_path": "work-tracking/report-rollup",
       "display_name": "Report Rollup",
-      "description": "Use when rolling up status reports into a monthly report or an annual performance-review document, when a scheduled monthly-rollup run fires, or when the user invokes /report-rollup with \"month YYYY-MM\" or \"year YYYY\".",
+      "description": "Use when the user asks to create a monthly or living annual report from combined work evidence.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "2c8ad256e02c1f71f742f40df4145046b9749a491217077262cec4c08de79b60",
-      "content_hash": "05f4aaf2854d1047e21cbdf29734b0d1cfad1314ed2be6d2cd5d164fffcdccb4"
+      "updated": "2026-10-20",
+      "semantic_hash": "d9beb7cf126660acb11e06fa0ff0451493a039260bf55f76b55d8b41929ba545",
+      "content_hash": "6e0be831d747b1dbe162a4ba43101519a3ff13bc72a9b71bcef432ae92abec4f"
     },
     {
       "name": "report-status",
       "collection": "work-tracking",
       "source_path": "work-tracking/report-status",
       "display_name": "Status Report Create",
-      "description": "Use when generating a Tue/Thu status report from work receipts, when a scheduled status-report run fires, or when the user invokes /report-status (optionally with an explicit window override like \"window 2026-07-07..2026-07-09\").",
+      "description": "Use when the user asks for a biweekly or custom status report synthesized from configured work evidence.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "ec592cf299e87ec488fa4b0df4ed7cc5f1d639d406c0649cbf6e491963b9ae98",
-      "content_hash": "c1612fb714522d9ec0e5decc0c6bed1bb22417a68dd5dc9029bd2f73d5843905"
+      "updated": "2026-10-20",
+      "semantic_hash": "c8a4102de6f187eccc784e2d33d5b804f8163e3df5c2ffbe4442acf133f4d11f",
+      "content_hash": "b723fc2f6800c72b95498ebff54f00f946f924bb6d7d06c7055f19cac990fdfe"
     },
     {
       "name": "report-receipt",
@@ -273,9 +317,9 @@
       "display_name": "Work Receipt Skill",
       "description": "Use when the user asks to create or update a work receipt, WR, handoff note, status receipt, completion receipt, progress receipt, or explicitly invokes @skill report-receipt; especially when saving analysis, summarizing engineering work, or preserving text verbatim in a receipt.",
       "category": "Reporting",
-      "updated": "2026-10-16",
-      "semantic_hash": "6e77ef4f535745d2a399540219303cceadf003f9fee4807f6208919870280ad8",
-      "content_hash": "ade1d5881265b2a6c909f0e2dec4a136877063e0fbf011fc862e2bc0402c77c5"
+      "updated": "2026-10-20",
+      "semantic_hash": "05cd0a871b1818de88c33e804218784e00434fa14e39a0f93035ef59ab7de81e",
+      "content_hash": "812065fac5c0116f233351a72293e751ef31ff650413542a1a28a2fe6fa279eb"
     }
   ],
   "generated_projection": {
@@ -297,9 +341,13 @@
     "unreal-reset-build-env": "_generated/unreal-reset-build-env",
     "unreal-ugs-release": "_generated/unreal-ugs-release",
     "jira-human-ticket-create": "_generated/jira-human-ticket-create",
-    "checkin-receipt-create": "_generated/checkin-receipt-create",
-    "checkin-receipt-range": "_generated/checkin-receipt-range",
-    "checkin-rollup": "_generated/checkin-rollup",
+    "daily-note-create": "_generated/daily-note-create",
+    "git-receipt-create": "_generated/git-receipt-create",
+    "git-receipt-range": "_generated/git-receipt-range",
+    "git-rollup": "_generated/git-rollup",
+    "perforce-receipt-create": "_generated/perforce-receipt-create",
+    "perforce-receipt-range": "_generated/perforce-receipt-range",
+    "perforce-rollup": "_generated/perforce-rollup",
     "report-cost-analysis": "_generated/report-cost-analysis",
     "report-rollup": "_generated/report-rollup",
     "report-status": "_generated/report-status",

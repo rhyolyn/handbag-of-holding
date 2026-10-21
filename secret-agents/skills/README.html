@@ -27,7 +27,7 @@
 </head>
 <body>
 <h1 id="handbag-of-holding-agent-skills">Handbag of Holding Agent Skills</h1>
-<p>This guide inventories the 25 canonical workflows in the shared skills
+<p>This guide inventories the 29 canonical workflows in the shared skills
 library. Canonical sources live in manifest-declared collections; the catalog
 publishes installable adapters under <code>_generated</code>. Read the root
 <a href="../README.md">README</a>, then the applicable collection README and canonical
@@ -144,19 +144,39 @@ and ordering.</p>
 <td>Creates developer-facing Jira tickets.</td>
 </tr>
 <tr>
-<td><a href="#checkin-receipt-create">checkin-receipt-create</a></td>
-<td><a href="work-tracking/checkin-receipt-create/SKILL.md">work-tracking/checkin-receipt-create</a></td>
-<td>Creates one Perforce check-in receipt.</td>
+<td><a href="#daily-note-create">daily-note-create</a></td>
+<td><a href="work-tracking/daily-note-create/SKILL.md">work-tracking/daily-note-create</a></td>
+<td>Creates a daily work-context note.</td>
 </tr>
 <tr>
-<td><a href="#checkin-receipt-range">checkin-receipt-range</a></td>
-<td><a href="work-tracking/checkin-receipt-range/SKILL.md">work-tracking/checkin-receipt-range</a></td>
-<td>Backfills check-in receipts for a date range.</td>
+<td><a href="#git-receipt-create">git-receipt-create</a></td>
+<td><a href="work-tracking/git-receipt-create/SKILL.md">work-tracking/git-receipt-create</a></td>
+<td>Records GitHub work evidence.</td>
 </tr>
 <tr>
-<td><a href="#checkin-rollup">checkin-rollup</a></td>
-<td><a href="work-tracking/checkin-rollup/SKILL.md">work-tracking/checkin-rollup</a></td>
-<td>Summarizes check-in receipts.</td>
+<td><a href="#git-receipt-range">git-receipt-range</a></td>
+<td><a href="work-tracking/git-receipt-range/SKILL.md">work-tracking/git-receipt-range</a></td>
+<td>Backfills GitHub work evidence.</td>
+</tr>
+<tr>
+<td><a href="#git-rollup">git-rollup</a></td>
+<td><a href="work-tracking/git-rollup/SKILL.md">work-tracking/git-rollup</a></td>
+<td>Summarizes GitHub work evidence.</td>
+</tr>
+<tr>
+<td><a href="#perforce-receipt-create">perforce-receipt-create</a></td>
+<td><a href="work-tracking/perforce-receipt-create/SKILL.md">work-tracking/perforce-receipt-create</a></td>
+<td>Creates one Perforce receipt.</td>
+</tr>
+<tr>
+<td><a href="#perforce-receipt-range">perforce-receipt-range</a></td>
+<td><a href="work-tracking/perforce-receipt-range/SKILL.md">work-tracking/perforce-receipt-range</a></td>
+<td>Backfills Perforce receipts.</td>
+</tr>
+<tr>
+<td><a href="#perforce-rollup">perforce-rollup</a></td>
+<td><a href="work-tracking/perforce-rollup/SKILL.md">work-tracking/perforce-rollup</a></td>
+<td>Summarizes Perforce receipts.</td>
 </tr>
 <tr>
 <td><a href="#report-cost-analysis">report-cost-analysis</a></td>
@@ -217,12 +237,20 @@ the Agent Workflow collection.</p>
 <p>Builds, validates, and releases UGS precompiled-editor artifacts.</p>
 <h3 id="jira-human-ticket-create">jira-human-ticket-create</h3>
 <p>Creates a structured Jira ticket for human developers.</p>
-<h3 id="checkin-receipt-create">checkin-receipt-create</h3>
+<h3 id="daily-note-create">daily-note-create</h3>
+<p>Creates a daily work-context note.</p>
+<h3 id="git-receipt-create">git-receipt-create</h3>
+<p>Records one GitHub pull request, commit, or review as work evidence.</p>
+<h3 id="git-receipt-range">git-receipt-range</h3>
+<p>Backfills GitHub work evidence for a date range.</p>
+<h3 id="git-rollup">git-rollup</h3>
+<p>Summarizes GitHub work evidence by initiative.</p>
+<h3 id="perforce-receipt-create">perforce-receipt-create</h3>
 <p>Creates a receipt for one Perforce changelist.</p>
-<h3 id="checkin-receipt-range">checkin-receipt-range</h3>
+<h3 id="perforce-receipt-range">perforce-receipt-range</h3>
 <p>Creates receipts for every changelist in a requested range.</p>
-<h3 id="checkin-rollup">checkin-rollup</h3>
-<p>Rolls check-in receipts into an initiative-oriented summary.</p>
+<h3 id="perforce-rollup">perforce-rollup</h3>
+<p>Rolls Perforce receipts into an initiative-oriented summary.</p>
 <h3 id="report-cost-analysis">report-cost-analysis</h3>
 <p>Analyzes optional AI token and cost information for work receipts.</p>
 <h3 id="report-rollup">report-rollup</h3>

@@ -514,7 +514,6 @@ class SkillCatalog:
                 skill_file = child / "SKILL.md"
                 if (
                     not child.is_dir()
-                    or child.name not in expected
                     or not skill_file.is_file()
                     or PROJECTION_MARKER_RE.search(skill_file.read_text(encoding="utf-8")) is None
                 ):

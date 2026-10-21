@@ -1,6 +1,6 @@
 # Handbag of Holding Agent Skills
 
-This guide inventories the 25 canonical workflows in the shared skills
+This guide inventories the 29 canonical workflows in the shared skills
 library. Canonical sources live in manifest-declared collections; the catalog
 publishes installable adapters under `_generated`. Read the root
 [README](../README.md), then the applicable collection README and canonical
@@ -43,9 +43,13 @@ and ordering.
 | [unreal-reset-build-env](#unreal-reset-build-env) | [unreal/unreal-reset-build-env](unreal/unreal-reset-build-env/SKILL.md) | Resets an Unreal build environment. |
 | [unreal-ugs-release](#unreal-ugs-release) | [unreal/unreal-ugs-release](unreal/unreal-ugs-release/SKILL.md) | Builds and validates UGS release artifacts. |
 | [jira-human-ticket-create](#jira-human-ticket-create) | [work-tracking/jira-human-ticket-create](work-tracking/jira-human-ticket-create/SKILL.md) | Creates developer-facing Jira tickets. |
-| [checkin-receipt-create](#checkin-receipt-create) | [work-tracking/checkin-receipt-create](work-tracking/checkin-receipt-create/SKILL.md) | Creates one Perforce check-in receipt. |
-| [checkin-receipt-range](#checkin-receipt-range) | [work-tracking/checkin-receipt-range](work-tracking/checkin-receipt-range/SKILL.md) | Backfills check-in receipts for a date range. |
-| [checkin-rollup](#checkin-rollup) | [work-tracking/checkin-rollup](work-tracking/checkin-rollup/SKILL.md) | Summarizes check-in receipts. |
+| [daily-note-create](#daily-note-create) | [work-tracking/daily-note-create](work-tracking/daily-note-create/SKILL.md) | Creates a daily work-context note. |
+| [git-receipt-create](#git-receipt-create) | [work-tracking/git-receipt-create](work-tracking/git-receipt-create/SKILL.md) | Records GitHub work evidence. |
+| [git-receipt-range](#git-receipt-range) | [work-tracking/git-receipt-range](work-tracking/git-receipt-range/SKILL.md) | Backfills GitHub work evidence. |
+| [git-rollup](#git-rollup) | [work-tracking/git-rollup](work-tracking/git-rollup/SKILL.md) | Summarizes GitHub work evidence. |
+| [perforce-receipt-create](#perforce-receipt-create) | [work-tracking/perforce-receipt-create](work-tracking/perforce-receipt-create/SKILL.md) | Creates one Perforce receipt. |
+| [perforce-receipt-range](#perforce-receipt-range) | [work-tracking/perforce-receipt-range](work-tracking/perforce-receipt-range/SKILL.md) | Backfills Perforce receipts. |
+| [perforce-rollup](#perforce-rollup) | [work-tracking/perforce-rollup](work-tracking/perforce-rollup/SKILL.md) | Summarizes Perforce receipts. |
 | [report-cost-analysis](#report-cost-analysis) | [work-tracking/report-cost-analysis](work-tracking/report-cost-analysis/SKILL.md) | Analyzes work-receipt AI costs. |
 | [report-rollup](#report-rollup) | [work-tracking/report-rollup](work-tracking/report-rollup/SKILL.md) | Rolls status reports into a longer window. |
 | [report-status](#report-status) | [work-tracking/report-status](work-tracking/report-status/SKILL.md) | Creates a current status report. |
@@ -124,17 +128,33 @@ Builds, validates, and releases UGS precompiled-editor artifacts.
 
 Creates a structured Jira ticket for human developers.
 
-### checkin-receipt-create
+### daily-note-create
+
+Creates a daily work-context note.
+
+### git-receipt-create
+
+Records one GitHub pull request, commit, or review as work evidence.
+
+### git-receipt-range
+
+Backfills GitHub work evidence for a date range.
+
+### git-rollup
+
+Summarizes GitHub work evidence by initiative.
+
+### perforce-receipt-create
 
 Creates a receipt for one Perforce changelist.
 
-### checkin-receipt-range
+### perforce-receipt-range
 
 Creates receipts for every changelist in a requested range.
 
-### checkin-rollup
+### perforce-rollup
 
-Rolls check-in receipts into an initiative-oriented summary.
+Rolls Perforce receipts into an initiative-oriented summary.
 
 ### report-cost-analysis
 

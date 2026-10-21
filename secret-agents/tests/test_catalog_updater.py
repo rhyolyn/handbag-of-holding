@@ -186,18 +186,30 @@ def test_post_move_baseline_matches_canonical_collection_instruction_bodies_and_
         "update-model-routing",
     }
     invocation_cleanup = {"run-unit-tests"}
+    retired_work_tracking_names = {"checkin-receipt-create", "checkin-receipt-range", "checkin-rollup"}
+    published_work_tracking_names = {
+        "daily-note-create",
+        "perforce-receipt-create",
+        "perforce-receipt-range",
+        "perforce-rollup",
+        "git-receipt-create",
+        "git-receipt-range",
+        "git-rollup",
+    }
     intentionally_rewritten_contracts = authoring_contract_rewrites | canonical_source_path_repairs | invocation_cleanup
 
-    assert set(baseline_by_name) == set(actual_by_name)
+    assert set(actual_by_name) == (set(baseline_by_name) - retired_work_tracking_names) | published_work_tracking_names
     assert len(authoring_contract_rewrites) == 5
     assert len(canonical_source_path_repairs) == 13
     assert len(invocation_cleanup) == 1
     assert len(intentionally_rewritten_contracts) == 19
     assert {
-        name for name, instruction_hash in baseline_by_name.items() if actual_by_name[name] != instruction_hash
-    } == intentionally_rewritten_contracts
+        name
+        for name, instruction_hash in baseline_by_name.items()
+        if name in actual_by_name and actual_by_name[name] != instruction_hash
+    } == intentionally_rewritten_contracts - retired_work_tracking_names
     catalog_data = json.loads((skills_root / "catalog.json").read_text(encoding="utf-8"))
-    names = {skill["name"] for skill in baseline["skills"]}
+    names = set(actual_by_name)
     assert set(catalog_data["generated_projection"]) == names
     assert all(path == f"_generated/{name}" for name, path in catalog_data["generated_projection"].items())
 
@@ -417,6 +429,23 @@ def test_update_retires_only_marker_owned_root_legacy_adapters_after_generating_
 
     assert not legacy.exists()
     assert (tmp_path / "_generated" / "test-skill" / "SKILL.md").is_file()
+
+
+def test_update_retires_a_marker_owned_projection_after_a_canonical_rename(tmp_path: Path) -> None:
+    _manifest(tmp_path, [_collection("testing")])
+    original = _skill(tmp_path, "testing", "old-skill")
+    instance = catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")
+    assert instance.update(io.StringIO()) == 0
+    original.rename(tmp_path / "testing" / "new-skill")
+    renamed_skill = tmp_path / "testing" / "new-skill" / "SKILL.md"
+    renamed_skill.write_text(
+        renamed_skill.read_text(encoding="utf-8").replace("name: old-skill", "name: new-skill"), encoding="utf-8"
+    )
+
+    assert instance.update(io.StringIO()) == 0
+
+    assert not (tmp_path / "_generated" / "old-skill").exists()
+    assert (tmp_path / "_generated" / "new-skill" / "SKILL.md").is_file()
 
 
 def test_default_skills_root_uses_vault_override(tmp_path: Path) -> None:

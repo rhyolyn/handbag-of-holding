@@ -5,7 +5,7 @@ description: Use when the user asks to create or update a work receipt, WR, hand
 
 # Work Receipt Skill
 
-**Category:** Reporting · **Updated:** 2026-10-16
+**Category:** Reporting · **Updated:** 2026-10-20
 
 Use this skill whenever the user asks for a work summary, handoff note, status receipt, completion receipt, or progress receipt.
 
@@ -16,15 +16,15 @@ Use this skill whenever the user asks for a work summary, handoff note, status r
 
 `--show-cost` is opt-in. A standard receipt must not read a session transcript, inspect pricing, or append a cost-ledger row.
 
-## File Output Target
+## Workspace contract
 
-Resolve `<vault>` using [Worky data vault paths](../../../runbooks/worky-vault-paths.md) before reading inputs or creating outputs.
+Before accessing data, validate the selected vault with `python -m secret_agents_work_tracking workspace check --vault <path>` (or `--config <path>`). Follow [Worky data vault paths](../../../runbooks/worky-vault-paths.md).
 
-Write to `<vault>\Receipts\YYYY\YYYY-MM\`, where `YYYY-MM` is the receipt end date. Create the month folder only after resolving the intended Worky vault.
+Write only through the resolver-owned `receipts` location, partitioned as `YYYY/YYYY-MM` by the receipt end date. Create the month folder only after validation.
 
 ## Filename Convention
 
-Match the existing pattern in the resolved `Receipts` folder:
+Use this filename pattern in the resolved `receipts` location:
 
 - Prefix: `WR-`
 - Date segment: `YYYY-MM-DD`
@@ -49,7 +49,7 @@ Examples:
 - If information is missing, write `- TBD` in that section.
 - For `Handoff`, write `N/A` if there is nothing to add (not `TBD`).
 - Do not add extra sections unless `--show-cost` is supplied.
-- Save the markdown to a file in the resolved `Receipts` folder (see File Output Target) using the filename convention above.
+- Save the markdown to a file in the resolved `receipts` location using the filename convention above.
 - After saving, return only:
   - the final file path,
   - a one-line summary of the receipt,
@@ -79,6 +79,18 @@ Receipt writing is summarization of existing session context plus light judgment
 ## Required Output Format
 
 ```markdown
+---
+kind: work-receipt
+occurred_start: YYYY-MM-DD
+occurred_end: YYYY-MM-DD
+source_system: manual
+source_id: manual:<UUID>
+initiatives: [Area/Initiative]
+tags: [A]
+status: draft
+sources: []
+---
+
 ## Work Receipt
 
 ### Goal

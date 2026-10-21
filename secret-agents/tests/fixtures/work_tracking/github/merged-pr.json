@@ -1,0 +1,10 @@
+{
+  "url": "https://github.com/acme/work-tracking/pull/42/",
+  "mergedAt": "2026-10-18T20:11:12Z",
+  "title": "Add canonical GitHub evidence",
+  "repository": {"url": "https://github.com/acme/work-tracking"},
+  "commits": [
+    {"url": "https://github.com/acme/work-tracking/commit/abc123"},
+    {"url": "https://github.com/acme/work-tracking/commit/def456"}
+  ]
+}

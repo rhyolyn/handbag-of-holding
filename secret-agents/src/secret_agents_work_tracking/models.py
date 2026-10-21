@@ -153,3 +153,17 @@ class MigrationAudit:
     moved: tuple[MigrationMove, ...]
     unresolved: tuple[str, ...]
     untouched: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class ReportInput:
+    """Represent one immutable, source-provenanced report generation input."""
+
+    kind: str
+    window: ReportingWindow
+    output_path: Path
+    sources: tuple[Path, ...]
+    source_links: tuple[str, ...]
+    diagnostics: tuple[EvidenceDiagnostic, ...]
+    incomplete: bool
+    decision: OutputDecision
