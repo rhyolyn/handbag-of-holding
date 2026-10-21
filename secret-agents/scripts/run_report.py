@@ -9,13 +9,12 @@ import sys
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from secret_agents_work_tracking.errors import WorkspaceError
-from secret_agents_work_tracking.models import Workspace
-from secret_agents_work_tracking.workspace import resolve_workspace
+if TYPE_CHECKING:
+    from secret_agents_work_tracking.models import Workspace
 
 
 @dataclass(frozen=True)
@@ -57,6 +56,10 @@ def main(argv: list[str] | None = None) -> int:
     """Validate the selected workspace before checking or invoking one report skill."""
     parser = _build_parser()
     arguments = parser.parse_args(argv)
+    sys.path.insert(0, str(ROOT / "src"))
+    from secret_agents_work_tracking.errors import WorkspaceError
+    from secret_agents_work_tracking.workspace import resolve_workspace
+
     try:
         workspace = resolve_workspace(None, arguments.vault, {}, ROOT)
         request = ReportRunner(workspace).build_request(arguments.report)

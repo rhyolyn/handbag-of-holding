@@ -27,9 +27,7 @@ def test_check_requires_work_tracking_configuration_without_creating_a_vault(tmp
 
 
 @pytest.mark.parametrize("report", ["status", "monthly"])
-def test_check_resolves_configured_named_locations_without_filesystem_side_effects(
-    report: str, tmp_path: Path
-) -> None:
+def test_check_resolves_configured_named_locations_without_filesystem_side_effects(report: str, tmp_path: Path) -> None:
     _write_workspace_configuration(tmp_path)
     before = sorted(str(path.relative_to(tmp_path)) for path in tmp_path.rglob("*"))
     result = subprocess.run(
