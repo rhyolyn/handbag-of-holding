@@ -1,9 +1,9 @@
 ---
 name: report-rollup
-description: "Use when rolling up status reports into a monthly report or an annual performance-review document, when a scheduled monthly-rollup run fires, or when the user invokes /report-rollup with \"month YYYY-MM\" or \"year YYYY\"."
+description: "Use when the user asks to create a monthly or living annual report from combined work evidence."
 ---
 
-<!-- generated-projection:report-rollup:2026-10-16 -->
+<!-- generated-projection:report-rollup:2026-10-20 -->
 # report-rollup
 
 Resolve this adapter's actual filesystem path; then, from its directory, read and follow the canonical source: `../../work-tracking/report-rollup/SKILL.md`.

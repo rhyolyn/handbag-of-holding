@@ -5,7 +5,7 @@ description: Use when a work receipt needs optional AI token and cost analysis o
 
 # Report Cost Analysis
 
-**Category:** Reporting · **Updated:** 2026-10-16
+**Category:** Reporting · **Updated:** 2026-10-20
 
 Add the optional `### Efficiency Analysis` block to a work receipt. `report-receipt --show-cost` invokes this workflow after its standard receipt is drafted; it is the only path that includes cost analysis in a new receipt.
 

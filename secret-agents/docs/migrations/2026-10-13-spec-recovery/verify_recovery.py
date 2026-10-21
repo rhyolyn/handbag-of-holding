@@ -19,6 +19,7 @@ AUDIT = Path(__file__).resolve().parent
 ROOT = AUDIT.parents[2]
 SKILLS = ROOT / "skills"
 INITIAL = AUDIT.parent / "2026-10-13-worky-agent"
+REQUIRED_WORKY_DESTINATIONS = (ROOT / "docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md",)
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--original-checkout", type=Path, help="Optionally compare archived source files to this checkout.")
 parser.add_argument("--worky-root", type=Path, help="Optionally verify a live Worky pointer after the archive audit.")
@@ -42,8 +43,9 @@ check(digest((INITIAL / "original-trees.zip").read_bytes()) == initial["archive_
 with ZipFile(INITIAL / "original-trees.zip") as archive:
     for entry in initial["entries"]:
         check(digest(archive.read(entry["archive_member"])) == entry["sha256"], f"Initial archive: {entry['path']}")
-        if entry["tree"] != "worky-Agent":
-            continue
+
+for destination in REQUIRED_WORKY_DESTINATIONS:
+    check(destination.is_file(), f"Missing Worky destination: {destination}")
 
 recovery = json.loads((AUDIT / "manifest.json").read_text(encoding="utf-8"))
 source_count = 0
@@ -84,12 +86,15 @@ projection_files = sorted(SKILLS / path / "SKILL.md" for path in projections.val
 # its size at the recovery snapshot.
 check(bool(entries), "Catalog has no canonical workflows")
 check(
-    {path.relative_to(SKILLS).parent.as_posix() for path in files} == {entry["source_path"] for entry in entries.values()},
+    {path.relative_to(SKILLS).parent.as_posix() for path in files}
+    == {entry["source_path"] for entry in entries.values()},
     "Unexpected or missing canonical skill directories",
 )
 check(set(projections) == set(entries), "Generated projection names do not match canonical entries")
 
-before = {path: digest(path.read_bytes()) for path in [*files, *projection_files, SKILLS / "catalog.json", SKILLS / "TOC.md"]}
+before = {
+    path: digest(path.read_bytes()) for path in [*files, *projection_files, SKILLS / "catalog.json", SKILLS / "TOC.md"]
+}
 check(module.SkillCatalog(SKILLS, AUDIT / "catalog-cache.json").check(out=io.StringIO()) == 0, "Catalog drift")
 check(all(digest(path.read_bytes()) == sha for path, sha in before.items()), "Catalog check mutated a skill artifact")
 for path in files:
@@ -97,7 +102,10 @@ for path in files:
     name = module.parse_frontmatter(text)["name"]
     frontmatter = yaml.safe_load(text.split("---", 2)[1])
     check(frontmatter.get("name") == name, f"Folder/frontmatter mismatch: {name}")
-    check(isinstance(frontmatter.get("description"), str) and bool(frontmatter["description"]), f"Missing description: {name}")
+    check(
+        isinstance(frontmatter.get("description"), str) and bool(frontmatter["description"]),
+        f"Missing description: {name}",
+    )
     check(not ({"category", "kind", "alias_of"} & frontmatter.get("metadata", {}).keys()), f"Obsolete metadata: {name}")
     header = module.parse_skill_header(text)
     check(header.category == entries[name]["category"], f"Category mismatch: {name}")

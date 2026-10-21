@@ -5,7 +5,7 @@ description: "Use when the user asks to summarize Perforce source-control receip
 
 # Perforce Rollup
 
-**Category:** Reporting · **Updated:** 2026-10-16
+**Category:** Reporting · **Updated:** 2026-10-20
 
 Summarize Perforce receipts over a reporting window, grouped by initiative. Produce themes, completed work, impact, and status-bullet candidates. This is an intermediate source-specific view, not the annual evidence base.
 

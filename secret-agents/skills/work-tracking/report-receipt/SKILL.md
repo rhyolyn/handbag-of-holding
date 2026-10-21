@@ -5,7 +5,7 @@ description: Use when the user asks to create or update a work receipt, WR, hand
 
 # Work Receipt Skill
 
-**Category:** Reporting · **Updated:** 2026-10-16
+**Category:** Reporting · **Updated:** 2026-10-20
 
 Use this skill whenever the user asks for a work summary, handoff note, status receipt, completion receipt, or progress receipt.
 

@@ -5,7 +5,7 @@ description: "Use when the user asks to backfill Perforce source-control receipt
 
 # Perforce Receipt Range
 
-**Category:** Reporting · **Updated:** 2026-10-16
+**Category:** Reporting · **Updated:** 2026-10-20
 
 Generate source-control receipts for every submitted changelist the logged-in user made within a date range by driving `perforce-receipt-create` for each CL.
 

@@ -5,7 +5,7 @@ description: "Use when the user asks to record one Perforce changelist, or expli
 
 # Perforce Receipt Create
 
-**Category:** Reporting · **Updated:** 2026-10-16
+**Category:** Reporting · **Updated:** 2026-10-20
 
 Write one source-control receipt for a Perforce changelist. Examine the diff and summarize the actual change rather than copying the submit comment. This workflow feeds `perforce-rollup` and combined reports.
 

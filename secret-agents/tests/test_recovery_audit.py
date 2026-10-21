@@ -51,6 +51,18 @@ def test_explicit_missing_original_checkout_fails(audit_script: Path, tmp_path: 
     assert any("Recovery source missing:" in error for error in data["errors"])
 
 
+def test_missing_required_worky_destination_returns_structured_json(audit_script: Path) -> None:
+    missing = audit_script.parents[3] / "docs/superpowers/plans/2026-07-03-ugs-pcb-runbook-skill.md"
+    missing.unlink()
+
+    result = subprocess.run([sys.executable, "-B", str(audit_script)], capture_output=True, text=True, check=False)
+
+    data = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert data["ok"] is False
+    assert any("Missing Worky destination" in error for error in data["errors"])
+
+
 def test_modified_archive_still_fails_without_original_checkout(audit_script: Path) -> None:
     archive_path = audit_script.parent.parent / "2026-10-13-worky-agent/original-trees.zip"
     with ZipFile(archive_path) as archive:
