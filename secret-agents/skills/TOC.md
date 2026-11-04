@@ -1,6 +1,6 @@
 # Skills
 
-Generated 2026-10-20. Run `/<canonical-name>`.
+Generated 2026-11-03. Run `/<canonical-name>`.
 
 ## Agent Workflow
 

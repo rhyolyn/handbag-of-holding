@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,9 @@ from .models import (
 from .receipts import file_sha256, receipt_path
 
 _HARNESS_ORDER = (Harness.CODEX, Harness.CLAUDE, Harness.COPILOT)
+_LEGACY_GENERATED_ADAPTER_MARKER = re.compile(
+    r"<!-- generated-projection:(?P<name>[a-z][a-z0-9-]*):\d{4}-\d{2}-\d{2} -->"
+)
 
 
 def build_install_plan(
@@ -120,8 +124,17 @@ def _classify_skill_directory(
         if not os.path.lexists(destination):
             findings.append(Finding(FindingState.MISSING, destination, projection))
             actions.append(PlannedAction(ActionKind.CREATE_LINK, skill.directory, destination, True))
-        elif _is_link(destination) and destination.exists() and _same_target(destination, skill.directory):
-            findings.append(Finding(FindingState.CORRECT, destination, projection))
+        elif _is_link(destination):
+            if not destination.exists() and _has_legacy_generated_target(destination, skill):
+                findings.append(Finding(FindingState.BROKEN_LINK, destination, projection))
+                actions.append(PlannedAction(ActionKind.REPLACE_LINK, skill.directory, destination, True))
+            elif destination.exists() and _same_target(destination, skill.directory):
+                findings.append(Finding(FindingState.CORRECT, destination, projection))
+            elif destination.exists() and _is_legacy_generated_adapter(destination, skill):
+                findings.append(Finding(FindingState.STALE_LINK, destination, projection))
+                actions.append(PlannedAction(ActionKind.REPLACE_LINK, skill.directory, destination, True))
+            else:
+                findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, projection, blocking=True))
         else:
             findings.append(Finding(FindingState.SKILL_NAME_COLLISION, destination, projection, blocking=True))
 
@@ -165,6 +178,23 @@ def _link_action(kind: ActionKind, source: Path, destination: Path, projection: 
 
 def _same_target(destination: Path, source: Path) -> bool:
     return destination.resolve(strict=False) == source.resolve(strict=False)
+
+
+def _is_legacy_generated_adapter(destination: Path, skill: SkillDescriptor) -> bool:
+    """Return whether a stale per-skill link targets the retired generated adapter."""
+    target = destination.resolve(strict=False)
+    marker_file = target / "SKILL.md"
+    if not _has_legacy_generated_target(destination, skill) or not marker_file.is_file():
+        return False
+    marker = _LEGACY_GENERATED_ADAPTER_MARKER.search(marker_file.read_text(encoding="utf-8"))
+    return marker is not None and marker.group("name") == skill.name
+
+
+def _has_legacy_generated_target(destination: Path, skill: SkillDescriptor) -> bool:
+    """Return whether a link points to the former catalog-owned path for this skill."""
+    target = destination.resolve(strict=False)
+    expected = skill.directory.parent.parent / "_generated" / skill.name
+    return target == expected
 
 
 def _is_link(path: Path) -> bool:

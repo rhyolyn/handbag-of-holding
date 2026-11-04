@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated": "2026-10-20",
+  "generated": "2026-11-03",
   "entries": [
     {
       "name": "agent-plan",
@@ -108,9 +108,9 @@
       "display_name": "Query All Skills",
       "description": "List canonical skills published in the shared catalog.",
       "category": "Query & Discovery",
-      "updated": "2026-10-16",
-      "semantic_hash": "1f6f321ff8388bc7f8025e0abda3e1feeac83a539152b93b319451b40e58c54c",
-      "content_hash": "923eea1c04018036d2d2e981a7505069d9bc01ea484578e0464371692d569c05"
+      "updated": "2026-11-03",
+      "semantic_hash": "0dfcbf6af5269dbee63914f0c0b9a49e7424581d1452153467b3110fb6b7c62d",
+      "content_hash": "be191ce4ad1be52b97585c1ca534f7eacd86c5e1c6dfad931c2d81ece71c9483"
     },
     {
       "name": "install-skills",
@@ -119,9 +119,9 @@
       "display_name": "Install Skills",
       "description": "Install catalog-published skills into harness mixing directories.",
       "category": "Skill Management",
-      "updated": "2026-10-16",
-      "semantic_hash": "37a6f6d1afeb8348f524687fb98969da4f965b4bd6807f32c93d2fa3db877395",
-      "content_hash": "f10db67930d6ce49afcc341b324bf5cd75e24cf7c07925d457903012544b9b98"
+      "updated": "2026-11-03",
+      "semantic_hash": "7012dd6a191c94b4fb2491e51382e77ca272f601bb9a69b374d491d778dfa5e1",
+      "content_hash": "3eba146521a638934d62a64b34f29726c62c99d531e0977b7314b4d503c4d32e"
     },
     {
       "name": "update-skill",
@@ -130,9 +130,9 @@
       "display_name": "Update Skill",
       "description": "Revise one canonical skill and republish its catalog-owned artifacts.",
       "category": "Skill Management",
-      "updated": "2026-10-16",
-      "semantic_hash": "c8dd9b201b732c2ffd722ffe4100c522a28649498722742f14efd75af4623a3b",
-      "content_hash": "339104ae43af3367b3d6e13731c1e73a25603a0f2edc061034e076191fa8ec8c"
+      "updated": "2026-11-03",
+      "semantic_hash": "476c784c590b52a3853e66af58de953daf8242f07842fd6376616f4570ea7043",
+      "content_hash": "573f468ef9125fe32822150c3d4bc537198d6c9ac2ee492a29115018aa22b116"
     },
     {
       "name": "update-skills-readme",
@@ -141,9 +141,9 @@
       "display_name": "Update Skills README",
       "description": "Regenerate and verify the canonical skills README and HTML guide.",
       "category": "Skill Management",
-      "updated": "2026-10-16",
-      "semantic_hash": "383627f884baac6b76a9628a9dc42e33b19e314b4bac397e2a2fa52d3ab7ceba",
-      "content_hash": "c454d807f5758e05d89b2dbffbc5edbb886e5c3ddb8aaf7d0f06d5d798aa8c87"
+      "updated": "2026-11-03",
+      "semantic_hash": "7c608c672adeb81242a14bb5ea30cbb6786ef8a4652c32dd44f655be079c0c00",
+      "content_hash": "ac09813b174725b6dcd1245d5a4ad34004c5c55fa59872e29f22537cc95fcad0"
     },
     {
       "name": "write-skill",
@@ -321,36 +321,5 @@
       "semantic_hash": "05cd0a871b1818de88c33e804218784e00434fa14e39a0f93035ef59ab7de81e",
       "content_hash": "812065fac5c0116f233351a72293e751ef31ff650413542a1a28a2fe6fa279eb"
     }
-  ],
-  "generated_projection": {
-    "agent-plan": "_generated/agent-plan",
-    "ready-player-one": "_generated/ready-player-one",
-    "clean-code-architecture-guards": "_generated/clean-code-architecture-guards",
-    "clean-code-error-handling": "_generated/clean-code-error-handling",
-    "python-quality-gate": "_generated/python-quality-gate",
-    "python-tdd-cycle": "_generated/python-tdd-cycle",
-    "run-unit-tests": "_generated/run-unit-tests",
-    "update-claude-pricing-doc": "_generated/update-claude-pricing-doc",
-    "update-model-routing": "_generated/update-model-routing",
-    "query-all-skills": "_generated/query-all-skills",
-    "install-skills": "_generated/install-skills",
-    "update-skill": "_generated/update-skill",
-    "update-skills-readme": "_generated/update-skills-readme",
-    "write-skill": "_generated/write-skill",
-    "run-mac-coverage": "_generated/run-mac-coverage",
-    "unreal-reset-build-env": "_generated/unreal-reset-build-env",
-    "unreal-ugs-release": "_generated/unreal-ugs-release",
-    "jira-human-ticket-create": "_generated/jira-human-ticket-create",
-    "daily-note-create": "_generated/daily-note-create",
-    "git-receipt-create": "_generated/git-receipt-create",
-    "git-receipt-range": "_generated/git-receipt-range",
-    "git-rollup": "_generated/git-rollup",
-    "perforce-receipt-create": "_generated/perforce-receipt-create",
-    "perforce-receipt-range": "_generated/perforce-receipt-range",
-    "perforce-rollup": "_generated/perforce-rollup",
-    "report-cost-analysis": "_generated/report-cost-analysis",
-    "report-rollup": "_generated/report-rollup",
-    "report-status": "_generated/report-status",
-    "report-receipt": "_generated/report-receipt"
-  }
+  ]
 }

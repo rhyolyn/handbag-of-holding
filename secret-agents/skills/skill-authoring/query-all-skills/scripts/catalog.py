@@ -1,4 +1,4 @@
-"""Validate and publish the secret-agents skill catalog and install projection."""
+"""Validate and publish the secret-agents canonical skill catalog."""
 
 from __future__ import annotations
 
@@ -288,7 +288,6 @@ class Catalog:
     schema_version: int
     generated: str
     entries: tuple[CanonicalEntry, ...]
-    generated_projection: dict[str, str]
 
     @classmethod
     def build(cls, entries: list[CanonicalEntry], today: str, collections: tuple[CollectionSpec, ...]) -> Catalog:
@@ -303,9 +302,7 @@ class Catalog:
                 ),
             )
         )
-        return cls(
-            SCHEMA_VERSION, today, ordered, {entry.name: f"{GENERATED_DIRECTORY}/{entry.name}" for entry in ordered}
-        )
+        return cls(SCHEMA_VERSION, today, ordered)
 
     @classmethod
     def load(cls, path: Path) -> Catalog | None:
@@ -315,14 +312,10 @@ class Catalog:
             raw = json.loads(path.read_text(encoding="utf-8"))
             if raw.get("schema_version") != SCHEMA_VERSION:
                 return None
-            projection = raw["generated_projection"]
-            if not isinstance(projection, dict):
-                return None
             return cls(
                 raw["schema_version"],
                 raw["generated"],
                 tuple(CanonicalEntry(**entry) for entry in raw["entries"]),
-                projection,
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return None
@@ -333,7 +326,6 @@ class Catalog:
                 "schema_version": self.schema_version,
                 "generated": self.generated,
                 "entries": [dataclasses.asdict(entry) for entry in self.entries],
-                "generated_projection": self.generated_projection,
             },
             indent=2,
         )
@@ -352,8 +344,6 @@ class Catalog:
             names[entry.name] = entry.source_path
             if entry.category not in CATEGORIES:
                 raise UnknownCategory(f"{entry.source_path}: unknown category '{entry.category}'")
-            if self.generated_projection.get(entry.name) != f"{GENERATED_DIRECTORY}/{entry.name}":
-                raise CatalogError(f"{entry.source_path}: invalid generated projection mapping")
 
     def render_toc(self, collections: tuple[CollectionSpec, ...]) -> str:
         lines = ["# Skills", "", f"Generated {self.generated}. Run `/<canonical-name>`."]
@@ -487,28 +477,14 @@ class SkillCatalog:
             )
         catalog = Catalog.build(entries, today, collections)
         catalog.validate()
-        if (
-            previous_catalog
-            and catalog.entries == previous_catalog.entries
-            and catalog.generated_projection == previous_catalog.generated_projection
-        ):
+        if previous_catalog and catalog.entries == previous_catalog.entries:
             catalog = dataclasses.replace(catalog, generated=previous_catalog.generated)
         return catalog, catalog.render_toc(collections)
 
-    @staticmethod
-    def _adapter_text(entry: CanonicalEntry, generated: str) -> str:
-        return (
-            f"---\nname: {entry.name}\ndescription: {json.dumps(entry.description, ensure_ascii=False)}\n---\n\n"
-            f"<!-- generated-projection:{entry.name}:{generated} -->\n# {entry.name}\n\n"
-            "Resolve this adapter's actual filesystem path; then, from its directory, read and follow "
-            f"the canonical source: `../../{entry.source_path}/SKILL.md`.\n"
-        )
-
-    def _preflight_projection(self, catalog: Catalog) -> tuple[Path, ...]:
+    def _preflight_publication(self, catalog: Catalog) -> tuple[Path | None, tuple[Path, ...]]:
         generated_root = self.skills_root / GENERATED_DIRECTORY
         if generated_root.exists() and not generated_root.is_dir():
             raise HumanOwnedCollision(f"{generated_root}: generated projection root is not a directory")
-        expected = set(catalog.generated_projection)
         if generated_root.is_dir():
             for child in generated_root.iterdir():
                 skill_file = child / "SKILL.md"
@@ -526,7 +502,7 @@ class SkillCatalog:
                     self.skills_root / entry.source_path / "SKILL.md", "canonical source disappeared before publication"
                 )
         legacy: list[Path] = []
-        expected = set(catalog.generated_projection)
+        expected = {entry.name for entry in catalog.entries}
         for directory, canonical in self._legacy_generated_directories(self._load_manifest()):
             if canonical not in expected:
                 raise self._structural_error(
@@ -535,28 +511,16 @@ class SkillCatalog:
             if any(path.name != "SKILL.md" for path in directory.iterdir()):
                 raise HumanOwnedCollision(f"{directory}: legacy generated adapter contains human-owned files")
             legacy.append(directory)
-        return tuple(legacy)
+        return (generated_root if generated_root.is_dir() else None), tuple(legacy)
 
     def _publish(self, catalog: Catalog, toc_text: str) -> None:
-        legacy_directories = self._preflight_projection(catalog)
-        generated_root = self.skills_root / GENERATED_DIRECTORY
-        backup_root = self.skills_root / f".{GENERATED_DIRECTORY}-backup"
-        if backup_root.exists():
-            raise CatalogError(f"{backup_root}: stale publication backup; remove it and rerun catalog.py check")
-        generated_existed = generated_root.exists()
-        stage_parent = Path(tempfile.mkdtemp(dir=self.skills_root, prefix=".catalog-stage-"))
-        stage_root = stage_parent / GENERATED_DIRECTORY
+        generated_root, legacy_directories = self._preflight_publication(catalog)
         source_originals: dict[Path, bytes] = {}
         derived_originals = {
             self.skills_root / CATALOG_FILENAME: self._read_optional_bytes(self.skills_root / CATALOG_FILENAME),
             self.skills_root / TOC_FILENAME: self._read_optional_bytes(self.skills_root / TOC_FILENAME),
         }
-        projection_replaced = False
         try:
-            for entry in catalog.entries:
-                projection = stage_root / entry.name / "SKILL.md"
-                projection.parent.mkdir(parents=True)
-                projection.write_text(self._adapter_text(entry, catalog.generated), encoding="utf-8")
             for entry in catalog.entries:
                 source_file = self.skills_root / entry.source_path / "SKILL.md"
                 text = source_file.read_text(encoding="utf-8")
@@ -564,37 +528,19 @@ class SkillCatalog:
                 if text != dated:
                     source_originals[source_file] = source_file.read_bytes()
                     _atomic_write(source_file, dated)
-            if generated_root.exists():
-                os.replace(generated_root, backup_root)
-                try:
-                    os.replace(stage_root, generated_root)
-                    projection_replaced = True
-                except Exception:
-                    os.replace(backup_root, generated_root)
-                    raise
-            else:
-                os.replace(stage_root, generated_root)
-                projection_replaced = True
             _atomic_write(self.skills_root / CATALOG_FILENAME, catalog.as_json())
             _atomic_write(self.skills_root / TOC_FILENAME, toc_text)
         except OSError as exc:
             self._restore_publication(
-                generated_root,
-                backup_root,
-                generated_existed,
-                projection_replaced,
                 source_originals,
                 derived_originals,
             )
             raise CatalogError(f"publication failed: {exc}") from exc
-        finally:
-            if stage_parent.exists():
-                shutil.rmtree(stage_parent)
         try:
+            if generated_root is not None:
+                shutil.rmtree(generated_root)
             for directory in legacy_directories:
                 shutil.rmtree(directory)
-            if backup_root.exists():
-                shutil.rmtree(backup_root)
         except OSError as exc:
             raise CatalogError(f"publication completed but cleanup failed: {exc}") from exc
 
@@ -614,10 +560,6 @@ class SkillCatalog:
 
     def _restore_publication(
         self,
-        generated_root: Path,
-        backup_root: Path,
-        generated_existed: bool,
-        projection_replaced: bool,
         source_originals: dict[Path, bytes],
         derived_originals: dict[Path, bytes | None],
     ) -> None:
@@ -625,10 +567,6 @@ class SkillCatalog:
             self._restore_optional_bytes(source_path, source_original)
         for derived_path, derived_original in derived_originals.items():
             self._restore_optional_bytes(derived_path, derived_original)
-        if projection_replaced and generated_root.exists():
-            shutil.rmtree(generated_root)
-        if generated_existed and backup_root.exists():
-            os.replace(backup_root, generated_root)
 
     def _stat_paths(self, catalog: Catalog) -> dict[str, StatEntry] | None:
         paths = {
@@ -644,14 +582,8 @@ class SkillCatalog:
                 paths[collection.name] = collection_dir
                 for child in collection_dir.iterdir():
                     paths[f"{collection.name}/{child.name}"] = child
-            generated_root = self.skills_root / GENERATED_DIRECTORY
-            paths[GENERATED_DIRECTORY] = generated_root
-            for child in generated_root.iterdir():
-                paths[f"{GENERATED_DIRECTORY}/{child.name}"] = child
             for entry in catalog.entries:
                 paths[f"{entry.source_path}/SKILL.md"] = self.skills_root / entry.source_path / "SKILL.md"
-            for projection in catalog.generated_projection.values():
-                paths[f"{projection}/SKILL.md"] = self.skills_root / projection / "SKILL.md"
             return {name: StatEntry.from_file(path) for name, path in paths.items() if path != self.cache_path}
         except (CatalogError, OSError):
             return None
@@ -704,7 +636,7 @@ class SkillCatalog:
         out = out or sys.stdout
         try:
             catalog, toc = self._full_refresh()
-            self._preflight_projection(catalog)
+            generated_root, _ = self._preflight_publication(catalog)
         except CatalogError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
@@ -714,17 +646,12 @@ class SkillCatalog:
             issues.append("catalog.json is missing or stale")
         if not toc_path.is_file() or toc_path.read_text(encoding="utf-8") != toc:
             issues.append("TOC.md is missing or stale")
+        if generated_root is not None:
+            issues.append("obsolete _generated adapters remain; run catalog.py update")
         for entry in catalog.entries:
-            source_file, projection = (
-                self.skills_root / entry.source_path / "SKILL.md",
-                self.skills_root / catalog.generated_projection[entry.name] / "SKILL.md",
-            )
+            source_file = self.skills_root / entry.source_path / "SKILL.md"
             if compute_content_hash(source_file.read_text(encoding="utf-8")) != entry.content_hash:
                 issues.append(f"{entry.source_path}/SKILL.md has a stale Updated date or content hash")
-            if not projection.is_file() or projection.read_text(encoding="utf-8") != self._adapter_text(
-                entry, catalog.generated
-            ):
-                issues.append(f"{catalog.generated_projection[entry.name]}/SKILL.md is missing or stale")
         if issues:
             print("\n".join(f"drift: {issue}" for issue in issues), file=sys.stderr)
             return 1

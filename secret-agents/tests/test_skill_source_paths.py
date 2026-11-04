@@ -14,6 +14,25 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_current_skill_installation_docs_name_canonical_sources_not_generated_adapters() -> None:
+    documented_contracts = (
+        ROOT / "AGENTS.md",
+        ROOT / "README.md",
+        ROOT / "skills" / "README.md",
+        ROOT / "skills" / "skill-authoring" / "install-skills" / "SKILL.md",
+        ROOT / "skills" / "skill-authoring" / "query-all-skills" / "SKILL.md",
+        ROOT / "skills" / "skill-authoring" / "update-skill" / "SKILL.md",
+        ROOT / "skills" / "skill-authoring" / "update-skills-readme" / "SKILL.md",
+        ROOT / "runbooks" / "harness-setup" / "harness-setup.md",
+        ROOT / "runbooks" / "migration-gaps.md",
+    )
+
+    assert all(
+        "<agent-root>/skills/_generated/<canonical-name>" not in path.read_text(encoding="utf-8")
+        for path in documented_contracts
+    )
+
+
 @pytest.mark.parametrize(
     ("script", "arguments", "expected_relative"),
     [
@@ -94,5 +113,8 @@ def test_catalog_tool_uses_the_selected_vault_source(tmp_path: Path, selection: 
         )
         assert result.returncode == 0, result.stdout + result.stderr
     assert (skills / "catalog.json").is_file()
-    assert (skills / "_generated/run-unit-tests/SKILL.md").is_file()
+    assert (skills / "work-tracking/run-unit-tests/SKILL.md").is_file()
+    catalog_data = json.loads((skills / "catalog.json").read_text(encoding="utf-8"))
+    assert "generated_projection" not in catalog_data
+    assert not (skills / "_generated").exists()
     assert not (home / "wrong source").exists()

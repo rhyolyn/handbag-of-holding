@@ -93,7 +93,10 @@ def test_full_lifecycle_with_backup_and_third_party(tmp_path: Path) -> None:
 
     # install: link the skill beside the third-party skill and back up the conflicting guidance
     assert run("install", "--harness", "claude", "--backup-conflicts") == ExitCode.SUCCESS
-    assert alpha_link.resolve() == (root / "skills" / "_generated" / "alpha").resolve()
+    assert alpha_link.resolve() == (root / "skills" / "work-tracking" / "alpha").resolve()
+    assert (alpha_link / "SKILL.md").read_text(encoding="utf-8") == (
+        root / "skills" / "work-tracking" / "alpha" / "SKILL.md"
+    ).read_text(encoding="utf-8")
     assert (skills_dir / "third-party").is_dir()
     assert backup.read_text(encoding="utf-8") == "user guidance"
     assert guidance.resolve() == (root / "AGENTS.md").resolve()
@@ -138,6 +141,84 @@ def test_windows_capability_failure_makes_zero_changes(tmp_path: Path) -> None:
     assert not receipt_path(home, IDENTITY).exists()
 
 
+def test_install_repairs_a_legacy_generated_target_link_to_the_canonical_source(tmp_path: Path) -> None:
+    root = _make_agent_root(tmp_path)
+    home = tmp_path / "home"
+    legacy_target = root / "skills" / "_generated" / "alpha"
+    legacy_target.mkdir(parents=True)
+    (legacy_target / "SKILL.md").write_text(
+        "<!-- generated-projection:alpha:2026-10-20 -->\nlegacy adapter", encoding="utf-8"
+    )
+    skills_directory = home / ".agents" / "skills"
+    skills_directory.mkdir(parents=True)
+    backend = _host_backend_or_skip(tmp_path)
+    try:
+        (skills_directory / "alpha").symlink_to(legacy_target, target_is_directory=True)
+    except OSError as exc:  # pragma: no cover - unprivileged Windows
+        pytest.skip(f"host cannot create the legacy link this check needs: {exc}")
+
+    result = main(
+        ["install", "--harness", "codex", "--agent-root", str(root)],
+        environment={},
+        home=home,
+        os_name=os.name,
+        now=lambda: CLOCK,
+        backend=backend,
+    )
+
+    assert result == ExitCode.SUCCESS
+    assert (skills_directory / "alpha").resolve() == (root / "skills" / "work-tracking" / "alpha").resolve()
+
+
+def test_install_repairs_a_broken_legacy_generated_target_link_to_the_canonical_source(tmp_path: Path) -> None:
+    root = _make_agent_root(tmp_path)
+    home = tmp_path / "home"
+    skills_directory = home / ".agents" / "skills"
+    skills_directory.mkdir(parents=True)
+    backend = _host_backend_or_skip(tmp_path)
+    try:
+        (skills_directory / "alpha").symlink_to(root / "skills" / "_generated" / "alpha", target_is_directory=True)
+    except OSError as exc:  # pragma: no cover - unprivileged Windows
+        pytest.skip(f"host cannot create the legacy link this check needs: {exc}")
+
+    result = main(
+        ["install", "--harness", "codex", "--agent-root", str(root)],
+        environment={},
+        home=home,
+        os_name=os.name,
+        now=lambda: CLOCK,
+        backend=backend,
+    )
+
+    assert result == ExitCode.SUCCESS
+    assert (skills_directory / "alpha").resolve() == (root / "skills" / "work-tracking" / "alpha").resolve()
+
+
+def test_install_refuses_a_broken_foreign_generated_named_link(tmp_path: Path) -> None:
+    root = _make_agent_root(tmp_path)
+    home = tmp_path / "home"
+    skills_directory = home / ".agents" / "skills"
+    skills_directory.mkdir(parents=True)
+    foreign_target = tmp_path / "foreign" / "_generated" / "alpha"
+    backend = _host_backend_or_skip(tmp_path)
+    try:
+        (skills_directory / "alpha").symlink_to(foreign_target, target_is_directory=True)
+    except OSError as exc:  # pragma: no cover - unprivileged Windows
+        pytest.skip(f"host cannot create the foreign link this check needs: {exc}")
+
+    result = main(
+        ["install", "--harness", "codex", "--agent-root", str(root)],
+        environment={},
+        home=home,
+        os_name=os.name,
+        now=lambda: CLOCK,
+        backend=backend,
+    )
+
+    assert result == ExitCode.BLOCKED
+    assert (skills_directory / "alpha").resolve() == foreign_target.resolve()
+
+
 def test_backend_for_current_host_completes_or_refuses(tmp_path: Path) -> None:
     root = _make_agent_root(tmp_path)
     home = tmp_path / "home"
@@ -167,5 +248,5 @@ def test_backend_for_current_host_completes_or_refuses(tmp_path: Path) -> None:
     assert install() == ExitCode.SUCCESS
     skills = home / ".agents" / "skills"
     assert not skills.is_symlink()
-    assert (skills / "alpha").resolve() == (root / "skills" / "_generated" / "alpha").resolve()
+    assert (skills / "alpha").resolve() == (root / "skills" / "work-tracking" / "alpha").resolve()
     assert receipt_path(home, IDENTITY).exists()

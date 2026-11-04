@@ -1,4 +1,4 @@
-"""Load installable skill descriptors from the catalog-owned projection."""
+"""Load installable skill descriptors from canonical catalog sources."""
 
 from __future__ import annotations
 
@@ -15,20 +15,18 @@ from .models import SkillDescriptor
 
 CATALOG_SCHEMA_VERSION = 2
 CATALOG_FILENAME = "catalog.json"
-GENERATED_DIRECTORY = "_generated"
 NAME_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 
 
 def load_skill_catalog(skills_root: Path, vault_root: Path | None = None) -> tuple[SkillDescriptor, ...]:
-    """Return canonical descriptors whose directories are generated adapters."""
+    """Return canonical descriptors whose directories are canonical sources."""
     if not skills_root.is_dir():
         raise SkillsDirectoryNotFound(skills_root)
 
     catalog_path = skills_root / CATALOG_FILENAME
     raw = _load_catalog_json(catalog_path, skills_root, vault_root)
     entries = _catalog_entries(raw, catalog_path, skills_root, vault_root)
-    projection = _projection_mapping(raw, catalog_path, skills_root, vault_root)
-    return _descriptors(entries, projection, catalog_path, skills_root, vault_root)
+    return _descriptors(entries, catalog_path, skills_root, vault_root)
 
 
 def resolve_vault_root(
@@ -82,27 +80,27 @@ def _catalog_entries(
             _invalid(catalog_path, skills_root, vault_root, f"duplicate canonical name {name!r}")
         if not isinstance(description, str) or not description:
             _invalid(catalog_path, skills_root, vault_root, f"entries[{index}].description must be non-empty text")
-        if not isinstance(source_path, str) or not _is_relative_path(source_path):
-            _invalid(catalog_path, skills_root, vault_root, f"entries[{index}].source_path must be a relative path")
+        if not isinstance(source_path, str) or not _is_canonical_source_path(source_path):
+            _invalid(
+                catalog_path,
+                skills_root,
+                vault_root,
+                f"entries[{index}].source_path must be canonical collection/name text",
+            )
+        if PurePosixPath(source_path).name != name:
+            _invalid(
+                catalog_path,
+                skills_root,
+                vault_root,
+                f"entries[{index}].source_path must end with canonical name {name!r}",
+            )
         names.add(name)
         result.append(entry)
     return tuple(result)
 
 
-def _projection_mapping(
-    raw: Mapping[str, Any], catalog_path: Path, skills_root: Path, vault_root: Path | None
-) -> Mapping[str, str]:
-    projection = raw.get("generated_projection")
-    if not isinstance(projection, dict):
-        _invalid(catalog_path, skills_root, vault_root, "generated_projection must be an object")
-    if not all(isinstance(name, str) and isinstance(path, str) for name, path in projection.items()):
-        _invalid(catalog_path, skills_root, vault_root, "generated_projection keys and paths must be text")
-    return projection
-
-
 def _descriptors(
     entries: tuple[Mapping[str, Any], ...],
-    projection: Mapping[str, str],
     catalog_path: Path,
     skills_root: Path,
     vault_root: Path | None,
@@ -112,21 +110,22 @@ def _descriptors(
         name = entry["name"]
         description = entry["description"]
         assert isinstance(name, str) and isinstance(description, str)
-        projection_path = projection.get(name)
-        expected_path = f"{GENERATED_DIRECTORY}/{name}"
-        if projection_path != expected_path:
-            _invalid(catalog_path, skills_root, vault_root, f"{name!r} must map to {expected_path}")
-        directory = skills_root.joinpath(*PurePosixPath(projection_path).parts)
+        source_path = entry["source_path"]
+        assert isinstance(source_path, str)
+        directory = skills_root.joinpath(*PurePosixPath(source_path).parts)
         if not (directory / "SKILL.md").is_file():
-            _invalid(catalog_path, skills_root, vault_root, f"{projection_path}/SKILL.md is missing")
+            _invalid(catalog_path, skills_root, vault_root, f"{source_path}/SKILL.md is missing")
         descriptors.append(SkillDescriptor(name, description, directory))
     return tuple(sorted(descriptors, key=lambda descriptor: descriptor.name))
 
 
-def _is_relative_path(value: str) -> bool:
+def _is_canonical_source_path(value: str) -> bool:
     path = PurePosixPath(value)
     return (
-        bool(value) and "\\" not in value and not path.is_absolute() and ".." not in path.parts and path.parts != (".",)
+        bool(value)
+        and "\\" not in value
+        and len(path.parts) == 2
+        and all(NAME_PATTERN.fullmatch(part) for part in path.parts)
     )
 
 

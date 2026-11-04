@@ -232,7 +232,7 @@ def test_check_all_correct_is_success(tmp_path: Path) -> None:
     try:
         skills_dir = agents_dir / "skills"
         skills_dir.mkdir()
-        (skills_dir / "alpha").symlink_to(root / "skills" / "_generated" / "alpha", target_is_directory=True)
+        (skills_dir / "alpha").symlink_to(root / "skills" / "work-tracking" / "alpha", target_is_directory=True)
         (codex_dir / "AGENTS.md").symlink_to(root / "AGENTS.md")
     except OSError as exc:  # pragma: no cover - unprivileged Windows
         pytest.skip(f"host cannot create the real links this check needs: {exc}")

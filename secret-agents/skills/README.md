@@ -2,7 +2,7 @@
 
 This guide inventories the 29 canonical workflows in the shared skills
 library. Canonical sources live in manifest-declared collections; the catalog
-publishes installable adapters under `_generated`. Read the root
+publishes their names and source paths for direct installation. Read the root
 [README](../README.md), then the applicable collection README and canonical
 `SKILL.md` before changing any workflow.
 
@@ -12,9 +12,8 @@ file is rendered to [README.html](README.html); do not edit that HTML directly.
 ## How skills are wired and invoked
 
 Use each workflow by its canonical name. The installer reads `catalog.json`
-and links the matching `_generated/<canonical-name>` adapter into a harness
-mixing directory. An adapter forwards to the single authored source, so a
-workflow has one instruction owner.
+and links the matching canonical source directory into a harness mixing
+directory. A workflow therefore has one instruction owner.
 
 To publish source changes, run the catalog update and check commands from the
 root README, then render this guide. A collection README explains its boundary;

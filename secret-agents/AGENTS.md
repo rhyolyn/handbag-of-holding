@@ -2,7 +2,7 @@
 
 Shared working agreement for AI coding agents — all harnesses, all repos — readable by humans too. Canonical copy: `<agent-root>\AGENTS.md` (see Environment, bottom).
 
-**Revision: 2026-10-16b** — bump this revision on every edit.
+**Revision: 2026-11-03a** — bump this revision on every edit.
 
 - Asked whether this guidance is loaded: answer with the revision above from memory — never re-read just to answer. A wrong or missing answer means the harness adapter is broken; fix via `runbooks\harness-setup\`, then re-read.
 - Re-read the full file only when it was edited mid-session, post-compaction behavior drifts from these rules, or on a fresh machine/harness. For a single violation, cite the specific rule — targeted correction beats reloading.
@@ -114,11 +114,11 @@ Correctness, regressions, and behavioral risk → architecture and maintainabili
 
 - This vault is the single editable source; its `secret-agents` directory is the agent root. Worky data paths resolve through `runbooks/worky-vault-paths.md`.
 - Canonical skills live at `skills/<declared-collection>/<canonical-name>/SKILL.md`; `skills/collections.json` owns collection identity and ordering. The post-H1 header contains `Category / Updated` only.
-- The catalog updater owns `skills/catalog.json`, `skills/TOC.md`, `skills/_generated/`, canonical `Updated` dates, and its stat cache. Edit a canonical source only after reading the root README, its collection README, and the canonical skill; use the updater for every derived artifact.
+- The catalog updater owns `skills/catalog.json`, `skills/TOC.md`, canonical `Updated` dates, and its stat cache. Edit a canonical source only after reading the root README, its collection README, and the canonical skill; use the updater for every derived artifact.
 - `<agent-root>` defaults to `~/obsidian/handbag-of-holding/secret-agents` on every OS; skills live in `<agent-root>/skills`. Expand the current user's home and join native path components; validate `.agent-root.json` there.
 - Explicit source arguments or `SECRET_AGENTS_ROOT` may override that default. Never infer the source from cwd, an installed skill link's parent, a legacy checkout, or `~/.agents/root`; a missing source is an error.
-- In authored skills, `<skill base dir>` means `<agent-root>/skills/<collection>/<canonical-name>`. Harness skill directories are discovery adapters linked to `<agent-root>/skills/_generated/<canonical-name>`; create and edit authored skills in the canonical source.
-- `AGENTS.md` is the shared instruction source, `skills\<collection>\<name>\SKILL.md` contains one portable canonical skill, `skills\_generated\<name>` is catalog-owned, and `runbooks\<workflow>\` contains reusable operational workflows.
+- In authored skills, `<skill base dir>` means `<agent-root>/skills/<collection>/<canonical-name>`. Harness skill directories are flat discovery adapters linked directly to that canonical directory; create and edit authored skills only in the canonical source.
+- `AGENTS.md` is the shared instruction source, `skills\<collection>\<name>\SKILL.md` contains one portable canonical skill, and `runbooks\<workflow>\` contains reusable operational workflows.
 - Keep shared content project-agnostic. Project commands, paths, build policy, and local exceptions belong in that project's own guidance or in a runbook explicitly labeled for that project.
 - Keep harness-specific configuration out of shared skills and guidance. Add or change adapter paths and discovery rules in `runbooks\harness-setup\harness-setup.md`.
 
