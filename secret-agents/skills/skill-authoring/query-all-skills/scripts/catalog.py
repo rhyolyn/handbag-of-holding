@@ -477,10 +477,7 @@ class SkillCatalog:
             )
         catalog = Catalog.build(entries, today, collections)
         catalog.validate()
-        if (
-            previous_catalog
-            and catalog.entries == previous_catalog.entries
-        ):
+        if previous_catalog and catalog.entries == previous_catalog.entries:
             catalog = dataclasses.replace(catalog, generated=previous_catalog.generated)
         return catalog, catalog.render_toc(collections)
 
