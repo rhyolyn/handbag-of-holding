@@ -5,7 +5,7 @@ description: Revise one canonical skill and republish its catalog-owned artifact
 
 # Update Skill
 
-**Category:** Skill Management · **Updated:** 2026-10-16
+**Category:** Skill Management · **Updated:** 2026-11-03
 
 Revise one canonical workflow by its canonical name.
 
@@ -14,8 +14,8 @@ Revise one canonical workflow by its canonical name.
 1. Read the root README, then `catalog.json` to resolve the entry's
    `source_path`. Read that collection README and canonical `SKILL.md` before
    changing instructions.
-2. Edit only `skills/<source_path>/SKILL.md`. Do not edit an installed adapter
-   or any path below `_generated`.
+2. Edit only `skills/<source_path>/SKILL.md`. Do not edit an installed harness
+   link.
 3. Preserve the canonical name and collection unless the requested change is a
    deliberate move with manifest and catalog verification. Keep the post-H1
    `Category / Updated` header format.

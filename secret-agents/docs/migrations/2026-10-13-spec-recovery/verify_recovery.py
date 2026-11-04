@@ -78,9 +78,7 @@ sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 data = json.loads((SKILLS / "catalog.json").read_text(encoding="utf-8"))
 entries = {entry["name"]: entry for entry in data["entries"]}
-projections = data["generated_projection"]
 files = sorted(SKILLS / entry["source_path"] / "SKILL.md" for entry in entries.values())
-projection_files = sorted(SKILLS / path / "SKILL.md" for path in projections.values())
 # The recovery record retains the original inventory in verification.json. The
 # current library may grow, so validate catalog consistency instead of freezing
 # its size at the recovery snapshot.
@@ -90,10 +88,10 @@ check(
     == {entry["source_path"] for entry in entries.values()},
     "Unexpected or missing canonical skill directories",
 )
-check(set(projections) == set(entries), "Generated projection names do not match canonical entries")
+check("generated_projection" not in data, "Catalog retains obsolete generated projections")
 
 before = {
-    path: digest(path.read_bytes()) for path in [*files, *projection_files, SKILLS / "catalog.json", SKILLS / "TOC.md"]
+    path: digest(path.read_bytes()) for path in [*files, SKILLS / "catalog.json", SKILLS / "TOC.md"]
 }
 check(module.SkillCatalog(SKILLS, AUDIT / "catalog-cache.json").check(out=io.StringIO()) == 0, "Catalog drift")
 check(all(digest(path.read_bytes()) == sha for path, sha in before.items()), "Catalog check mutated a skill artifact")
@@ -110,10 +108,6 @@ for path in files:
     header = module.parse_skill_header(text)
     check(header.category == entries[name]["category"], f"Category mismatch: {name}")
     check(module.compute_content_hash(text) == entries[name]["content_hash"], f"Canonical content hash: {name}")
-    projection = SKILLS / projections[name] / "SKILL.md"
-    projection_text = projection.read_text(encoding="utf-8") if projection.is_file() else ""
-    check(module.parse_frontmatter(projection_text).get("name") == name, f"Projection name mismatch: {name}")
-    check(f"{entries[name]['source_path']}/SKILL.md" in projection_text, f"Projection target mismatch: {name}")
 
 toc = (SKILLS / "TOC.md").read_text(encoding="utf-8")
 readme = (SKILLS / "README.md").read_text(encoding="utf-8")
@@ -133,7 +127,7 @@ result = {
     "unchanged_recovery_source_files": source_count,
     "recovery_source_comparison": str(ORIGINAL) if ORIGINAL is not None else "not requested",
     "canonical_skills": len(entries),
-    "generated_projections": len(projections),
+    "generated_projections": 0,
     "worky_agent_absent": WORKY is None or not (WORKY / "Agent").exists(),
     "errors": errors,
 }

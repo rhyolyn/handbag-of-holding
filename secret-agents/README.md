@@ -12,8 +12,8 @@ never fall back to their working directory or an installed adapter.
 
 ## Library map
 
-Canonical workflows are authored in one manifest-declared collection. The
-generated flat projection is the only installation surface.
+Canonical workflows are authored in one manifest-declared collection. Harnesses
+expose their canonical names through flat, per-skill directory links.
 
 | Collection | Workflows | Purpose |
 | --- | ---: | --- |
@@ -26,8 +26,7 @@ generated flat projection is the only installation surface.
 
 The [collection manifest](skills/collections.json) defines this order and
 identity. The generated [catalog](skills/catalog.json) maps every canonical
-name to both its source path and `skills/_generated/<canonical-name>`
-projection. [TOC.md](skills/TOC.md) and [the skills guide](skills/README.md)
+name to its source path. [TOC.md](skills/TOC.md) and [the skills guide](skills/README.md)
 are generated/catalog-backed discovery aids.
 
 ## Ownership and layout
@@ -35,12 +34,10 @@ are generated/catalog-backed discovery aids.
 - A canonical source is exactly `skills/<collection>/<canonical-name>/SKILL.md`.
   Edit that file only after reading this README, its collection README, and the
   canonical skill itself.
-- `skills/_generated/` is catalog-owned. It contains thin installable adapters;
-  never edit an adapter by hand.
-- The catalog owner updates `skills/catalog.json`, `skills/TOC.md`,
-  `skills/_generated/`, canonical `Updated` dates, and its stat cache.
-- Harness mixing directories contain per-name links to projection directories,
-  not links to nested canonical sources.
+- The catalog owner updates `skills/catalog.json`, `skills/TOC.md`, canonical
+  `Updated` dates, and its stat cache.
+- Harness mixing directories contain per-name links directly to nested
+  canonical source directories.
 
 ## Common workflows
 
@@ -55,7 +52,7 @@ python skills/skill-authoring/update-skills-readme/scripts/render_html.py --read
 ```
 
 Installers select canonical names only and link each selected name to its
-catalog projection. See [install-skills](skills/skill-authoring/install-skills/SKILL.md)
+catalog `source_path`. See [install-skills](skills/skill-authoring/install-skills/SKILL.md)
 and the [harness setup runbook](runbooks/harness-setup/harness-setup.md).
 
 ## Recovery and handoff

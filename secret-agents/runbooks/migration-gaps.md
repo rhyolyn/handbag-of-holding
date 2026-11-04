@@ -4,9 +4,9 @@
 
 The skills library is authored under manifest-declared collections. Every
 canonical workflow has one source at
-`skills/<collection>/<canonical-name>/SKILL.md`; `skills/_generated/` is a
-catalog-owned flat projection for harness installation. The catalog validates
-the layout, publishes the projection, and owns `catalog.json` and `TOC.md`.
+`skills/<collection>/<canonical-name>/SKILL.md`. The catalog validates the
+layout and owns `catalog.json` and `TOC.md`; harnesses link each flat skill
+name directly to that canonical source directory.
 
 The repository verifies this migration with catalog publication and drift
 checks, temporary installer destinations, documentation-renderer tests, the
@@ -23,8 +23,8 @@ repository checks are green, a user may explicitly authorize reconciliation:
 ```
 
 That operation must be run only after the user authorizes it for the current
-machine. It should link each canonical name to its matching generated
-projection and preserve foreign or conflicting destination entries.
+machine. It should link each canonical name to its matching canonical source
+directory and preserve foreign or conflicting destination entries.
 
 ## Recovery boundaries
 

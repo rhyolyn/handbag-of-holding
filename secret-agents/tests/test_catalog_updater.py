@@ -210,8 +210,9 @@ def test_post_move_baseline_matches_canonical_collection_instruction_bodies_and_
     } == intentionally_rewritten_contracts - retired_work_tracking_names
     catalog_data = json.loads((skills_root / "catalog.json").read_text(encoding="utf-8"))
     names = set(actual_by_name)
-    assert set(catalog_data["generated_projection"]) == names
-    assert all(path == f"_generated/{name}" for name, path in catalog_data["generated_projection"].items())
+    assert "generated_projection" not in catalog_data
+    assert {entry["name"] for entry in catalog_data["entries"]} == names
+    assert all(entry["source_path"].count("/") == 1 for entry in catalog_data["entries"])
 
 
 def test_work_tracking_publication_exposes_replacements_and_retires_checkin_projections() -> None:
@@ -234,23 +235,36 @@ def test_work_tracking_publication_exposes_replacements_and_retires_checkin_proj
 
     assert expected <= published_names
     assert not {"checkin-receipt-create", "checkin-receipt-range", "checkin-rollup"} & published_names
-    assert all((skills_root / "_generated" / name / "SKILL.md").is_file() for name in expected)
+    entries = json.loads((skills_root / "catalog.json").read_text(encoding="utf-8"))["entries"]
+    source_paths = {entry["name"]: entry["source_path"] for entry in entries}
+    assert all((skills_root / source_paths[name] / "SKILL.md").is_file() for name in expected)
 
 
-def test_update_generates_canonical_projection_with_matching_catalog_paths(tmp_path: Path) -> None:
+def test_update_records_canonical_source_paths_without_generating_adapters(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
 
     assert catalog.SkillCatalog(tmp_path, tmp_path / "cache.json").update(io.StringIO()) == 0
 
-    adapter = tmp_path / "_generated" / "test-skill" / "SKILL.md"
     canonical = tmp_path / "testing" / "test-skill" / "SKILL.md"
     catalog_data = json.loads((tmp_path / "catalog.json").read_text(encoding="utf-8"))
-    assert catalog.parse_frontmatter(adapter.read_text(encoding="utf-8"))["name"] == "test-skill"
-    assert "../../testing/test-skill/SKILL.md" in adapter.read_text(encoding="utf-8")
-    assert (adapter.parent / "../../testing/test-skill/SKILL.md").resolve() == canonical.resolve()
+    assert catalog.parse_frontmatter(canonical.read_text(encoding="utf-8"))["name"] == "test-skill"
     assert catalog_data["entries"][0]["source_path"] == "testing/test-skill"
-    assert catalog_data["generated_projection"] == {"test-skill": "_generated/test-skill"}
+    assert "generated_projection" not in catalog_data
+    assert not (tmp_path / "_generated").exists()
+
+
+def test_update_publishes_source_paths_without_generated_adapters(tmp_path: Path) -> None:
+    _manifest(tmp_path, [_collection("testing")])
+    canonical = _skill(tmp_path, "testing", "test-skill") / "SKILL.md"
+
+    assert catalog.SkillCatalog(tmp_path, tmp_path / "cache.json").update(io.StringIO()) == 0
+
+    catalog_data = json.loads((tmp_path / "catalog.json").read_text(encoding="utf-8"))
+    assert catalog_data["entries"][0]["source_path"] == "testing/test-skill"
+    assert "generated_projection" not in catalog_data
+    assert not (tmp_path / "_generated").exists()
+    assert canonical.is_file()
 
 
 def test_collection_then_category_toc_is_deterministic(tmp_path: Path) -> None:
@@ -316,25 +330,26 @@ def test_warm_show_refreshes_after_collection_membership_changes(tmp_path: Path)
     assert "/second-skill" in output.getvalue()
 
 
-def test_warm_show_rejects_human_owned_projection_drift(tmp_path: Path) -> None:
+def test_warm_show_rejects_human_owned_obsolete_generated_directory(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
     instance = catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")
     assert instance.update(io.StringIO()) == 0
     human_owned = tmp_path / "_generated" / "human-skill"
-    human_owned.mkdir()
+    human_owned.mkdir(parents=True)
     (human_owned / "SKILL.md").write_text("human-owned", encoding="utf-8")
 
     assert instance.show(io.StringIO()) == 1
 
 
-def test_check_detects_projection_drift_without_mutation(tmp_path: Path) -> None:
+def test_check_detects_obsolete_generated_adapters_without_mutation(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
     instance = catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")
     assert instance.update(io.StringIO()) == 0
     adapter = tmp_path / "_generated" / "test-skill" / "SKILL.md"
-    adapter.write_text("drift", encoding="utf-8")
+    adapter.parent.mkdir(parents=True)
+    adapter.write_text("<!-- generated-projection:test-skill:2026-10-15 -->\n", encoding="utf-8")
     before = _published_files(tmp_path)
 
     assert instance.check(io.StringIO()) == 1
@@ -342,13 +357,13 @@ def test_check_detects_projection_drift_without_mutation(tmp_path: Path) -> None
     assert before == _published_files(tmp_path)
 
 
-def test_check_rejects_human_owned_generated_directory(tmp_path: Path) -> None:
+def test_check_rejects_human_owned_obsolete_generated_directory(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
     instance = catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")
     assert instance.update(io.StringIO()) == 0
     human_owned = tmp_path / "_generated" / "human-skill"
-    human_owned.mkdir()
+    human_owned.mkdir(parents=True)
     (human_owned / "SKILL.md").write_text("human-owned", encoding="utf-8")
 
     assert instance.check(io.StringIO()) == 1
@@ -412,26 +427,29 @@ def test_publication_rolls_back_indexes_when_toc_write_fails(tmp_path: Path) -> 
     assert before == _published_files(tmp_path)
 
 
-def test_backup_cleanup_failure_does_not_rollback_committed_projection(tmp_path: Path) -> None:
+def test_obsolete_adapter_cleanup_failure_does_not_rollback_committed_catalog(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
     instance = catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")
     assert instance.update(io.StringIO()) == 0
     _skill(tmp_path, "testing", "second-skill")
-    backup_root = tmp_path / "._generated-backup"
+    generated_root = tmp_path / "_generated"
+    adapter = generated_root / "test-skill" / "SKILL.md"
+    adapter.parent.mkdir(parents=True)
+    adapter.write_text("<!-- generated-projection:test-skill:2026-10-15 -->\n", encoding="utf-8")
     original_rmtree = catalog.shutil.rmtree
 
     def fail_after_partial_backup_cleanup(path: Path, *args: object, **kwargs: object) -> None:
-        if path == backup_root:
-            original_rmtree(path / "test-skill")
+        if path == generated_root:
             raise OSError("simulated backup cleanup failure")
         original_rmtree(path, *args, **kwargs)
 
     with unittest.mock.patch.object(catalog.shutil, "rmtree", fail_after_partial_backup_cleanup):
         assert instance.update(io.StringIO()) == 1
 
-    assert (tmp_path / "_generated" / "test-skill" / "SKILL.md").is_file()
-    assert (tmp_path / "_generated" / "second-skill" / "SKILL.md").is_file()
+    catalog_data = json.loads((tmp_path / "catalog.json").read_text(encoding="utf-8"))
+    assert {entry["name"] for entry in catalog_data["entries"]} == {"test-skill", "second-skill"}
+    assert adapter.is_file()
 
 
 def test_flat_manifest_mode_is_rejected_after_source_move(tmp_path: Path) -> None:
@@ -441,7 +459,7 @@ def test_flat_manifest_mode_is_rejected_after_source_move(tmp_path: Path) -> Non
         catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")._scan_canonical_sources()
 
 
-def test_update_retires_only_marker_owned_root_legacy_adapters_after_generating_projection(tmp_path: Path) -> None:
+def test_update_retires_only_marker_owned_root_legacy_adapters(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     _skill(tmp_path, "testing", "test-skill")
     legacy = tmp_path / "old-test-skill"
@@ -451,10 +469,10 @@ def test_update_retires_only_marker_owned_root_legacy_adapters_after_generating_
     assert catalog.SkillCatalog(tmp_path, tmp_path / "cache.json").update(io.StringIO()) == 0
 
     assert not legacy.exists()
-    assert (tmp_path / "_generated" / "test-skill" / "SKILL.md").is_file()
+    assert not (tmp_path / "_generated").exists()
 
 
-def test_update_retires_a_marker_owned_projection_after_a_canonical_rename(tmp_path: Path) -> None:
+def test_update_records_a_canonical_rename_without_generating_an_adapter(tmp_path: Path) -> None:
     _manifest(tmp_path, [_collection("testing")])
     original = _skill(tmp_path, "testing", "old-skill")
     instance = catalog.SkillCatalog(tmp_path, tmp_path / "cache.json")
@@ -467,8 +485,9 @@ def test_update_retires_a_marker_owned_projection_after_a_canonical_rename(tmp_p
 
     assert instance.update(io.StringIO()) == 0
 
-    assert not (tmp_path / "_generated" / "old-skill").exists()
-    assert (tmp_path / "_generated" / "new-skill" / "SKILL.md").is_file()
+    catalog_data = json.loads((tmp_path / "catalog.json").read_text(encoding="utf-8"))
+    assert [entry["name"] for entry in catalog_data["entries"]] == ["new-skill"]
+    assert not (tmp_path / "_generated").exists()
 
 
 def test_default_skills_root_uses_vault_override(tmp_path: Path) -> None:

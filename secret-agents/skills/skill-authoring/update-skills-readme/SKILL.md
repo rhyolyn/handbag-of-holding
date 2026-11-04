@@ -5,7 +5,7 @@ description: Regenerate and verify the canonical skills README and HTML guide.
 
 # Update Skills README
 
-**Category:** Skill Management · **Updated:** 2026-10-16
+**Category:** Skill Management · **Updated:** 2026-11-03
 
 Keep `skills/README.md` and its generated `README.html` aligned with the
 manifest and schema-v2 catalog.
@@ -15,7 +15,7 @@ manifest and schema-v2 catalog.
 1. Run the catalog owner update and check commands from the agent root.
 2. Read `collections.json` and `catalog.json` to inventory canonical entries.
    Link every human-facing source reference to its collection-relative
-   `source_path`; do not inventory `_generated` adapters as authored skills.
+   `source_path`; do not inventory harness links as authored skills.
 3. Ensure the Markdown guide has a link and `### <canonical-name>` section for
    every catalog entry, with no extra installation-name columns or fields.
 4. Render and verify the HTML only through:

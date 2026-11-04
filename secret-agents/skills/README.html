@@ -29,16 +29,15 @@
 <h1 id="handbag-of-holding-agent-skills">Handbag of Holding Agent Skills</h1>
 <p>This guide inventories the 29 canonical workflows in the shared skills
 library. Canonical sources live in manifest-declared collections; the catalog
-publishes installable adapters under <code>_generated</code>. Read the root
+publishes their names and source paths for direct installation. Read the root
 <a href="../README.md">README</a>, then the applicable collection README and canonical
 <code>SKILL.md</code> before changing any workflow.</p>
 <p>The <a href="catalog.json">catalog</a> and <a href="TOC.md">TOC</a> are catalog-owned. This Markdown
 file is rendered to <a href="README.html">README.html</a>; do not edit that HTML directly.</p>
 <h2 id="how-skills-are-wired-and-invoked">How skills are wired and invoked</h2>
 <p>Use each workflow by its canonical name. The installer reads <code>catalog.json</code>
-and links the matching <code>_generated/&lt;canonical-name&gt;</code> adapter into a harness
-mixing directory. An adapter forwards to the single authored source, so a
-workflow has one instruction owner.</p>
+and links the matching canonical source directory into a harness mixing
+directory. A workflow therefore has one instruction owner.</p>
 <p>To publish source changes, run the catalog update and check commands from the
 root README, then render this guide. A collection README explains its boundary;
 <code>collections.json</code> remains the machine-readable authority for collection names

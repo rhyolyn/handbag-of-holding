@@ -35,7 +35,7 @@ Python uses `Path.home()` and path components, PowerShell uses `$HOME` with `Joi
 
 The shared stdlib resolver is `src/secret_agents_setup/paths.py:agent_root_path`. Precedence is an explicit source argument, then `SECRET_AGENTS_ROOT`, then the home-relative default. `SECRET_AGENTS_ROOT` names `secret-agents`, not its `skills` subdirectory. The installer validates the root marker and required entries. Missing or invalid sources fail explicitly; cwd, script ancestry, harness discovery paths, and legacy pointer files never supply a fallback.
 
-Catalog `--skills-root`, renderer `--readme`/`--skills-root`, and routing checker `--reference` select explicit inputs for development or alternate checkouts. `install-skills --target` is a destination flag and does not change its source. Keep installed skill slots pointing only to their matching `<agent-root>/skills/_generated/<canonical-name>` projection directory.
+Catalog `--skills-root`, renderer `--readme`/`--skills-root`, and routing checker `--reference` select explicit inputs for development or alternate checkouts. `install-skills --target` is a destination flag and does not change its source. Keep installed skill slots pointing only to their matching `<agent-root>/skills/<collection>/<canonical-name>` source directory.
 
 Resolve the default and inspect the catalog from any working directory:
 
@@ -51,6 +51,24 @@ python3 "$AGENT_ROOT/skills/skill-authoring/query-all-skills/scripts/catalog.py"
 
 Use `/install-skills --update` to install authored skills from this source. Keep foreign packs in their official harness-managed locations; do not vendor them into the authored library. The legacy `harness_setup.py` CLI also uses this source default; its installation-layout limitation is documented below.
 
+## Direct-link migration from generated adapters
+
+After syncing a library revision that removes `skills/_generated/`, repair the
+per-skill links before invoking a skill. The installer recognizes both a still
+resolving marked adapter and a broken link whose former target is
+`_generated/<canonical-name>`; it replaces only those known legacy links and
+continues to block arbitrary foreign collisions.
+
+From `<agent-root>`, run this explicit, machine-local command:
+
+```powershell
+python scripts/harness_setup.py install --harness all --agent-root (Get-Location)
+```
+
+Then run the same command with `check` in place of `install`. Do not manually
+delete a mixed harness skills directory or replace it with a whole-directory
+link.
+
 ## Adapter layout
 
 `<root>` below = `~/obsidian/handbag-of-holding`; `<agent-root>` = `<root>/secret-agents`, unless explicitly overridden above. On Windows, per-skill directory junctions are supported by the installer; file adapters are symbolic links. On macOS/Linux use symlinks. No copied guidance or skill bodies.
@@ -59,7 +77,7 @@ Use `/install-skills --update` to install authored skills from this source. Keep
 
 | Path | Kind | Target |
 |------|------|--------|
-| `~/.agents/skills/<canonical-name>` | per-skill directory link (real parent dir) | `<agent-root>/skills/_generated/<canonical-name>` |
+| `~/.agents/skills/<canonical-name>` | per-skill directory link (real parent dir) | `<agent-root>/skills/<collection>/<canonical-name>` |
 | `~/AGENTS.md`, `~/.agents/AGENTS.md` | file symlinks | `<agent-root>/AGENTS.md` |
 
 `~/.agents/skills` is the path most likely to be targeted by cross-harness installers (`npx skills`, etc.) — it must be a real directory so those installs land beside our links instead of inside the vault.
@@ -70,7 +88,7 @@ Use `/install-skills --update` to install authored skills from this source. Keep
 |------|------|--------|
 | `~/.claude/AGENTS.md` | file symlink | `<agent-root>/AGENTS.md` |
 | `~/.claude/CLAUDE.md` | native instruction file symlink | `<agent-root>/AGENTS.md` |
-| `~/.claude/skills/<canonical-name>` | per-skill directory link (real parent dir) | `<agent-root>/skills/_generated/<canonical-name>` |
+| `~/.claude/skills/<canonical-name>` | per-skill directory link (real parent dir) | `<agent-root>/skills/<collection>/<canonical-name>` |
 
 Claude's plugins remain installed through its plugin system; the real skills directory also permits foreign entries to coexist safely.
 
@@ -85,8 +103,8 @@ New/changed skills register at **session start**; a skill added mid-session need
 | Path | Kind | Target |
 |------|------|--------|
 | `~/.codex/AGENTS.md` | file symlink | `<agent-root>/AGENTS.md` |
-| `~/.agents/skills/<canonical-name>` | current user discovery, per-skill directory link | `<agent-root>/skills/_generated/<canonical-name>` |
-| `~/.codex/skills/<canonical-name>` | compatibility per-skill directory link | `<agent-root>/skills/_generated/<canonical-name>` |
+| `~/.agents/skills/<canonical-name>` | current user discovery, per-skill directory link | `<agent-root>/skills/<collection>/<canonical-name>` |
+| `~/.codex/skills/<canonical-name>` | compatibility per-skill directory link | `<agent-root>/skills/<collection>/<canonical-name>` |
 
 Current [Codex documentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) names `~/.agents/skills` for user discovery and supports linked skill folders. Preserve Codex's `.system` directory when maintaining compatibility links.
 

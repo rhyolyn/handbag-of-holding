@@ -1,4 +1,4 @@
-"""Catalog fixtures that mirror the generated install projection."""
+"""Catalog fixtures that mirror canonical-source installation."""
 
 from __future__ import annotations
 
@@ -7,16 +7,12 @@ from pathlib import Path
 
 
 def write_catalog(skills_root: Path, *names: str) -> None:
-    """Create collection sources and catalog-owned generated adapters."""
+    """Create collection sources and a catalog that names those sources."""
     entries = []
-    projection = {}
     for name in names:
         source = skills_root / "work-tracking" / name
         source.mkdir(parents=True)
         (source / "SKILL.md").write_text(f"---\nname: {name}\n---\n", encoding="utf-8")
-        adapter = skills_root / "_generated" / name
-        adapter.mkdir(parents=True)
-        (adapter / "SKILL.md").write_text(f"---\nname: {name}\n---\n", encoding="utf-8")
         entries.append(
             {
                 "name": name,
@@ -25,7 +21,6 @@ def write_catalog(skills_root: Path, *names: str) -> None:
                 "source_path": f"work-tracking/{name}",
             }
         )
-        projection[name] = f"_generated/{name}"
     (skills_root / "collections.json").write_text(
         json.dumps(
             {
@@ -37,8 +32,6 @@ def write_catalog(skills_root: Path, *names: str) -> None:
         encoding="utf-8",
     )
     (skills_root / "catalog.json").write_text(
-        json.dumps(
-            {"schema_version": 2, "generated": "2026-10-15", "entries": entries, "generated_projection": projection}
-        ),
+        json.dumps({"schema_version": 2, "generated": "2026-10-15", "entries": entries}),
         encoding="utf-8",
     )
